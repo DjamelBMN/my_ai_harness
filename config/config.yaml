@@ -1,0 +1,37 @@
+default_provider: ollama
+
+openai:
+  enabled: true
+  model: "gpt-5-mini"
+
+providers:
+  ollama:
+    enabled: true
+    model: "qwen3.5:4b-q4_K_M"
+  gemini:
+    enabled: true
+    model: "gemini-3.8-flash"
+  claude:
+    enabled: false
+
+agents:
+  coder:
+    provider: ollama
+  tester:
+    provider: ollama
+  reviewer:
+    provider: ollama
+  researcher:
+    provider: ollama
+
+# Préférences par intention. Le routeur retombe sur le provider sélectionné si
+# le provider préféré n'est pas présent ou n'est pas configuré pour cette session.
+routing:
+  general_question:simple: gemini_flash_lite
+  general_question:complex: gemini
+  research:simple: gemini_flash_lite
+  research:complex: gemini
+  file_analysis:complex: gemini
+  coding:complex: openai
+  testing:complex: gemini
+  review:complex: openai
