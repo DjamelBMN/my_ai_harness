@@ -19,17 +19,19 @@
     { canonical_index: 5, name: "context", display_name: "Context", slash_command: "/context", description: "Affiche l'état du contexte de session et des fichiers suivis.", compatible: true, requires_mission: false, aliases: ["/ctx"] },
     { canonical_index: 6, name: "debug", display_name: "Debug", slash_command: "/debug", description: "Diagnostique un bug, corrige le code et vérifie les tests.", compatible: true, requires_mission: true, aliases: ["/fix"] },
     { canonical_index: 7, name: "diagnostic", display_name: "Diagnostic", slash_command: "/diagnostic", description: "Vérifie l'état réel des providers, modèles, outils et compilateurs.", compatible: true, requires_mission: false, aliases: ["/diag", "/doctor"] },
-    { canonical_index: 8, name: "export", display_name: "Export", slash_command: "/export", description: "Exporte le dernier résultat en Markdown ou PDF dans workspace/exports/.", compatible: true, requires_mission: false, aliases: ["/save"] },
-    { canonical_index: 9, name: "memory", display_name: "Memory", slash_command: "/memory", description: "Consulte ou enregistre des notes et décisions dans la mémoire persistante.", compatible: true, requires_mission: false, aliases: ["/mem"] },
-    { canonical_index: 10, name: "mode", display_name: "Mode", slash_command: "/mode", description: "Consulte ou change le mode de gouvernance (EDIT, PLAN, ACCEPT, AUTO).", compatible: true, requires_mission: false, aliases: [] },
-    { canonical_index: 11, name: "model", display_name: "Model", slash_command: "/model", description: "Consulte ou change le modèle IA actif.", compatible: true, requires_mission: false, aliases: ["/models"] },
-    { canonical_index: 12, name: "plan", display_name: "Plan", slash_command: "/plan", description: "Construit le plan d'exécution détaillé d'une tâche sans modifier le disque.", compatible: true, requires_mission: true, aliases: [] },
-    { canonical_index: 13, name: "refactor", display_name: "Refactor", slash_command: "/refactor", description: "Refactorise du code existant proprement en préservant les tests.", compatible: true, requires_mission: true, aliases: [] },
-    { canonical_index: 14, name: "research", display_name: "Research", slash_command: "/research", description: "Effectue une recherche approfondie (Web et RAG) avec sources vérifiées.", compatible: true, requires_mission: true, aliases: ["/search", "/web"] },
-    { canonical_index: 15, name: "review", display_name: "Review", slash_command: "/review", description: "Réalise une revue de code et de qualité sur les fichiers du workspace.", compatible: true, requires_mission: true, aliases: [] },
-    { canonical_index: 16, name: "route", display_name: "Route", slash_command: "/route", description: "Analyse l'intention et route la mission vers le meilleur agent/modèle.", compatible: true, requires_mission: true, aliases: [] },
-    { canonical_index: 17, name: "test", display_name: "Test", slash_command: "/test", description: "Exécute ou génère des tests unitaires et vérifie les résultats.", compatible: true, requires_mission: true, aliases: ["/tests"] },
-    { canonical_index: 18, name: "workflow", display_name: "Workflow", slash_command: "/workflow", description: "Orchestre un workflow multi-étapes complet avec vérification finale.", compatible: true, requires_mission: true, aliases: [] },
+    { canonical_index: 8, name: "dm", display_name: "DM", slash_command: "/dm", description: "Génère un devoir maison de mathématiques structuré en LaTeX Libertinus.", compatible: true, requires_mission: false, aliases: ["/devoir", "/devoir-maison"] },
+    { canonical_index: 9, name: "exercice", display_name: "Exercice", slash_command: "/exercice", description: "Génère un exercice de mathématiques progressif avec corrigé détaillé.", compatible: true, requires_mission: false, aliases: ["/exo"] },
+    { canonical_index: 10, name: "export", display_name: "Export", slash_command: "/export", description: "Exporte le dernier résultat en Markdown ou PDF dans workspace/exports/.", compatible: true, requires_mission: false, aliases: ["/save"] },
+    { canonical_index: 11, name: "memory", display_name: "Memory", slash_command: "/memory", description: "Consulte ou enregistre des notes et décisions dans la mémoire persistante.", compatible: true, requires_mission: false, aliases: ["/mem"] },
+    { canonical_index: 12, name: "mode", display_name: "Mode", slash_command: "/mode", description: "Consulte ou change le mode de gouvernance (EDIT, PLAN, ACCEPT, AUTO).", compatible: true, requires_mission: false, aliases: [] },
+    { canonical_index: 13, name: "model", display_name: "Model", slash_command: "/model", description: "Consulte ou change le modèle IA actif.", compatible: true, requires_mission: false, aliases: ["/models"] },
+    { canonical_index: 14, name: "plan", display_name: "Plan", slash_command: "/plan", description: "Construit le plan d'exécution détaillé d'une tâche sans modifier le disque.", compatible: true, requires_mission: true, aliases: [] },
+    { canonical_index: 15, name: "refactor", display_name: "Refactor", slash_command: "/refactor", description: "Refactorise du code existant proprement en préservant les tests.", compatible: true, requires_mission: true, aliases: [] },
+    { canonical_index: 16, name: "research", display_name: "Research", slash_command: "/research", description: "Effectue une recherche approfondie (Web et RAG) avec sources vérifiées.", compatible: true, requires_mission: true, aliases: ["/search", "/web"] },
+    { canonical_index: 17, name: "review", display_name: "Review", slash_command: "/review", description: "Réalise une revue de code et de qualité sur les fichiers du workspace.", compatible: true, requires_mission: true, aliases: [] },
+    { canonical_index: 18, name: "route", display_name: "Route", slash_command: "/route", description: "Analyse l'intention et route la mission vers le meilleur agent/modèle.", compatible: true, requires_mission: true, aliases: [] },
+    { canonical_index: 19, name: "test", display_name: "Test", slash_command: "/test", description: "Exécute ou génère des tests unitaires et vérifie les résultats.", compatible: true, requires_mission: true, aliases: ["/tests"] },
+    { canonical_index: 20, name: "workflow", display_name: "Workflow", slash_command: "/workflow", description: "Orchestre un workflow multi-étapes complet avec vérification finale.", compatible: true, requires_mission: true, aliases: [] },
   ];
 
   const state = {
@@ -42,6 +44,15 @@
     selectedFilePreview: null,
     isExecuting: false,
     streamingBuffer: "",
+    streamShown: 0,
+    streamAnchored: false,
+    streamRaf: null,
+    sidebarAutoCollapsed: false,
+    docWidth: 0,
+    pdfDocCache: null,
+    pdfRenderToken: 0,
+    pdfWidth: 0,
+    liveSteps: [],
     sse: null,
     slashPalette: {
       open: false,
@@ -146,20 +157,26 @@
           if (!state.appState) return;
 
           if (parsed.event === "STREAM_DELTA") {
-            const delta = (parsed.metadata && parsed.metadata.delta) || parsed.summary || "";
+            const d = parsed.details || {};
+            const delta = d.delta || "";
             if (delta && state.isExecuting) {
+              finishThinkingSteps();
+              // Nouveau tour du modèle (après un outil) : séparer les paragraphes
+              if (state.streamingBuffer && d.accumulated === delta) state.streamingBuffer += "\n\n";
               state.streamingBuffer += delta;
               renderStreamingAssistantBubble();
             }
             return;
           }
 
-          if (parsed.event === "ARTIFACT_READY" && parsed.metadata) {
-            const art = parsed.metadata;
+          if (parsed.event === "ARTIFACT_READY" && parsed.details) {
+            const art = parsed.details;
             if (art.type === "pdf" || art.type === "html") {
               openDocumentPreview(art);
             }
           }
+
+          if (state.isExecuting) handleLiveEvent(parsed);
 
           state.appState.events = state.appState.events || [];
           state.appState.events.push(parsed);
@@ -179,33 +196,166 @@
     } catch (_) {}
   }
 
-  function renderStreamingAssistantBubble() {
+  const LIVE_SKIP = new Set([
+    "STREAM_DELTA", "TASK_STARTED", "TASK_COMPLETED", "CONTEXT_LOADING",
+    "MEMORY_RETRIEVAL", "SKILL_DISCOVERY", "MODEL_SELECTED", "MODE_CHANGED",
+  ]);
+
+  function ensureStreamingCard() {
     const welcomeEl = document.getElementById("welcome-screen");
     const streamEl = document.getElementById("conversation-stream");
+    if (!streamEl) return null;
+    if (welcomeEl) welcomeEl.style.display = "none";
+    streamEl.style.display = "flex";
+    let card = document.getElementById("streaming-assistant-card");
+    if (!card) {
+      card = document.createElement("article");
+      card.id = "streaming-assistant-card";
+      card.className = "message-card assistant";
+      card.innerHTML = `
+        <div class="message-header">
+          <div class="message-meta-badges">
+            <strong>NeoHarness AI</strong>
+            <span class="meta-chip accent">En direct</span>
+          </div>
+        </div>
+        <details class="live-activity-tracker" id="live-activity" open style="display:none;">
+          <summary id="live-activity-summary"></summary>
+          <div class="live-activity-steps" id="live-activity-steps"></div>
+        </details>
+        <div class="message-body md-prose" id="streaming-body"></div>
+      `;
+      streamEl.appendChild(card);
+    }
+    return card;
+  }
+
+  function finishThinkingSteps() {
+    let changed = false;
+    state.liveSteps.forEach((s) => {
+      if (s.kind === "think" && s.status === "running") {
+        s.status = "done";
+        changed = true;
+      }
+    });
+    if (changed) renderLiveSteps();
+  }
+
+  function handleLiveEvent(e) {
+    if (!e || LIVE_SKIP.has(e.event)) return;
+    const steps = state.liveSteps;
+    if (e.event === "TOOL_RESULT") {
+      for (let i = steps.length - 1; i >= 0; i--) {
+        if (steps[i].tool === e.tool && steps[i].status === "running") {
+          steps[i].status = e.status === "error" || e.status === "denied" ? "error" : "done";
+          if (e.duration_ms) steps[i].detail = `${e.duration_ms} ms`;
+          break;
+        }
+      }
+    } else if (e.event === "TOOL_CALL") {
+      finishThinkingSteps();
+      steps.push({
+        kind: "tool",
+        tool: e.tool,
+        label: `Outil : ${e.tool}`,
+        detail: String((e.details && e.details.target) || "").slice(0, 90),
+        status: "running",
+      });
+    } else if (e.raw_event === "agent.thinking") {
+      finishThinkingSteps();
+      steps.push({ kind: "think", label: "Réflexion…", detail: "", status: "running" });
+    } else {
+      finishThinkingSteps();
+      steps.push({
+        kind: "info",
+        label: String(e.summary || e.event).slice(0, 90),
+        detail: "",
+        status: e.status === "error" ? "error" : "done",
+      });
+    }
+    renderLiveSteps();
+  }
+
+  function renderLiveSteps() {
+    ensureStreamingCard();
+    const tracker = document.getElementById("live-activity");
+    const box = document.getElementById("live-activity-steps");
+    const sum = document.getElementById("live-activity-summary");
+    if (!tracker || !box || !sum) return;
+    const steps = state.liveSteps;
+    tracker.style.display = steps.length ? "" : "none";
+    const running = steps.some((s) => s.status === "running");
+    const tools = steps.filter((s) => s.kind === "tool").length;
+    sum.innerHTML = `<span>${running ? "En cours" : "Exécuté"} · ${tools} commande${tools > 1 ? "s" : ""} · ${steps.length} étape${steps.length > 1 ? "s" : ""}</span><span>▾</span>`;
+    const marker = { done: "✓", running: "●", error: "✕" };
+    box.innerHTML = steps
+      .map(
+        (s) => `
+        <div class="activity-step-item">
+          <div class="activity-step-left">
+            <span class="step-marker ${s.status}">${marker[s.status] || "•"}</span>
+            <span class="activity-step-label">${esc(s.label)}</span>
+          </div>
+          <span class="activity-step-detail">${esc(s.detail)}</span>
+        </div>`
+      )
+      .join("");
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function paintStreamBody() {
+    ensureStreamingCard();
+    const body = document.getElementById("streaming-body");
+    if (!body) return;
+    const shown = state.streamingBuffer.slice(0, state.streamShown);
+    body.innerHTML = `${shown ? formatAssistantContent(shown) : ""}<span class="streaming-cursor"></span>`;
+    // Ancrage unique au premier mot : le lecteur lit depuis le début, sans être entraîné.
+    if (shown && !state.streamAnchored) {
+      state.streamAnchored = true;
+      const card = document.getElementById("streaming-assistant-card");
+      if (card) card.scrollIntoView({ block: "start", behavior: "smooth" });
+    }
+  }
+
+  // Machine à écrire : la vitesse s'adapte au retard accumulé (fluide, jamais à la traîne)
+  function kickTypewriter() {
+    if (state.streamRaf) return;
+    const tick = () => {
+      const backlog = state.streamingBuffer.length - state.streamShown;
+      if (backlog > 0) {
+        state.streamShown += Math.min(backlog, Math.max(2, Math.ceil(backlog / 10)));
+        paintStreamBody();
+      }
+      const more = state.isExecuting || state.streamShown < state.streamingBuffer.length;
+      state.streamRaf = more ? requestAnimationFrame(tick) : null;
+    };
+    state.streamRaf = requestAnimationFrame(tick);
+  }
+
+  function drainTypewriter(maxMs) {
+    return new Promise((resolve) => {
+      const t0 = performance.now();
+      (function wait() {
+        if (state.streamShown >= state.streamingBuffer.length || performance.now() - t0 > maxMs) return resolve();
+        setTimeout(wait, 30);
+      })();
+    });
+  }
+
+  function showOptimisticUserBubble(text) {
+    const streamEl = document.getElementById("conversation-stream");
+    const welcomeEl = document.getElementById("welcome-screen");
     if (!streamEl) return;
     if (welcomeEl) welcomeEl.style.display = "none";
     streamEl.style.display = "flex";
+    const el = document.createElement("article");
+    el.className = "message-card user";
+    el.innerHTML = `<div class="message-body">${esc(text)}</div>`;
+    streamEl.appendChild(el);
+  }
 
-    let bubble = document.getElementById("streaming-assistant-card");
-    if (!bubble) {
-      bubble = document.createElement("article");
-      bubble.id = "streaming-assistant-card";
-      bubble.className = "message-card assistant";
-      streamEl.appendChild(bubble);
-    }
-    bubble.innerHTML = `
-      <div class="message-header">
-        <div class="message-meta-badges">
-          <strong>NeoHarness AI</strong>
-          <span class="meta-chip accent">Streaming temps réel…</span>
-        </div>
-      </div>
-      <div class="message-body md-prose">${formatAssistantContent(state.streamingBuffer)}<span class="streaming-cursor"></span></div>
-    `;
-    const scrollEl = document.getElementById("workspace-scroll");
-    if (scrollEl) {
-      scrollEl.scrollTop = scrollEl.scrollHeight;
-    }
+  function renderStreamingAssistantBubble() {
+    kickTypewriter();
   }
 
   async function refreshApprovals() {
@@ -276,10 +426,11 @@
     const modelDot = document.getElementById("top-model-dot");
     if (modelLabel) {
       modelLabel.textContent = isAuto
-        ? `Auto · ${eff ? eff.display_name.split(" (")[0] : "ModelRouter"}`
+        ? "Auto"
         : eff
-        ? eff.display_name
+        ? eff.display_name.split(" (")[0]
         : sel.selected_id;
+      modelLabel.title = eff ? eff.display_name : "";
     }
     if (modelDot) {
       modelDot.className = eff && !eff.connected ? "status-dot warning" : "status-dot";
@@ -289,7 +440,9 @@
     const taskDotEl = document.getElementById("top-task-dot");
     if (taskStatusEl && !state.isExecuting) {
       const rawStatus = s.task_status || "Prêt";
-      taskStatusEl.textContent = rawStatus === "En attente" ? "Prêt" : rawStatus;
+      const displayStatus = rawStatus === "En attente" ? "Prêt" : rawStatus;
+      taskStatusEl.textContent = displayStatus;
+      taskStatusEl.style.display = displayStatus === "Prêt" ? "none" : "inline";
       if (taskDotEl) {
         taskDotEl.className =
           rawStatus === "Erreur"
@@ -302,56 +455,130 @@
   }
 
   // -------------------------------------------------------------------------
-  // 2. SIDEBAR DISCRÈTE
+  // 2. SIDEBAR DISCRÈTE (GROUPEMENT PAR DATE & DOSSIERS TECHNIQUES MASQUÉS)
   // -------------------------------------------------------------------------
+  function groupConversationsByDate(convs) {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const startOfYesterday = startOfToday - 86400000;
+    const startOfWeek = startOfToday - 6 * 86400000;
+
+    const groups = {
+      today: { label: "Aujourd'hui", items: [] },
+      yesterday: { label: "Hier", items: [] },
+      thisWeek: { label: "Cette semaine", items: [] },
+      older: { label: "Plus ancien", items: [] },
+    };
+
+    convs.forEach((c) => {
+      const dateStr = c.updated_at || c.created_at;
+      const ts = dateStr ? new Date(dateStr).getTime() : startOfToday;
+      if (ts >= startOfToday) {
+        groups.today.items.push(c);
+      } else if (ts >= startOfYesterday) {
+        groups.yesterday.items.push(c);
+      } else if (ts >= startOfWeek) {
+        groups.thisWeek.items.push(c);
+      } else {
+        groups.older.items.push(c);
+      }
+    });
+
+    return [groups.today, groups.yesterday, groups.thisWeek, groups.older].filter((g) => g.items.length > 0);
+  }
+
   function renderSidebar() {
-    const s = state.appState;
+    const s = state.appState || {};
     const filter = state.sidebarFilter.trim().toLowerCase();
 
-    const convs = (s.conversations || []).filter((c) => {
+    const allConvs = s.conversations || [];
+    const activeCid = (s.active_conversation && s.active_conversation.id) || "";
+
+    // Filtrer les conversations vides (0 message et titre par défaut), sauf si c'est la conversation active
+    const validConvs = allConvs.filter((c) => {
+      const msgCount = (c.messages && c.messages.length) || 0;
+      if (msgCount > 0 || c.id === activeCid || c.pinned || (c.title && c.title !== "Nouvelle tâche")) {
+        return true;
+      }
+      return false;
+    });
+
+    const convs = validConvs.filter((c) => {
       if (!filter) return true;
       return (c.title || "").toLowerCase().includes(filter);
     });
+
     const countConvsEl = document.getElementById("count-conversations");
     if (countConvsEl) countConvsEl.textContent = String(convs.length);
 
-    const activeCid = (s.active_conversation && s.active_conversation.id) || "";
-    const convContainer = document.getElementById("sec-conversations");
-    if (convContainer) {
-      convContainer.innerHTML = convs
-        .map((c) => {
-          const isCurrent = c.id === activeCid;
-          const pinIcon = c.pinned ? "📌 " : "";
-          const archTag = c.archived ? " · archivé" : "";
-          return `
-            <div class="sidebar-item ${isCurrent ? "active" : ""}" data-select-conv="${esc(c.id)}">
-              <div class="sidebar-item-main">
-                <span class="sidebar-item-title" title="${esc(c.title)}">${pinIcon}${esc(c.title)}${archTag}</span>
-              </div>
-              <div class="conv-actions">
-                <button class="icon-btn-mini" data-pin-conv="${esc(c.id)}" data-pinned="${c.pinned ? "1" : "0"}" title="Épingler">📌</button>
-                <button class="icon-btn-mini" data-rename-conv="${esc(c.id)}" data-title="${esc(c.title)}" title="Renommer">✎</button>
-                <button class="icon-btn-mini" data-delete-conv="${esc(c.id)}" title="Supprimer">✕</button>
-              </div>
-            </div>
-          `;
-        })
-        .join("");
+    // Champ filtrer contextuel : affiché uniquement si >= 8 conversations
+    const filterInput = document.getElementById("sidebar-filter-input");
+    if (filterInput) {
+      filterInput.style.display = allConvs.length >= 8 ? "block" : "none";
     }
 
-    const projects = s.projects || [];
+    const convContainer = document.getElementById("sec-conversations");
+    if (convContainer) {
+      if (convs.length === 0) {
+        convContainer.innerHTML = `
+          <div style="padding: 12px 10px; font-size: 12px; color: var(--text-muted);">
+            Aucune conversation
+          </div>
+        `;
+      } else {
+        const grouped = groupConversationsByDate(convs);
+        convContainer.innerHTML = grouped
+          .map(
+            (grp) => `
+            <div class="sidebar-time-group">
+              <div class="sidebar-time-header">${esc(grp.label)}</div>
+              ${grp.items
+                .map((c) => {
+                  const isCurrent = c.id === activeCid;
+                  const pinIcon = c.pinned ? "📌 " : "";
+                  const archTag = c.archived ? " · archivé" : "";
+                  return `
+                    <div class="sidebar-item ${isCurrent ? "active" : ""}" data-select-conv="${esc(c.id)}">
+                      <div class="sidebar-item-main">
+                        <span class="sidebar-item-title" title="${esc(c.title)}">${pinIcon}${esc(c.title)}${archTag}</span>
+                      </div>
+                      <div class="conv-actions">
+                        <button class="icon-btn-mini" data-pin-conv="${esc(c.id)}" data-pinned="${c.pinned ? "1" : "0"}" title="Épingler">📌</button>
+                        <button class="icon-btn-mini" data-rename-conv="${esc(c.id)}" data-title="${esc(c.title)}" title="Renommer">✎</button>
+                        <button class="icon-btn-mini" data-delete-conv="${esc(c.id)}" title="Supprimer">✕</button>
+                      </div>
+                    </div>
+                  `;
+                })
+                .join("")}
+            </div>
+          `
+          )
+          .join("");
+      }
+    }
+
+    // Filtrer les dossiers techniques de la liste des projets visibles dans la sidebar
+    const technicalFolders = ["exports", "generated", "temp", "tmp"];
+    const realProjects = (s.projects || []).filter((p) => {
+      const name = (p.name || "").toLowerCase();
+      if (technicalFolders.includes(name) || name.startsWith("harness-test-")) {
+        return false;
+      }
+      return true;
+    });
+
     const countProjEl = document.getElementById("count-projects");
-    if (countProjEl) countProjEl.textContent = String(projects.length);
+    if (countProjEl) countProjEl.textContent = String(realProjects.length);
     const projContainer = document.getElementById("sec-projects");
     if (projContainer) {
-      projContainer.innerHTML = projects
+      projContainer.innerHTML = realProjects
         .map(
           (p) => `
           <div class="sidebar-item ${p.active ? "active" : ""}" title="${esc(p.path)}">
             <div class="sidebar-item-main">
               <span class="sidebar-item-title">${esc(p.name)}</span>
             </div>
-            <span class="sidebar-item-sub">${esc(p.type === "Harness Principal" ? "Actif" : "Dossier")}</span>
           </div>
         `
         )
@@ -416,6 +643,7 @@
       else if (p.toLowerCase().endsWith(".html")) addArt({ type: "html", path: p });
     }
 
+    if (list.some((a) => a.type === "pdf")) return list.filter((a) => a.type !== "tex");
     return list;
   }
 
@@ -524,6 +752,14 @@
     `;
   }
 
+  function setWelcomeGreeting() {
+    const el = document.getElementById("welcome-title");
+    if (!el) return;
+    const h = new Date().getHours();
+    const hello = h < 5 ? "Bonsoir" : h < 12 ? "Bonjour" : h < 18 ? "Bon après-midi" : "Bonsoir";
+    el.textContent = `${hello}. Que faisons-nous ?`;
+  }
+
   function renderWorkspace() {
     const s = state.appState;
     const conv = s.active_conversation || { messages: [] };
@@ -533,6 +769,7 @@
     const streamEl = document.getElementById("conversation-stream");
 
     renderWelcomeModelCard();
+    setWelcomeGreeting();
 
     if (msgs.length === 0 && !state.isExecuting) {
       welcomeEl.style.display = "flex";
@@ -585,19 +822,17 @@
 
         const summaryParts = [];
         if (planSteps.length > 0) summaryParts.push(`${planSteps.length} étapes`);
-        if (toolsUsed.length > 0) {
-          const uniqueTools = Array.from(new Set(toolsUsed));
-          summaryParts.push(`${toolsUsed.length} outil${toolsUsed.length > 1 ? "s" : ""} (${uniqueTools.join(", ")})`);
+                if (toolsUsed.length > 0) {
+          summaryParts.push(`${toolsUsed.length} action${toolsUsed.length > 1 ? "s" : ""}`);
         }
-        if (sourcesUsed.length > 0) summaryParts.push(`${sourcesUsed.length} source${sourcesUsed.length > 1 ? "s" : ""} Web`);
-        if (m.duration_ms !== undefined) summaryParts.push(`${m.duration_ms} ms`);
+        if (sourcesUsed.length > 0) summaryParts.push(`${sourcesUsed.length} source${sourcesUsed.length > 1 ? "s" : ""}`);
 
         const activityHtml =
           summaryParts.length > 0 && (toolsUsed.length > 0 || planSteps.length > 0)
             ? `
             <details class="activity-flow-box">
               <summary class="activity-flow-summary">
-                <span>⚡ ${esc(summaryParts.join(" · "))}</span>
+              <span>${esc(summaryParts.join(" · "))}</span>
                 <span>▾</span>
               </summary>
               <div class="activity-steps-list">
@@ -729,7 +964,7 @@
     out = out.replace(/(\s)\*(\s|$)/g, "$1•$2");
 
     if (inlineMathTokens && inlineMathTokens.length) {
-      out = out.replace(/@@INLINEMATH_(\d+)@@/g, function (_, idxStr) {
+      out = out.replace(/@@INLINEMATH(\d+)@@/g, function (_, idxStr) {
         const idx = Number(idxStr);
         return inlineMathTokens[idx] || "";
       });
@@ -765,12 +1000,12 @@
 
     // 3. Extraction des formules inline \(...\) et $...$ (en évitant les prix comme 10$ ou $100 isolés)
     working = working.replace(/\\\(([^\n]+?)\\\)/g, function (_, expr) {
-      const token = `@@INLINEMATH_${inlineMathTokens.length}@@`;
+      const token = `@@INLINEMATH${inlineMathTokens.length}@@`;
       inlineMathTokens.push(`<span class="math-inline">${renderMathExpression(expr, false)}</span>`);
       return token;
     });
     working = working.replace(/(^|[^\\$])\$([^\s$][^$\n]*?[^\s$]|[^\s$])\$(?!\d)/g, function (_, prefix, expr) {
-      const token = `${prefix}@@INLINEMATH_${inlineMathTokens.length}@@`;
+      const token = `${prefix}@@INLINEMATH${inlineMathTokens.length}@@`;
       inlineMathTokens.push(`<span class="math-inline">${renderMathExpression(expr, false)}</span>`);
       return token;
     });
@@ -1464,6 +1699,44 @@
   // 7. PANNEAU LATÉRAL DROIT UNIFIÉ : APERÇU DOCUMENT (PDF / HTML) & INSPECTEUR
   // =========================================================================
 
+  function closeRightPanel() {
+    const rightEl = document.getElementById("right-inspector");
+    if (rightEl) {
+      rightEl.classList.add("collapsed");
+      rightEl.style.width = "0px";
+      rightEl.style.display = "none";
+      rightEl.classList.remove("doc-fullscreen");
+    }
+    restoreSidebarIfAutoCollapsed();
+  }
+
+  function restoreSidebarIfAutoCollapsed() {
+    if (!state.sidebarAutoCollapsed) return;
+    const sb = document.getElementById("left-sidebar");
+    if (sb) sb.classList.remove("collapsed");
+    state.sidebarAutoCollapsed = false;
+  }
+
+  function toggleRightPanel() {
+    const rightEl = document.getElementById("right-inspector");
+    if (!rightEl) return;
+    const isClosed =
+      rightEl.classList.contains("collapsed") ||
+      rightEl.style.display === "none" ||
+      rightEl.offsetWidth === 0;
+    if (isClosed) {
+      if (state.activeDocument && state.rightPanelMode === "document") {
+        switchRightPanelMode("document");
+        renderDocumentPreviewPanel();
+      } else {
+        switchRightPanelMode("inspector");
+        renderInspector();
+      }
+    } else {
+      closeRightPanel();
+    }
+  }
+
   function switchRightPanelMode(mode) {
     state.rightPanelMode = mode === "document" ? "document" : "inspector";
     const inspectorAside = document.getElementById("right-inspector");
@@ -1473,7 +1746,20 @@
 
     if (inspectorAside) {
       inspectorAside.classList.remove("collapsed");
+      inspectorAside.style.display = "flex";
       inspectorAside.classList.toggle("doc-mode", state.rightPanelMode === "document");
+            const areaW = (document.querySelector(".main-area") || document.body).clientWidth;
+      inspectorAside.style.width =
+        state.rightPanelMode === "document" ? `${state.docWidth || Math.floor(areaW / 2)}px` : "400px";
+    }
+    const sbEl = document.getElementById("left-sidebar");
+    if (state.rightPanelMode === "document") {
+      if (sbEl && !sbEl.classList.contains("collapsed")) {
+        sbEl.classList.add("collapsed");
+        state.sidebarAutoCollapsed = true;
+      }
+    } else {
+      restoreSidebarIfAutoCollapsed();
     }
     if (docContainer) {
       docContainer.style.display = state.rightPanelMode === "document" ? "flex" : "none";
@@ -1509,6 +1795,7 @@
     };
 
     state.activeDocument = docObj;
+    state.pdfDocCache = null;
     switchRightPanelMode("document");
 
     if (type === "pdf") {
@@ -1533,6 +1820,51 @@
     renderDocumentPreviewPanel();
   }
 
+    const PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+  async function renderPdfInViewer(doc) {
+    const host = document.getElementById("doc-pdf-viewer");
+    if (!host) return;
+    if (!window.pdfjsLib) throw new Error("PDF.js n'est pas chargé (réseau ou cdnjs bloqué).");
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+    const token = ++state.pdfRenderToken;
+
+    let pdf = state.pdfDocCache && state.pdfDocCache.key === doc.path ? state.pdfDocCache.pdf : null;
+    if (!pdf) {
+      const res = await fetch(`/api/files/raw?path=${encodeURIComponent(doc.path)}&t=${Date.now()}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      pdf = await window.pdfjsLib.getDocument({ data: await res.arrayBuffer() }).promise;
+      state.pdfDocCache = { key: doc.path, pdf };
+    }
+    if (token !== state.pdfRenderToken) return;
+
+    const avail = Math.max(200, host.clientWidth - 32);
+    state.pdfWidth = host.clientWidth;
+    const dpr = window.devicePixelRatio || 1;
+    const frag = document.createDocumentFragment();
+    for (let n = 1; n <= pdf.numPages; n++) {
+      const page = await pdf.getPage(n);
+      if (token !== state.pdfRenderToken) return;
+      const base = page.getViewport({ scale: 1 });
+      const vp = page.getViewport({ scale: (avail / base.width) * ((doc.zoom || 100) / 100) });
+      const canvas = document.createElement("canvas");
+      canvas.className = "pdf-page";
+      canvas.width = Math.floor(vp.width * dpr);
+      canvas.height = Math.floor(vp.height * dpr);
+      canvas.style.width = `${Math.floor(vp.width)}px`;
+      canvas.style.height = `${Math.floor(vp.height)}px`;
+      await page.render({
+        canvasContext: canvas.getContext("2d"),
+        viewport: vp,
+        transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null,
+      }).promise;
+      frag.appendChild(canvas);
+    }
+    if (token !== state.pdfRenderToken) return;
+    host.innerHTML = "";
+    host.appendChild(frag);
+  }
+
   async function renderDocumentPreviewPanel() {
     const doc = state.activeDocument;
     if (!doc) return;
@@ -1548,7 +1880,7 @@
     const btnRecompile = document.getElementById("btn-doc-recompile");
     const btnSaveSource = document.getElementById("btn-doc-save-source");
     const btnDownload = document.getElementById("btn-doc-download");
-    const pdfFrame = document.getElementById("doc-pdf-frame");
+    const pdfFrame = document.getElementById("doc-pdf-viewer");
     const htmlFrame = document.getElementById("doc-html-frame");
     const sourceWrap = document.getElementById("doc-source-wrap");
     const sourceEditor = document.getElementById("doc-source-editor");
@@ -1641,13 +1973,58 @@
     }
 
     if (doc.type === "pdf" && pdfFrame) {
-      pdfFrame.style.display = "block";
-      pdfFrame.src = `/api/files/raw?path=${encodeURIComponent(doc.path)}&t=${Date.now()}#zoom=${doc.zoom}`;
+      pdfFrame.style.display = "flex";
+      renderPdfInViewer(doc).catch((err) => {
+        if (errorBox) {
+          errorBox.style.display = "block";
+          errorBox.innerHTML = `<strong>⚠️ Aperçu PDF impossible</strong><pre class="mono" style="margin-top:8px;white-space:pre-wrap;font-size:11.5px;">${esc(err.message)}</pre>`;
+        }
+      });
     } else if (doc.type === "html" && htmlFrame) {
       htmlFrame.style.display = "block";
       htmlFrame.src = `/api/preview/workspace/${doc.path.split("/").map(encodeURIComponent).join("/")}?t=${Date.now()}`;
     }
   }
+
+      function setPdfZoom(next) {
+      const d = state.activeDocument;
+      if (!d || d.type !== "pdf" || d.viewMode !== "render") return;
+      const z = Math.max(50, Math.min(300, Math.round(next / 5) * 5));
+      if (z === d.zoom) return;
+      d.zoom = z;
+      const lbl = document.getElementById("pdf-zoom-label");
+      if (lbl) lbl.textContent = `${z}%`;
+      clearTimeout(setPdfZoom._t);
+      setPdfZoom._t = setTimeout(() => renderPdfInViewer(d).catch(() => {}), 120);
+    }
+
+    // Ctrl + molette (ou pincement du pavé tactile) sur le document
+    const pdfZoomHost = document.getElementById("doc-pdf-viewer");
+    if (pdfZoomHost) {
+      pdfZoomHost.addEventListener(
+        "wheel",
+        (e) => {
+          if (!e.ctrlKey && !e.metaKey) return;
+          e.preventDefault();
+          const d = state.activeDocument;
+          if (d) setPdfZoom((d.zoom || 100) - Math.sign(e.deltaY) * 10);
+        },
+        { passive: false }
+      );
+    }
+
+    // Clic sur le pourcentage : retour à 100 %
+    const zoomLabelEl = document.getElementById("pdf-zoom-label");
+    if (zoomLabelEl) zoomLabelEl.addEventListener("click", () => setPdfZoom(100));
+
+    // Ctrl + / Ctrl - / Ctrl 0 quand un document est ouvert
+    window.addEventListener("keydown", (e) => {
+      const d = state.activeDocument;
+      if (!(e.ctrlKey || e.metaKey) || !d || d.type !== "pdf" || state.rightPanelMode !== "document") return;
+      if (e.key === "+" || e.key === "=") { e.preventDefault(); setPdfZoom((d.zoom || 100) + 25); }
+      else if (e.key === "-") { e.preventDefault(); setPdfZoom((d.zoom || 100) - 25); }
+      else if (e.key === "0") { e.preventDefault(); setPdfZoom(100); }
+    });
 
   async function compileLatexAndPreview(texPath, optionalContent) {
     const statusEl = document.getElementById("top-task-status");
@@ -1762,27 +2139,10 @@
     ];
 
     return `
-      <div class="inspector-card">
-        <div class="inspector-card-title">
-          <span>Modèle actif</span>
-          <span class="meta-chip accent">${esc(compat.selection_mode === "auto" ? "Auto" : "Manuel")}</span>
-        </div>
-        <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px;">
-          <button class="skill-pill ${compat.selection_mode === "auto" ? "active" : ""}" data-select-model="auto">Auto</button>
-          ${(s.models || [])
-            .map(
-              (m) => `
-              <button
-                class="skill-pill ${model && model.id === m.id && compat.selection_mode !== "auto" ? "active" : ""}"
-                data-select-model="${esc(m.id)}"
-              >
-                ${esc(m.display_name.split(" (")[0])}
-              </button>
-            `
-            )
-            .join("")}
-        </div>
-      </div>
+      <button type="button" class="model-line" data-open-model-modal>
+        <span>Modèle</span>
+        <span class="model-line-value">${esc(compat.selection_mode === "auto" ? "Auto" : model ? model.display_name.split(" (")[0] : "—")} ›</span>
+      </button>
 
       <div class="inspector-card">
         <div class="inspector-card-title"><span>Chaîne Provider → Modèle → Capabilities</span></div>
@@ -2288,48 +2648,67 @@
     const s = state.appState;
     const currentId = (s.model_selection && s.model_selection.selected_id) || "auto";
 
-    body.innerHTML = `
-      <div class="inspector-card" style="border-color: ${currentId === "auto" ? "var(--accent)" : "var(--border-color)"};">
-        <div class="inspector-card-title">
-          <div>
-            <strong>⚡ Auto (ModelRouter Intelligent)</strong>
-            <span class="meta-chip accent" style="margin-left:6px;">Recommandé</span>
-          </div>
-          <button class="send-btn" data-pick-model="auto">
-            ${currentId === "auto" ? "✓ Actif" : "Choisir Auto"}
-          </button>
-        </div>
-        <div style="font-size:12px; color:var(--text-secondary);">
-          Route automatiquement chaque tâche vers le modèle optimal disponible.
-        </div>
-      </div>
+    const fmtCtx = (n) => {
+      n = Number(n) || 0;
+      return n >= 1e6 ? `${Math.round(n / 1e5) / 10}M` : n >= 1e3 ? `${Math.round(n / 1e3)}k` : "";
+    };
+    const family = (m) => {
+      const t = `${m.id} ${m.display_name}`.toLowerCase();
+      if (/gpt|openai/.test(t)) return "OpenAI";
+      if (/mistral/.test(t)) return "Mistral";
+      if (/ollama|qwen/.test(t)) return "Local";
+      if (/claude/.test(t)) return "Anthropic";
+      return "Google";
+    };
+    const KEEP = { Vision: "Vision", "Function Calling": "Outils", "Google Search Grounding": "Web", Raisonnement: "Raisonnement" };
 
-      ${(s.models || [])
-        .map((m) => {
-          const isSel = currentId === m.id;
-          const caps = m.capability_labels || [];
-          return `
-            <div class="inspector-card" style="border-color: ${isSel ? "var(--accent)" : "var(--border-color)"};">
-              <div class="inspector-card-title">
-                <div style="display:flex; align-items:center; gap:6px;">
-                  <span class="${m.connected ? "status-dot" : "status-dot warning"}"></span>
-                  <strong>${esc(m.display_name)}</strong>
-                  <span class="meta-chip">${esc(m.status_label)}</span>
-                </div>
-                <button class="send-btn" data-pick-model="${esc(m.id)}">
-                  ${isSel ? "✓ Sélectionné" : "Choisir"}
-                </button>
-              </div>
-              <div style="font-size:11.5px; color:var(--text-secondary);">${esc(m.status_detail)}</div>
-              <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:2px;">
-                <span class="meta-chip">Contexte : ${esc(m.capabilities.context)}</span>
-                ${caps.map((c) => `<span class="meta-chip accent">${esc(c)}</span>`).join("")}
-              </div>
-            </div>
-          `;
-        })
+    const row = (id, name, sub, selected, warn, tip) => `
+      <div class="mp-row ${selected ? "selected" : ""}" data-pick-model="${esc(id)}" data-q="${esc((name + " " + id).toLowerCase())}" title="${esc(tip || "")}">
+        <span class="mp-main">
+          <span class="mp-name">${esc(name)}</span>
+          ${sub ? `<span class="mp-sub ${warn ? "warn" : ""}">${esc(sub)}</span>` : ""}
+        </span>
+        <span class="mp-check">${selected ? "✓" : ""}</span>
+      </div>`;
+
+    const groups = {};
+    (s.models || []).forEach((m) => {
+      const caps = (m.capability_labels || []).map((c) => KEEP[c]).filter(Boolean);
+      const ctx = fmtCtx(m.capabilities && m.capabilities.context);
+      const parts = [ctx ? `${ctx} tokens` : "", ...caps].filter(Boolean);
+      const sub = m.connected === false ? m.status_label || "Indisponible" : parts.join(" · ");
+      (groups[family(m)] = groups[family(m)] || []).push(
+        row(m.id, m.display_name.split(" (")[0], sub, currentId === m.id, m.connected === false, m.status_detail)
+      );
+    });
+
+    body.innerHTML = `
+      <input id="model-picker-search" type="search" class="mp-search" placeholder="Rechercher un modèle" autocomplete="off" />
+      ${row("auto", "Auto", "Choisit le meilleur modèle pour chaque tâche", currentId === "auto", false, "")}
+      ${["Google", "OpenAI", "Mistral", "Local", "Anthropic"]
+        .filter((g) => groups[g])
+        .map((g) => `<div class="mp-group">${g}</div>${groups[g].join("")}`)
         .join("")}
     `;
+
+    const search = body.querySelector("#model-picker-search");
+    search.addEventListener("input", () => {
+      const q = search.value.trim().toLowerCase();
+      let header = null;
+      let seen = false;
+      Array.from(body.children).forEach((el) => {
+        if (el.classList.contains("mp-group")) {
+          if (header) header.style.display = seen ? "" : "none";
+          header = el;
+          seen = false;
+        } else if (el.classList.contains("mp-row")) {
+          const ok = !q || el.dataset.q.includes(q);
+          el.style.display = ok ? "" : "none";
+          if (ok) seen = true;
+        }
+      });
+      if (header) header.style.display = seen ? "" : "none";
+    });
   }
 
   async function runGlobalSearch(query) {
@@ -2491,15 +2870,35 @@
 
     state.isExecuting = true;
     state.streamingBuffer = "";
+    state.streamShown = 0;
+    state.streamAnchored = false;
+    state.liveSteps = [];
+    showOptimisticUserBubble(promptText.trim());
+    paintStreamBody();
+    kickTypewriter();
+    const sc0 = document.getElementById("workspace-scroll");
+    if (sc0) sc0.scrollTop = sc0.scrollHeight; // une seule fois : voir son message
 
     const sendBtn = document.getElementById("btn-send-task");
     if (sendBtn) {
-      sendBtn.disabled = true;
-      sendBtn.innerHTML = "<span>Exécution…</span>";
+      sendBtn.disabled = false;
+      sendBtn.className = "send-btn stop-btn";
+      sendBtn.title = "Arrêter l'exécution de la tâche en cours";
+      sendBtn.innerHTML = `
+        <span id="btn-send-task-text">Arrêter</span>
+        <span id="btn-send-task-icon">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+          </svg>
+        </span>
+      `;
     }
     const statusEl = document.getElementById("top-task-status");
     const dotEl = document.getElementById("top-task-dot");
-    if (statusEl) statusEl.textContent = "Exécution…";
+    if (statusEl) {
+      statusEl.textContent = "Exécution…";
+      statusEl.style.display = "inline";
+    }
     if (dotEl) dotEl.className = "status-dot running";
 
     try {
@@ -2514,7 +2913,11 @@
         prompt: promptText.trim(),
         attachments: attachments,
       });
+      await drainTypewriter(1500);
+      const scKeep = document.getElementById("workspace-scroll");
+      const keepTop = scKeep ? scKeep.scrollTop : 0;
       await refreshFullState();
+      if (scKeep) scKeep.scrollTop = keepTop;
 
       // Si un artefact PDF ou HTML vient d'être produit, ouvrir l'aperçu automatiquement
       const assistantMsg = (runData && (runData.assistant_message || runData.result)) || {};
@@ -2533,23 +2936,104 @@
         }
       }
 
-      const scrollEl = document.getElementById("workspace-scroll");
-      if (scrollEl) {
-        scrollEl.scrollTop = scrollEl.scrollHeight;
-      }
+      
     } catch (err) {
       showStatusBanner(`Erreur lors de l'exécution : ${err.message}`, "error");
     } finally {
       state.isExecuting = false;
       state.streamingBuffer = "";
+      state.streamShown = 0;
+      state.liveSteps = [];
+      if (state.streamRaf) {
+        cancelAnimationFrame(state.streamRaf);
+        state.streamRaf = null;
+      }
       const tempBubble = document.getElementById("streaming-assistant-card");
       if (tempBubble) tempBubble.remove();
       if (sendBtn) {
         sendBtn.disabled = false;
-        sendBtn.innerHTML = "<span>Envoyer</span><span>↑</span>";
+        sendBtn.className = "send-btn";
+        sendBtn.title = "Envoyer (Entrée)";
+        sendBtn.innerHTML = `
+          <span id="btn-send-task-text">Envoyer</span>
+          <span id="btn-send-task-icon">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="12" y1="19" x2="12" y2="5"></line>
+              <polyline points="5 12 12 5 19 12"></polyline>
+            </svg>
+          </span>
+        `;
       }
       renderTopBar();
     }
+  }
+
+  async function stopTaskExecution() {
+    try {
+      const sendBtn = document.getElementById("btn-send-task");
+      if (sendBtn) {
+        sendBtn.innerHTML = "<span>Arrêt…</span>";
+      }
+      await apiPost("/api/tasks/stop", {});
+      const statusEl = document.getElementById("top-task-status");
+      const dotEl = document.getElementById("top-task-dot");
+      if (statusEl) {
+        statusEl.textContent = "Arrêté";
+        statusEl.style.display = "inline";
+      }
+      if (dotEl) dotEl.className = "status-dot warning";
+      showStatusBanner("Arrêt demandé par l'utilisateur.", "info");
+      await refreshFullState();
+    } catch (e) {
+      console.warn("Erreur stop task:", e);
+    }
+  }
+
+  async function handleFilesUpload(fileList) {
+    if (!fileList || fileList.length === 0) return;
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i];
+      showStatusBanner(`Téléversement de ${file.name}…`, "info");
+      const reader = new FileReader();
+      const isText = file.type.startsWith("text/") || /\.(txt|md|py|js|ts|json|yaml|yml|csv|tex|html|css)$/i.test(file.name);
+
+      await new Promise((resolve) => {
+        if (isText) {
+          reader.onload = async () => {
+            try {
+              const res = await apiPost("/api/files/upload", {
+                filename: file.name,
+                content_text: reader.result,
+              });
+              const p = res.path || `uploads/${file.name}`;
+              if (!state.attachedFiles.includes(p)) state.attachedFiles.push(p);
+            } catch (err) {
+              console.warn("Upload error:", err);
+            }
+            resolve();
+          };
+          reader.readAsText(file);
+        } else {
+          reader.onload = async () => {
+            try {
+              const b64 = String(reader.result).split(",")[1] || "";
+              const res = await apiPost("/api/files/upload", {
+                filename: file.name,
+                content_base64: b64,
+              });
+              const p = res.path || `uploads/${file.name}`;
+              if (!state.attachedFiles.includes(p)) state.attachedFiles.push(p);
+            } catch (err) {
+              console.warn("Upload error:", err);
+            }
+            resolve();
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+    }
+    showStatusBanner("", "info");
+    renderComposer();
   }
 
   // =========================================================================
@@ -2560,32 +3044,21 @@
     document.getElementById("btn-toggle-sidebar").addEventListener("click", () => {
       document.getElementById("left-sidebar").classList.toggle("collapsed");
     });
-    document.getElementById("btn-toggle-inspector").addEventListener("click", () => {
-      const rightEl = document.getElementById("right-inspector");
-      if (rightEl.classList.contains("collapsed")) {
-        switchRightPanelMode("inspector");
-        renderInspector();
-      } else {
-        rightEl.classList.add("collapsed");
-      }
-    });
+    const toggleInspBtn = document.getElementById("btn-toggle-inspector");
+    if (toggleInspBtn) {
+      toggleInspBtn.addEventListener("click", () => {
+        toggleRightPanel();
+      });
+    }
     const closeInspBtn = document.getElementById("btn-close-inspector");
     if (closeInspBtn) {
-      closeInspBtn.addEventListener("click", () => {
-        const rightEl = document.getElementById("right-inspector");
-        rightEl.classList.add("collapsed");
-        rightEl.classList.remove("doc-fullscreen");
-      });
+      closeInspBtn.addEventListener("click", closeRightPanel);
     }
 
     // Boutons de la barre d'aperçu de document (PDF / HTML)
     const btnCloseDoc = document.getElementById("btn-close-doc-preview");
     if (btnCloseDoc) {
-      btnCloseDoc.addEventListener("click", () => {
-        const rightEl = document.getElementById("right-inspector");
-        rightEl.classList.add("collapsed");
-        rightEl.classList.remove("doc-fullscreen");
-      });
+      btnCloseDoc.addEventListener("click", closeRightPanel);
     }
     const btnSwitchToInsp = document.getElementById("btn-switch-to-inspector");
     if (btnSwitchToInsp) {
@@ -2643,6 +3116,13 @@
     if (btnDocRefresh) {
       btnDocRefresh.addEventListener("click", () => {
         if (state.activeDocument) {
+          if (state.activeDocument.type === "html") {
+            const htmlFrame = document.getElementById("doc-html-frame");
+            if (htmlFrame && state.activeDocument.viewMode === "render") {
+              const cleanPath = state.activeDocument.path.split("/").map(encodeURIComponent).join("/");
+              htmlFrame.src = `/api/preview/workspace/${cleanPath}?t=${Date.now()}`;
+            }
+          }
           openDocumentPreview({
             type: state.activeDocument.type,
             path: state.activeDocument.path,
@@ -2677,16 +3157,67 @@
         const editor = document.getElementById("doc-source-editor");
         if (!doc || !editor) return;
         try {
-          await apiPost("/api/files/write", { path: doc.path, content: editor.value });
-          doc.sourceContent = editor.value;
-          doc.viewMode = "render";
-          await refreshFullState();
-          renderDocumentPreviewPanel();
+          if (doc.type === "html") {
+            const comp = await apiPost("/api/files/compile-html", { path: doc.path, content: editor.value });
+            doc.sourceContent = editor.value;
+            doc.viewMode = "render";
+            doc.error = null;
+            await refreshFullState();
+            renderDocumentPreviewPanel();
+            showStatusBanner(`✓ Page HTML validée et actualisée (${comp.size_bytes || editor.value.length} octets)`, "success");
+          } else {
+            await apiPost("/api/files/write", { path: doc.path, content: editor.value });
+            doc.sourceContent = editor.value;
+            doc.viewMode = "render";
+            await refreshFullState();
+            renderDocumentPreviewPanel();
+            showStatusBanner("✓ Fichier enregistré", "success");
+          }
         } catch (err) {
-          showStatusBanner(`Erreur d'enregistrement : ${err.message}`, "error");
+          showStatusBanner(`Erreur de validation/enregistrement : ${err.message}`, "error");
+          if (doc.type === "html") {
+            doc.error = err.message;
+            renderDocumentPreviewPanel();
+          }
         }
       });
     }
+
+    // Capture des erreurs d'exécution JavaScript depuis l'iframe de prévisualisation HTML
+    window.addEventListener("message", (event) => {
+      if (!event.data || event.data.type !== "NEOHARNESS_HTML_RUNTIME_ERROR") return;
+      const err = event.data.error || {};
+      const noticeEl = document.getElementById("doc-preview-notice");
+      if (noticeEl) {
+        noticeEl.style.display = "flex";
+        noticeEl.className = "doc-preview-notice doc-runtime-error-banner";
+        noticeEl.innerHTML = `
+          <div style="flex: 1; min-width: 0;">
+            <strong>⚠️ Erreur d'exécution JS :</strong> ${esc(err.message)}
+            ${err.lineno ? `<span class="mono" style="opacity: 0.85; margin-left: 4px;">(ligne ${err.lineno})</span>` : ""}
+          </div>
+          <button type="button" id="btn-fix-runtime-error" class="composer-chip-btn" style="margin-left: 8px; flex-shrink: 0;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 20h9"></path>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+            </svg>
+            <span>Corriger avec l'IA</span>
+          </button>
+        `;
+        const btnFix = document.getElementById("btn-fix-runtime-error");
+        if (btnFix) {
+          btnFix.addEventListener("click", () => {
+            const doc = state.activeDocument;
+            const promptText = `Corrige l'erreur JavaScript d'exécution suivante sur ${doc ? doc.path : "la page HTML"} :\nMessage: ${err.message}\n${err.lineno ? `Ligne: ${err.lineno}\n` : ""}${err.stack ? `Stack: ${err.stack}\n` : ""}`;
+            const inputEl = document.getElementById("composer-input");
+            if (inputEl) {
+              inputEl.value = promptText;
+              submitComposerTask();
+            }
+          });
+        }
+      }
+    });
 
     // Dictée vocale style GPT
     const btnVoiceDictate = document.getElementById("btn-voice-dictate");
@@ -2787,13 +3318,134 @@
 
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
-        submitComposerTask();
+        if (state.isExecuting) {
+          stopTaskExecution();
+        } else {
+          submitComposerTask();
+        }
       }
     });
 
+    // Auto-grow textarea up to 200px
+    composerInput.addEventListener("input", () => {
+      composerInput.style.height = "auto";
+      const newH = Math.min(Math.max(composerInput.scrollHeight, 40), 200);
+      composerInput.style.height = `${newH}px`;
+    });
+
     document.getElementById("btn-send-task").addEventListener("click", () => {
+      if (state.isExecuting) {
+        stopTaskExecution();
+        return;
+      }
       submitComposerTask();
     });
+
+    // Menu déroulant Topbar (Thème, Réglages, À propos)
+    const topMenuBtn = document.getElementById("btn-topbar-menu");
+    const topMenuDropdown = document.getElementById("topbar-menu-dropdown");
+    if (topMenuBtn && topMenuDropdown) {
+      topMenuBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const isOpen = topMenuDropdown.style.display !== "none";
+        topMenuDropdown.style.display = isOpen ? "none" : "flex";
+      });
+      document.addEventListener("click", (e) => {
+        if (!topMenuDropdown.contains(e.target) && !topMenuBtn.contains(e.target)) {
+          topMenuDropdown.style.display = "none";
+        }
+      });
+    }
+
+    // Popover de gouvernance compact (Auto, Edit, Plan, Accept)
+    const govBtn = document.getElementById("btn-composer-governance");
+    const govDropdown = document.getElementById("governance-dropdown");
+    if (govBtn && govDropdown) {
+      govBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const isOpen = govDropdown.style.display !== "none";
+        govDropdown.style.display = isOpen ? "none" : "flex";
+      });
+      document.addEventListener("click", (e) => {
+        if (!govDropdown.contains(e.target) && !govBtn.contains(e.target)) {
+          govDropdown.style.display = "none";
+        }
+      });
+      govDropdown.querySelectorAll(".governance-option").forEach((opt) => {
+        opt.addEventListener("click", async () => {
+          const mode = opt.getAttribute("data-mode");
+          govDropdown.querySelectorAll(".governance-option").forEach((o) => o.classList.remove("active"));
+          opt.classList.add("active");
+          const chipLabel = document.getElementById("governance-chip-label");
+          if (chipLabel) chipLabel.textContent = mode;
+          const modeSel = document.getElementById("composer-mode-select");
+          if (modeSel) {
+            modeSel.value = mode;
+            modeSel.dispatchEvent(new Event("change"));
+          }
+          await apiPost("/api/mode", { mode: mode });
+          govDropdown.style.display = "none";
+        });
+      });
+    }
+
+    // Drag and Drop & Collage (Ctrl+V) d'images et fichiers
+    const composerBox = document.getElementById("composer-box");
+    if (composerBox && composerInput) {
+      composerBox.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        composerBox.classList.add("dragover");
+      });
+      composerBox.addEventListener("dragleave", (e) => {
+        e.preventDefault();
+        composerBox.classList.remove("dragover");
+      });
+      composerBox.addEventListener("drop", async (e) => {
+        e.preventDefault();
+        composerBox.classList.remove("dragover");
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          await handleFilesUpload(e.dataTransfer.files);
+        }
+      });
+      composerInput.addEventListener("paste", async (e) => {
+        const items = (e.clipboardData || window.clipboardData)?.items;
+        if (!items) return;
+        const filesToUpload = [];
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].kind === "file") {
+            const f = items[i].getAsFile();
+            if (f) filesToUpload.push(f);
+          }
+        }
+        if (filesToUpload.length > 0) {
+          e.preventDefault();
+          await handleFilesUpload(filesToUpload);
+        }
+      });
+    }
+
+    // Téléversement de pièces jointes via le bouton + Fichier
+    const attachBtn = document.getElementById("btn-attach-file");
+    const fileInput = document.getElementById("composer-file-input");
+    if (attachBtn && fileInput) {
+      attachBtn.addEventListener("click", () => {
+        fileInput.click();
+      });
+      fileInput.addEventListener("change", async (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+          await handleFilesUpload(e.target.files);
+          e.target.value = "";
+        }
+      });
+    }
+
+    // Badge créateur sidebar -> ouvre Réglages / À propos
+    const aboutBtn = document.getElementById("btn-sidebar-about");
+    if (aboutBtn) {
+      aboutBtn.addEventListener("click", () => {
+        openModal("modal-settings");
+      });
+    }
 
     document.getElementById("composer-model-select").addEventListener("change", async (e) => {
       await apiPost("/api/models/select", { model: e.target.value });
@@ -2811,11 +3463,6 @@
     document.getElementById("composer-mode-select").addEventListener("change", async (e) => {
       await apiPost("/api/mode", { mode: e.target.value });
       await refreshFullState();
-    });
-    document.getElementById("btn-attach-file").addEventListener("click", () => {
-      state.inspectorTab = "files";
-      switchRightPanelMode("inspector");
-      renderInspector();
     });
 
     document.getElementById("global-search-input").addEventListener("input", (e) => {
@@ -2938,7 +3585,9 @@
       }
 
       if (target.hasAttribute("data-select-conv")) {
-        await apiPost("/api/conversations/select", { id: target.getAttribute("data-select-conv") });
+        try {
+          await apiPost("/api/conversations/select", { id: target.getAttribute("data-select-conv") });
+        } catch (_) {}
         await refreshFullState();
         return;
       }
@@ -2946,7 +3595,9 @@
         e.stopPropagation();
         const cid = target.getAttribute("data-pin-conv");
         const pinned = target.getAttribute("data-pinned") !== "1";
-        await apiPost("/api/conversations/update", { id: cid, pinned });
+        try {
+          await apiPost("/api/conversations/update", { id: cid, pinned });
+        } catch (_) {}
         await refreshFullState();
         return;
       }
@@ -2956,7 +3607,9 @@
         const oldTitle = target.getAttribute("data-title") || "";
         const newTitle = prompt("Nouveau titre :", oldTitle);
         if (newTitle && newTitle.trim()) {
-          await apiPost("/api/conversations/update", { id: cid, title: newTitle.trim() });
+          try {
+            await apiPost("/api/conversations/update", { id: cid, title: newTitle.trim() });
+          } catch (_) {}
           await refreshFullState();
         }
         return;
@@ -2964,7 +3617,9 @@
       if (target.hasAttribute("data-delete-conv")) {
         e.stopPropagation();
         const cid = target.getAttribute("data-delete-conv");
-        await apiPost("/api/conversations/delete", { id: cid });
+        try {
+          await apiPost("/api/conversations/delete", { id: cid });
+        } catch (_) {}
         await refreshFullState();
         return;
       }
@@ -3131,7 +3786,7 @@
         document.getElementById("left-sidebar").classList.toggle("collapsed");
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "i") {
         e.preventDefault();
-        document.getElementById("right-inspector").classList.toggle("collapsed");
+        toggleRightPanel();
       } else if (e.shiftKey && e.key === "Tab") {
         e.preventDefault();
         const order = ["EDIT", "PLAN", "ACCEPT", "AUTO"];
@@ -3154,56 +3809,82 @@
       }
     });
 
+        const pdfHost = document.getElementById("doc-pdf-viewer");
+    if (pdfHost && window.ResizeObserver) {
+      let t = null;
+      new ResizeObserver(() => {
+        clearTimeout(t);
+        t = setTimeout(() => {
+          const d = state.activeDocument;
+          if (d && d.type === "pdf" && d.viewMode === "render" && !d.error && pdfHost.clientWidth > 0 && Math.abs(pdfHost.clientWidth - state.pdfWidth) > 24) {
+            renderPdfInViewer(d).catch(() => {});
+          }
+        }, 200);
+      }).observe(pdfHost);
+    }
+
+    document.body.addEventListener("click", (e) => {
+      if (e.target.closest("[data-open-model-modal]")) openModal("modal-model-picker");
+    });
+
     setupPanelResizers();
   }
 
   function setupPanelResizers() {
-    const leftResizer = document.getElementById("resizer-left");
-    const rightResizer = document.getElementById("resizer-right");
+    const area = document.querySelector(".main-area");
     const sidebar = document.getElementById("left-sidebar");
     const inspector = document.getElementById("right-inspector");
+    const MIN = 320;
 
-    let activeSide = null;
-
-    if (leftResizer) {
-      leftResizer.addEventListener("mousedown", () => {
-        activeSide = "left";
-        leftResizer.classList.add("active");
+    function bind(handle, side) {
+      if (!handle) return;
+      handle.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        handle.setPointerCapture(e.pointerId);
+        handle.classList.add("active");
+        document.body.classList.add("is-resizing");
       });
-    }
-    if (rightResizer) {
-      rightResizer.addEventListener("mousedown", () => {
-        activeSide = "right";
-        rightResizer.classList.add("active");
+      handle.addEventListener("pointermove", (e) => {
+        if (!handle.hasPointerCapture(e.pointerId)) return;
+        const rect = area.getBoundingClientRect();
+        if (side === "left") {
+          sidebar.style.width = `${Math.max(200, Math.min(360, e.clientX - rect.left))}px`;
+        } else {
+          const sbW = sidebar.classList.contains("collapsed") ? 0 : sidebar.offsetWidth;
+          const max = Math.max(MIN, rect.width - sbW - MIN);
+          const w = Math.max(MIN, Math.min(max, rect.right - e.clientX));
+          inspector.style.width = `${w}px`;
+          if (state.rightPanelMode === "document") state.docWidth = w;
+        }
       });
+      const end = () => {
+        handle.classList.remove("active");
+        document.body.classList.remove("is-resizing");
+      };
+      handle.addEventListener("pointerup", end);
+      handle.addEventListener("pointercancel", end);
+      handle.addEventListener("lostpointercapture", end);
     }
 
-    window.addEventListener("mousemove", (e) => {
-      if (!activeSide) return;
-      if (activeSide === "left") {
-        const w = Math.max(200, Math.min(360, e.clientX));
-        sidebar.classList.remove("collapsed");
-        sidebar.style.width = `${w}px`;
-      } else if (activeSide === "right") {
-        const w = Math.max(300, Math.min(Math.floor(window.innerWidth * 0.65), window.innerWidth - e.clientX));
-        inspector.classList.remove("collapsed");
-        inspector.style.width = `${w}px`;
-      }
-    });
-
-    window.addEventListener("mouseup", () => {
-      if (activeSide) {
-        activeSide = null;
-        if (leftResizer) leftResizer.classList.remove("active");
-        if (rightResizer) rightResizer.classList.remove("active");
-      }
-    });
+    bind(document.getElementById("resizer-left"), "left");
+    bind(document.getElementById("resizer-right"), "right");
   }
 
-  window.addEventListener("DOMContentLoaded", async () => {
+  // Exposer les fonctions critiques globalement pour une invocation immédiate sans délai
+  window.toggleRightPanel = toggleRightPanel;
+  window.closeRightPanel = closeRightPanel;
+  window.switchRightPanelMode = switchRightPanelMode;
+
+  async function boot() {
     initTheme();
     setupEventListeners();
     await refreshFullState();
     connectSSE();
-  });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
 })();

@@ -319,6 +319,25 @@ def _repair_latex_source(source: str, compiler_log: str = "") -> tuple[str, list
         repaired = repaired.replace("\\usepackage{libertinus-otf}", "% libertinus-otf désactivé")
         notes.append("Désactivation de libertinus-otf absent du cache local.")
 
+    # Résolution des conflits unicode-math et amssymb
+    if "already defined" in compiler_log and "\\usepackage{unicode-math}" in repaired and ("\\usepackage{amsmath,amssymb}" in repaired or "\\usepackage{amssymb}" in repaired):
+        if "\\usepackage{amsmath,amssymb}" in repaired:
+            repaired = repaired.replace("\\usepackage{amsmath,amssymb}", "")
+            repaired = repaired.replace("\\usepackage{unicode-math}", "\\usepackage{amsmath,amssymb}\n\\usepackage{unicode-math}")
+            notes.append("Réordonnancement de amsmath,amssymb avant unicode-math.")
+        elif "\\usepackage{amssymb}" in repaired:
+            repaired = repaired.replace("\\usepackage{amssymb}", "")
+            repaired = repaired.replace("\\usepackage{unicode-math}", "\\usepackage{amssymb}\n\\usepackage{unicode-math}")
+            notes.append("Réordonnancement de amssymb avant unicode-math.")
+
+    # Résolution des noms de polices Latin Modern pour fontspec/Tectonic
+    if "Latin Modern Roman" in repaired and ("cannot be found" in compiler_log or "fontspec" in compiler_log):
+        repaired = repaired.replace("{Latin Modern Roman}", "{lmroman10-regular.otf}")
+        notes.append("Adaptation du nom de police Latin Modern Roman vers lmroman10-regular.otf.")
+    if "Latin Modern Math" in repaired and ("cannot be found" in compiler_log or "fontspec" in compiler_log):
+        repaired = repaired.replace("{Latin Modern Math}", "{latinmodern-math.otf}")
+        notes.append("Adaptation du nom de police Latin Modern Math vers latinmodern-math.otf.")
+
     if "\\begin{document}" not in repaired:
         lines = repaired.splitlines()
         insert_idx = 0
@@ -376,6 +395,24 @@ def _repair_latex_source(source: str, compiler_log: str = "") -> tuple[str, list
             diff = open_braces - close_braces
             body = body.rstrip() + ("}" * diff) + "\n"
             notes.append(f"Fermeture automatique de {diff} accolade(s) '{{' non fermée(s).")
+
+        # Nettoyage et échappement des '#' et titres Markdown résiduels dans le corps
+        if "macro parameter character #" in compiler_log or re.search(r"(?<!\\)#", body):
+            body = re.sub(r"^#{1,6}\s*(.*)$", r"\\vspace{0.3cm}\\noindent\\textbf{\\large \1}\\par\\vspace{0.15cm}", body, flags=re.MULTILINE)
+            body = re.sub(r"(?<!\\)#", r"\#", body)
+            notes.append("Échappement des caractères '#' et conversion des titres Markdown résiduels.")
+
+        # Nettoyage des underscores hors mode mathématique (ex: bacblanc_sujet.tex)
+        if ("Missing $ inserted" in compiler_log or "math" in compiler_log.casefold()) and "_" in body:
+            parts = body.split("$")
+            modified = False
+            for i in range(0, len(parts), 2):
+                if re.search(r"(?<!\\)_", parts[i]):
+                    parts[i] = re.sub(r"(?<!\\)_", r"\_", parts[i])
+                    modified = True
+            if modified:
+                body = "$".join(parts)
+                notes.append("Échappement des caractères '_' isolés hors mode mathématique.")
 
         repaired = preamble + body + tail
 
@@ -506,7 +543,7 @@ def compile_latex(
             "log": compiler_log[-3000:],
         }
 
-    write_info = fs.write_bytes(target_pdf_rel, pdf_bytes)
+    write_info = fs.write_bytes(target_pdf_rel, pdf_bytes, overwrite=True)
     written_check = fs.read_bytes(target_pdf_rel)
     if len(written_check) != len(pdf_bytes):
         return {
@@ -531,6 +568,328 @@ def compile_latex(
         "repaired": repaired,
         "repair_notes": repair_notes,
         "log": compiler_log[-3000:],
+    }
+
+
+class _HTMLStructureValidator(HTMLParser):
+    VOID_TAGS = {
+        "area", "base", "br", "col", "embed", "hr", "img", "input",
+        "link", "meta", "param", "source", "track", "wbr", "!doctype",
+    }
+    CONTAINER_TAGS = {"html", "head", "body"}
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.stack: list[str] = []
+        self.title: str = ""
+        self._in_title = False
+        self._current_tag = ""
+        self.inline_styles: list[str] = []
+        self.inline_scripts: list[str] = []
+        self.linked_css: list[str] = []
+        self.linked_js: list[str] = []
+        self._capture_buffer: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        tag_lower = tag.lower()
+        self._current_tag = tag_lower
+        attr_dict = {k.lower(): (v or "") for k, v in attrs}
+
+        if tag_lower == "title":
+            self._in_title = True
+        elif tag_lower == "link" and attr_dict.get("rel") == "stylesheet":
+            href = attr_dict.get("href", "").strip()
+            if href and not href.startswith(("http://", "https://", "//")):
+                self.linked_css.append(href)
+        elif tag_lower == "script":
+            src = attr_dict.get("src", "").strip()
+            if src:
+                if not src.startswith(("http://", "https://", "//")):
+                    self.linked_js.append(src)
+            else:
+                self._capture_buffer = []
+        elif tag_lower == "style":
+            self._capture_buffer = []
+
+        if tag_lower not in self.VOID_TAGS and tag_lower not in self.CONTAINER_TAGS:
+            self.stack.append(tag_lower)
+
+    def handle_endtag(self, tag: str) -> None:
+        tag_lower = tag.lower()
+        if tag_lower == "title":
+            self._in_title = False
+        elif tag_lower == "script" and self._current_tag == "script":
+            self.inline_scripts.append("".join(self._capture_buffer))
+            self._capture_buffer = []
+        elif tag_lower == "style" and self._current_tag == "style":
+            self.inline_styles.append("".join(self._capture_buffer))
+            self._capture_buffer = []
+
+        if tag_lower in self.stack:
+            while self.stack:
+                popped = self.stack.pop()
+                if popped == tag_lower:
+                    break
+        self._current_tag = ""
+
+    def handle_data(self, data: str) -> None:
+        if self._in_title:
+            self.title += data
+        if self._current_tag in {"script", "style"}:
+            self._capture_buffer.append(data)
+
+
+def _validate_javascript_syntax(js_code: str, label: str = "script") -> tuple[bool, str]:
+    """Valide réellement la syntaxe JavaScript via Node.js ou vérification de syntaxe interne."""
+    trimmed = js_code.strip()
+    if not trimmed:
+        return True, ""
+
+    try:
+        with tempfile.NamedTemporaryFile("w", suffix=".js", encoding="utf-8", delete=False) as tmp:
+            tmp.write(trimmed)
+            tmp_path = tmp.name
+
+        try:
+            res = subprocess.run(
+                ["node", "--check", tmp_path],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if res.returncode != 0:
+                err_line = res.stderr.strip()
+                err_clean = err_line.replace(tmp_path, label)
+                return False, f"Erreur de syntaxe JavaScript ({label}) :\n{err_clean}"
+            return True, ""
+        finally:
+            try:
+                Path(tmp_path).unlink(missing_ok=True)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    clean = re.sub(r"/\*[\s\S]*?\*/|//[^\n]*", "", trimmed)
+    stack = []
+    pairs = {")": "(", "}": "{", "]": "["}
+    for char in clean:
+        if char in "({[":
+            stack.append(char)
+        elif char in ")}]":
+            if not stack or stack[-1] != pairs[char]:
+                return False, f"Symbole '{char}' inattendu ou délimiteur non fermé dans {label}."
+            stack.pop()
+    if stack:
+        return False, f"Délimiteur '{stack[-1]}' non refermé dans {label}."
+    return True, ""
+
+
+def _validate_css_syntax(css_code: str, label: str = "style") -> tuple[bool, str]:
+    """Vérifie l'équilibre des blocs CSS et l'absence d'erreurs structurelles grossières."""
+    trimmed = css_code.strip()
+    if not trimmed:
+        return True, ""
+    clean = re.sub(r"/\*[\s\S]*?\*/", "", trimmed)
+    open_braces = clean.count("{")
+    close_braces = clean.count("}")
+    if open_braces != close_braces:
+        return False, f"Déséquilibre d'accolades dans le CSS ({label}) : {open_braces} '{{' contre {close_braces} '}}'."
+    return True, ""
+
+
+def _repair_html_source(source: str, unclosed_tags: list[str]) -> tuple[str, list[str]]:
+    """Répare et normalise automatiquement un document HTML5 avant publication."""
+    repaired = source
+    notes: list[str] = []
+
+    if not re.search(r"<!DOCTYPE\s+html", repaired, re.IGNORECASE):
+        repaired = "<!DOCTYPE html>\n" + repaired.lstrip()
+        notes.append("Ajout du DOCTYPE html5 manquant.")
+
+    if not re.search(r"<html[\s>]", repaired, re.IGNORECASE):
+        repaired = (
+            '<!DOCTYPE html>\n<html lang="fr">\n<head>\n'
+            '  <meta charset="UTF-8">\n'
+            '  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
+            '  <title>Aperçu NeoHarness</title>\n'
+            '</head>\n<body>\n'
+            f'{repaired.strip()}\n'
+            '</body>\n</html>\n'
+        )
+        notes.append("Encapsulation dans la structure HTML5 minimale standard (<html>, <head>, <body>).")
+        return repaired, notes
+
+    if not re.search(r"<meta[^>]+charset", repaired, re.IGNORECASE):
+        head_match = re.search(r"<head[^>]*>", repaired, re.IGNORECASE)
+        if head_match:
+            pos = head_match.end()
+            repaired = (
+                repaired[:pos]
+                + '\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">'
+                + repaired[pos:]
+            )
+            notes.append("Insertion de la balise <meta charset=\"UTF-8\"> et viewport dans <head>.")
+
+    if unclosed_tags:
+        closing = "".join(f"</{tag}>\n" for tag in reversed(unclosed_tags))
+        body_close = re.search(r"</body\s*>", repaired, re.IGNORECASE)
+        if body_close:
+            pos = body_close.start()
+            repaired = repaired[:pos] + "\n" + closing + repaired[pos:]
+        else:
+            repaired = repaired.rstrip() + "\n" + closing + "</body>\n</html>\n"
+        notes.append(f"Fermeture automatique des balises : {', '.join(unclosed_tags)}.")
+
+    return repaired, notes
+
+
+def compile_html(
+    html_relative_path: str,
+    *,
+    filesystem: WorkspaceFilesystem | None = None,
+    auto_repair: bool = True,
+) -> dict[str, Any]:
+    """Compile, valide réellement et normalise un livrable HTML/CSS/JS dans le workspace."""
+    fs = filesystem or WorkspaceFilesystem()
+    html_path = fs.resolve(html_relative_path)
+    if not html_path.exists() or not html_path.is_file():
+        raise FileNotFoundError(f"Fichier HTML introuvable dans le workspace : {html_relative_path}")
+
+    rel_source = html_path.relative_to(fs.root).as_posix()
+    source_text = fs.read_file(rel_source)
+    repaired = False
+    repair_notes: list[str] = []
+
+    validator = _HTMLStructureValidator()
+    try:
+        validator.feed(source_text)
+    except Exception as parse_err:
+        if auto_repair:
+            source_text, notes = _repair_html_source(source_text, [])
+            repaired = True
+            repair_notes.extend(notes)
+            validator = _HTMLStructureValidator()
+            try:
+                validator.feed(source_text)
+            except Exception as e2:
+                return {
+                    "status": "error",
+                    "compiler": "html_validator",
+                    "source_path": rel_source,
+                    "html_path": rel_source,
+                    "repaired": repaired,
+                    "repair_notes": repair_notes,
+                    "error": f"Erreur fatale de parsing HTML : {e2}",
+                    "log": str(e2),
+                }
+        else:
+            return {
+                "status": "error",
+                "compiler": "html_validator",
+                "source_path": rel_source,
+                "html_path": rel_source,
+                "repaired": False,
+                "repair_notes": [],
+                "error": f"Erreur de parsing HTML : {parse_err}",
+                "log": str(parse_err),
+            }
+
+    if auto_repair and (validator.stack or not re.search(r"<!DOCTYPE\s+html", source_text, re.IGNORECASE)):
+        repaired_text, notes = _repair_html_source(source_text, validator.stack)
+        if repaired_text != source_text:
+            source_text = repaired_text
+            repaired = True
+            repair_notes.extend(notes)
+            fs.write_file(rel_source, source_text, overwrite=True)
+            validator = _HTMLStructureValidator()
+            validator.feed(source_text)
+
+    for i, css in enumerate(validator.inline_styles):
+        ok, err = _validate_css_syntax(css, label=f"style inline #{i+1}")
+        if not ok:
+            return {
+                "status": "error",
+                "compiler": "html_validator",
+                "source_path": rel_source,
+                "html_path": rel_source,
+                "repaired": repaired,
+                "repair_notes": repair_notes,
+                "error": err,
+                "log": err,
+            }
+
+    for css_rel in validator.linked_css:
+        try:
+            if fs.resolve(css_rel).is_file():
+                content = fs.read_file(css_rel)
+                ok, err = _validate_css_syntax(content, label=f"fichier {css_rel}")
+                if not ok:
+                    return {
+                        "status": "error",
+                        "compiler": "html_validator",
+                        "source_path": rel_source,
+                        "html_path": rel_source,
+                        "repaired": repaired,
+                        "repair_notes": repair_notes,
+                        "error": err,
+                        "log": err,
+                    }
+        except Exception:
+            pass
+
+    for i, js in enumerate(validator.inline_scripts):
+        ok, err = _validate_javascript_syntax(js, label=f"script inline #{i+1}")
+        if not ok:
+            return {
+                "status": "error",
+                "compiler": "html_validator",
+                "source_path": rel_source,
+                "html_path": rel_source,
+                "repaired": repaired,
+                "repair_notes": repair_notes,
+                "error": err,
+                "log": err,
+            }
+
+    for js_rel in validator.linked_js:
+        try:
+            if fs.resolve(js_rel).is_file():
+                content = fs.read_file(js_rel)
+                ok, err = _validate_javascript_syntax(content, label=f"fichier {js_rel}")
+                if not ok:
+                    return {
+                        "status": "error",
+                        "compiler": "html_validator",
+                        "source_path": rel_source,
+                        "html_path": rel_source,
+                        "repaired": repaired,
+                        "repair_notes": repair_notes,
+                        "error": err,
+                        "log": err,
+                    }
+        except Exception:
+            pass
+
+    raw_bytes = fs.read_bytes(rel_source)
+    title = validator.title.strip() or html_path.name
+
+    return {
+        "status": "success",
+        "type": "html",
+        "compiler": "html_validator",
+        "source_path": rel_source,
+        "html_path": rel_source,
+        "title": title,
+        "bytes": len(raw_bytes),
+        "repaired": repaired,
+        "repair_notes": repair_notes,
+        "has_css": bool(validator.inline_styles or validator.linked_css),
+        "has_js": bool(validator.inline_scripts or validator.linked_js),
+        "scripts_checked": len(validator.inline_scripts) + len(validator.linked_js),
+        "styles_checked": len(validator.inline_styles) + len(validator.linked_css),
+        "dependencies": validator.linked_css + validator.linked_js,
+        "log": f"Compilation et validation HTML5 réussie ({len(raw_bytes)} octets, JS validé, CSS validé).",
     }
 
 

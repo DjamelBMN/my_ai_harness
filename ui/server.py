@@ -53,7 +53,7 @@ from skills.loader import SkillLoadError, SkillLoader
 from skills.registry import SkillRegistry
 from skills.router import SkillCommandError, SkillRouter
 from skills.runtime import SkillRuntime
-from tools.documents import _verify_compiled_pdf_bytes, compile_latex, read_document
+from tools.documents import _verify_compiled_pdf_bytes, compile_html, compile_latex, read_document
 from tools.filesystem import WORKSPACE_ROOT, WorkspaceFilesystem
 from tools.registry import ToolCall, ToolRegistry
 
@@ -710,7 +710,15 @@ class NeoHarnessRuntimeBridge:
                         self.active_conversation_id = self.conversations[0]["id"]
                     self._save_conversations()
                     return removed
-        raise KeyError(f"Conversation introuvable : {conversation_id}")
+            # Si déjà supprimée ou inexistante, retourner un succès idempotent sans erreur 400
+            if not self.conversations:
+                self._create_default_conversation(persist=True)
+            return {
+                "id": conversation_id,
+                "title": "",
+                "deleted": False,
+                "status": "already_deleted",
+            }
 
     # ------------------------------------------------------------------
     # PROJETS, AGENTS, SKILLS, TOOLS, MODÈLES
@@ -1201,12 +1209,120 @@ class NeoHarnessRuntimeBridge:
             )
         return res
 
+    def compile_workspace_html(
+        self,
+        html_relative_path: str,
+        *,
+        auto_repair: bool = True,
+    ) -> dict[str, Any]:
+        """Compile et valide un fichier HTML du workspace (HTML5, CSS, JS) avec auto-réparation et émet les événements d'activité réels."""
+        self.event_bus.emit_normalized(
+            event="TOOL_CALL",
+            raw_event="tool.started",
+            tool="html_compiler",
+            summary=f"Validation & compilation HTML : {html_relative_path}",
+            status="running",
+            details={"path": html_relative_path, "auto_repair": auto_repair},
+        )
+        res = compile_html(
+            html_relative_path,
+            filesystem=self.filesystem,
+            auto_repair=auto_repair,
+        )
+        # Si la réparation déterministe n'a pas suffi, tentative réelle de correction via le modèle actif puis recompilation
+        if res.get("status") != "success" and auto_repair:
+            try:
+                raw_html = self.filesystem.read_file(html_relative_path)
+                err_log = str(res.get("log") or res.get("error") or "")[-1800:]
+                self.event_bus.emit_normalized(
+                    event="AGENT_STEP",
+                    raw_event="html.llm_repair",
+                    summary=f"Correction intelligente du code HTML/JS suite à l'erreur sur {html_relative_path}",
+                    tool="html_compiler",
+                    status="running",
+                )
+                self._ensure_routed_providers_ready()
+                repair_provider = self.orchestrator.router.get_provider("coder", intent="writing")
+                repair_prompt = (
+                    "Tu es un expert développeur Web frontend (HTML5, CSS3, JavaScript ES2022).\n"
+                    "Le fichier HTML ci-dessous contient une erreur de syntaxe ou de structure détectée lors de la compilation.\n"
+                    "Corrige les erreurs de syntaxe HTML/JS/CSS pour que le document soit parfaitement valide et exécutable sans erreur.\n"
+                    "Renvoie EXCLUSIVEMENT le code HTML complet corrigé (commençant par <!DOCTYPE html>), sans balises Markdown autour ou avec ```html.\n\n"
+                    f"=== ERREUR DÉTECTÉE ===\n{err_log}\n\n"
+                    f"=== SOURCE HTML ===\n{raw_html}"
+                )
+                fixed_reply = str(repair_provider.generate(repair_prompt) or "").strip()
+                m_html = re.search(r"```(?:html)?\s*\r?\n([\s\S]*?)```", fixed_reply, re.IGNORECASE)
+                candidate_html = m_html.group(1).strip() if m_html else fixed_reply
+                if "<!DOCTYPE" in candidate_html.upper() or "<html" in candidate_html.lower():
+                    self.filesystem.write_file(html_relative_path, candidate_html, overwrite=True)
+                    retry_res = compile_html(
+                        html_relative_path,
+                        filesystem=self.filesystem,
+                        auto_repair=True,
+                    )
+                    if retry_res.get("status") == "success":
+                        notes = list(retry_res.get("repair_notes") or [])
+                        notes.append("Correction assistée par le modèle suite au diagnostic HTML/JS.")
+                        retry_res["repaired"] = True
+                        retry_res["repair_notes"] = notes
+                        res = retry_res
+            except Exception:
+                pass
+
+        if res.get("status") == "success":
+            html_rel = str(res["html_path"])
+            res["preview_url"] = f"/api/preview/workspace/{quote(html_rel)}"
+            res["raw_url"] = f"/api/files/raw?path={quote(html_rel)}"
+            res["type"] = "html"
+            res["title"] = Path(html_rel).name
+            res["size_bytes"] = int(res.get("bytes") or 0)
+            res["source_html"] = html_rel
+            res["auto_repaired"] = bool(res.get("repaired", False))
+            self.event_bus.emit_normalized(
+                event="TOOL_RESULT",
+                raw_event="tool.completed",
+                tool="html_compiler",
+                summary=(
+                    f"Validation & compilation HTML réussie : {html_rel} ({res['size_bytes']} octets)"
+                    + (" [réparé automatiquement]" if res.get("repaired") else "")
+                ),
+                status="completed",
+                details={
+                    "html_path": html_rel,
+                    "size_bytes": res["size_bytes"],
+                    "repaired": res.get("repaired", False),
+                    "repair_notes": res.get("repair_notes", []),
+                    "scripts_checked": res.get("scripts_checked", 0),
+                    "styles_checked": res.get("styles_checked", 0),
+                },
+            )
+            self.event_bus.emit_normalized(
+                event="ARTIFACT_READY",
+                raw_event="artifact.ready",
+                summary=f"Aperçu HTML prêt : {html_rel}",
+                status="completed",
+                details=res,
+            )
+        else:
+            self.event_bus.emit_normalized(
+                event="ERROR",
+                raw_event="tool.error",
+                tool="html_compiler",
+                summary=f"Échec de validation HTML sur {html_relative_path} : {res.get('error', '')}",
+                status="error",
+                error=str(res.get("error") or "compilation_failed"),
+                details={"source_path": html_relative_path, "log": str(res.get("log", ""))[:500]},
+            )
+        return res
+
     def write_workspace_file(
         self,
         relative_path: str,
         content: str,
         *,
         compile_if_latex: bool = False,
+        compile_if_html: bool = True,
         auto_repair: bool = True,
     ) -> dict[str, Any]:
         """Écrit ou met à jour un fichier dans le workspace, enregistre le diff et prépare l'aperçu."""
@@ -1221,23 +1337,41 @@ class NeoHarnessRuntimeBridge:
         artifact: dict[str, Any] | None = None
         compilation: dict[str, Any] | None = None
         if ext in {".html", ".htm"}:
-            artifact = {
-                "type": "html",
-                "title": Path(rel).name,
-                "path": rel,
-                "bytes": info["bytes"],
-                "sha256": info["sha256"],
-                "preview_url": f"/api/preview/workspace/{quote(rel)}",
-                "raw_url": f"/api/files/raw?path={quote(rel)}",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }
-            self.event_bus.emit_normalized(
-                event="ARTIFACT_READY",
-                raw_event="artifact.ready",
-                summary=f"Aperçu HTML mis à jour : {rel}",
-                status="completed",
-                details=artifact,
-            )
+            if compile_if_html:
+                compilation = self.compile_workspace_html(rel, auto_repair=auto_repair)
+                if compilation.get("status") == "success":
+                    artifact = compilation
+                else:
+                    artifact = {
+                        "type": "html",
+                        "title": Path(rel).name,
+                        "path": rel,
+                        "bytes": info["bytes"],
+                        "sha256": info["sha256"],
+                        "preview_url": f"/api/preview/workspace/{quote(rel)}",
+                        "raw_url": f"/api/files/raw?path={quote(rel)}",
+                        "error": compilation.get("error"),
+                        "log": compilation.get("log"),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
+            else:
+                artifact = {
+                    "type": "html",
+                    "title": Path(rel).name,
+                    "path": rel,
+                    "bytes": info["bytes"],
+                    "sha256": info["sha256"],
+                    "preview_url": f"/api/preview/workspace/{quote(rel)}",
+                    "raw_url": f"/api/files/raw?path={quote(rel)}",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+                self.event_bus.emit_normalized(
+                    event="ARTIFACT_READY",
+                    raw_event="artifact.ready",
+                    summary=f"Aperçu HTML mis à jour : {rel}",
+                    status="completed",
+                    details=artifact,
+                )
         elif ext == ".tex" and compile_if_latex:
             compilation = self.compile_workspace_latex(rel, auto_repair=auto_repair)
             if compilation.get("status") == "success":
@@ -1422,6 +1556,154 @@ class NeoHarnessRuntimeBridge:
             "\\end{document}\n"
         )
 
+    def _build_education_latex_document(
+        self,
+        skill: str,
+        prompt: str,
+        content: str,
+    ) -> str:
+        """Construit un document LaTeX complet, typographiquement rigoureux et directement
+        compilable par Tectonic pour les Skills d'éducation (/exercice, /dm, /bacblanc)."""
+        # 1. Si la réponse contient déjà un document LaTeX complet avec documentclass, le réutiliser
+        tex_match = re.search(r"```(?:latex|tex)\s*\r?\n([\s\S]*?)```", content, re.IGNORECASE)
+        raw_code = tex_match.group(1).strip() if tex_match else ""
+        if raw_code and "\\documentclass" in raw_code and "\\begin{document}" in raw_code:
+            return raw_code
+
+        # 2. Détection du niveau et du sujet
+        prompt_lower = prompt.casefold()
+        if "première" in prompt_lower or "1ere" in prompt_lower or "1ère" in prompt_lower:
+            classe_str = "Première Spécialité Mathématiques"
+        elif "seconde" in prompt_lower or "2nde" in prompt_lower:
+            classe_str = "Seconde Générale"
+        elif "experte" in prompt_lower:
+            classe_str = "Terminale -- Option Mathématiques Expertes"
+        elif "complémentaire" in prompt_lower:
+            classe_str = "Terminale -- Option Mathématiques Complémentaires"
+        elif "terminale" in prompt_lower or "tle" in prompt_lower:
+            classe_str = "Terminale Spécialité Mathématiques"
+        else:
+            classe_str = "Lycée -- Mathématiques"
+
+        # Titre propre sans les slash commands
+        title_clean = re.sub(r"^/(?:exercice|dm|bacblanc)\s*", "", prompt.strip(), flags=re.IGNORECASE)
+        title_clean = title_clean.strip(" .:-_") or "Exercice de Mathématiques"
+        if len(title_clean) > 80:
+            title_clean = title_clean[:77] + "…"
+
+        display_type = "Devoir Maison" if skill == "dm" else ("Bac Blanc" if skill == "bacblanc" else "Exercice")
+
+        # 3. Récupération obligatoire du gabarit officiel existant (aucune improvisation tolérée)
+        tmpl_map = {
+            "exercice": PROJECT_ROOT / "skills" / "education" / "exercice" / "templates" / "template_exercice.tex",
+            "dm": PROJECT_ROOT / "skills" / "education" / "dm" / "templates" / "template_dm.tex",
+            "bacblanc": PROJECT_ROOT / "skills" / "education" / "bacblanc" / "templates" / "sujet_bacblanc.tex",
+        }
+        tmpl_path = tmpl_map.get(skill)
+        if not tmpl_path or not tmpl_path.is_file():
+            raise FileNotFoundError(
+                f"Gabarit LaTeX officiel obligatoire introuvable pour /{skill} (chemin attendu : {tmpl_path}). "
+                "Le Skill refuse formellement d'improviser un document LaTeX hors template."
+            )
+
+        raw_tmpl = tmpl_path.read_text(encoding="utf-8")
+        if "\\begin{document}" not in raw_tmpl:
+            raise ValueError(f"Le gabarit officiel de /{skill} est invalide : balise \\begin{{document}} absente.")
+
+        preamble = raw_tmpl.split("\\begin{document}")[0].strip()
+        preamble = re.sub(r"\\lhead\{[^}]*\}", "\\\\lhead{NeoHarness AI}", preamble)
+        preamble = re.sub(r"\\rhead\{[^}]*\}", f"\\\\rhead{{{classe_str}}}", preamble)
+
+        # 4. Préparation du corps du document
+        body_tex: list[str] = []
+        body_source = raw_code if raw_code else content
+
+        if raw_code and ("\\exo" in raw_code or "\\partie" in raw_code or "\\item" in raw_code):
+            body_tex.append(raw_code)
+        else:
+            def _format_markdown_for_latex(text: str) -> str:
+                # 1. Backticks -> \texttt{...} avec échappement interne
+                text = re.sub(
+                    r"`([^`]+)`",
+                    lambda m: r"\texttt{" + m.group(1).replace("_", r"\_").replace("#", r"\#").replace("&", r"\&").replace("%", r"\%") + "}",
+                    text,
+                )
+                # 2. Gras et italique
+                text = re.sub(r"\*\*([^*]+)\*\*", r"\\textbf{\1}", text)
+                text = re.sub(r"\*([^*]+)\*", r"\\textit{\1}", text)
+                # 3. Échappement des caractères spéciaux hors mode mathématique
+                parts = text.split("$")
+                for i in range(0, len(parts), 2):
+                    parts[i] = parts[i].replace("#", r"\#").replace("&", r"\&").replace("%", r"\%")
+                    parts[i] = re.sub(r"(?<!\\)_", r"\_", parts[i])
+                return "$".join(parts)
+
+            exo_counter = 1
+            in_enumerate = False
+            for line in body_source.splitlines():
+                stripped = line.strip()
+                if not stripped:
+                    if in_enumerate:
+                        body_tex.append("\\end{enumerate}")
+                        in_enumerate = False
+                    body_tex.append("")
+                    continue
+                if re.match(r"^#{1,3}\s*(?:Exercice\s*\d*[:.-]?\s*)?(.*)$", stripped, re.IGNORECASE) and (
+                    "exercice" in stripped.casefold() or "problème" in stripped.casefold() or "sujet" in stripped.casefold()
+                ):
+                    if in_enumerate:
+                        body_tex.append("\\end{enumerate}")
+                        in_enumerate = False
+                    sub_title = re.sub(r"^#{1,3}\s*(?:Exercice\s*\d*[:.-]?\s*)?", "", stripped, flags=re.IGNORECASE).strip() or title_clean
+                    sub_title = _format_markdown_for_latex(sub_title)
+                    body_tex.append(f"\\exo{{{exo_counter}}}{{{sub_title}}}")
+                    exo_counter += 1
+                elif re.match(r"^#{2,4}\s*(Partie\s+[A-Z0-9].*)$", stripped, re.IGNORECASE):
+                    if in_enumerate:
+                        body_tex.append("\\end{enumerate}")
+                        in_enumerate = False
+                    part_title = re.sub(r"^#{2,4}\s*", "", stripped).strip()
+                    part_title = _format_markdown_for_latex(part_title)
+                    body_tex.append(f"\\partie{{{part_title}}}")
+                elif re.match(r"^#{1,6}\s*(.*)$", stripped):
+                    if in_enumerate:
+                        body_tex.append("\\end{enumerate}")
+                        in_enumerate = False
+                    sec_title = re.sub(r"^#{1,6}\s*", "", stripped).strip()
+                    sec_title = _format_markdown_for_latex(sec_title)
+                    body_tex.append(f"\\vspace{{0.35cm}}\\noindent\\textbf{{\\large {sec_title}}}\\par\\vspace{{0.15cm}}")
+                elif re.match(r"^(?:\d+[\.)]|\*\s+|\-\s+)(.*)$", stripped):
+                    if not in_enumerate:
+                        body_tex.append("\\begin{enumerate}")
+                        in_enumerate = True
+                    item_text = re.sub(r"^(?:\d+[\.)]|\*\s+|\-\s+)", "", stripped).strip()
+                    item_text = _format_markdown_for_latex(item_text)
+                    body_tex.append(f"  \\item {item_text}")
+                else:
+                    if in_enumerate:
+                        body_tex.append("\\end{enumerate}")
+                        in_enumerate = False
+                    p_text = _format_markdown_for_latex(stripped)
+                    body_tex.append(p_text)
+
+            if in_enumerate:
+                body_tex.append("\\end{enumerate}")
+
+        joined_body = "\n".join(body_tex).strip()
+        if not joined_body:
+            joined_body = f"\\exo{{1}}{{{title_clean}}}\n\nÉnoncé préparé par le Skill /{skill}."
+
+        return (
+            f"{preamble}\n\n"
+            "\\begin{document}\n\n"
+            "\\begin{center}\n"
+            f"  {{\\LARGE \\textbf{{{display_type} : {title_clean}}}}}\\\\[0.5em]\n"
+            f"  {{\\large {classe_str}}}\n"
+            "\\end{center}\n\n"
+            f"{joined_body}\n\n"
+            "\\end{document}\n"
+        )
+
     def _collect_and_compile_task_artifacts(
         self,
         *,
@@ -1443,34 +1725,84 @@ class NeoHarnessRuntimeBridge:
         modified_paths = [d["path"] for d in recorded_diffs if d.get("status") != "D"]
         prompt_lower = clean_prompt.casefold()
 
-        # 1. Si l'utilisateur demande explicitement une page/aperçu HTML et qu'aucun fichier .html n'a été écrit par outil,
-        # mais que la réponse contient un bloc ```html ... ``` complet, enregistrer le vrai fichier dans workspace/generated/
+        # 1. Si l'utilisateur demande explicitement une page/aperçu HTML ou que le modèle a produit du HTML/CSS/JS,
+        # et qu'aucun fichier .html n'a été écrit par outil, enregistrer le vrai fichier dans le workspace (ex: index.html ou nom demandé)
         has_html_file = any(p.lower().endswith((".html", ".htm")) for p in modified_paths)
         wants_html = any(
             kw in prompt_lower
-            for kw in ("html", "page web", "interface web", "tableau interactif", "dashboard", "aperçu web", "site web")
+            for kw in (
+                "html",
+                "page web",
+                "interface web",
+                "tableau interactif",
+                "dashboard",
+                "aperçu web",
+                "site web",
+                "css",
+                "javascript",
+                "convertisseur",
+            )
         )
         if not has_html_file and can_write and answer_text:
-            html_match = re.search(r"```html\s*\r?\n([\s\S]*?)```", answer_text, re.IGNORECASE)
-            if html_match and (wants_html or "<!doctype html" in html_match.group(1).casefold() or "<html" in html_match.group(1).casefold()):
-                html_code = html_match.group(1).strip()
-                if html_code:
-                    # Cherche un nom de fichier .html éventuel dans la requête
-                    name_match = re.search(r"\b([a-zA-Z0-9_-]+\.html?)\b", clean_prompt, re.IGNORECASE)
-                    rel_html = name_match.group(1) if name_match else f"generated/page_{uuid.uuid4().hex[:6]}.html"
+            html_match = re.search(r"```(?:html|htm)?\s*\r?\n([\s\S]*?)```", answer_text, re.IGNORECASE)
+            candidate_code = html_match.group(1).strip() if html_match else ""
+            if candidate_code and (
+                wants_html
+                or "<!doctype" in candidate_code.casefold()
+                or "<html" in candidate_code.casefold()
+                or "<div" in candidate_code.casefold()
+                or "<body" in candidate_code.casefold()
+            ):
+                name_match = re.search(r"\b([a-zA-Z0-9_-]+\.html?)\b", clean_prompt, re.IGNORECASE)
+                rel_html = name_match.group(1) if name_match else "index.html"
+                try:
+                    self.filesystem.write_file(rel_html, candidate_code, overwrite=True)
+                    modified_paths.append(rel_html)
+                    has_html_file = True
+                except Exception:
+                    pass
+            elif wants_html and not has_html_file:
+                if "<!doctype" in answer_text.casefold() or "<html" in answer_text.casefold():
+                    rel_html = "index.html"
                     try:
-                        self.filesystem.write_file(rel_html, html_code, overwrite=True)
+                        self.filesystem.write_file(rel_html, answer_text.strip(), overwrite=True)
                         modified_paths.append(rel_html)
+                        has_html_file = True
                     except Exception:
                         pass
 
-        # 2. Si l'utilisateur demande un document LaTeX / PDF compilé avec Tectonic et que la réponse contient un bloc ```latex/tex```
+        # 2. Détection des livrables LaTeX / PDF et des Skills d'éducation obligatoires (/exercice, /dm, /bacblanc)
         has_tex_file = any(p.lower().endswith(".tex") for p in modified_paths)
         has_pdf_file = any(p.lower().endswith(".pdf") for p in modified_paths)
-        wants_latex = any(
+        is_education_skill = (
+            skill in ("bacblanc", "exercice", "dm")
+            or bool(re.search(r"^/(?:bacblanc|exercice|dm)\b", clean_prompt.strip(), re.IGNORECASE))
+        )
+        wants_latex = is_education_skill or any(
             kw in prompt_lower
-            for kw in ("latex", ".tex", "tectonic", "compile", "pdf", "bacblanc", "sujet")
-        ) or skill == "bacblanc"
+            for kw in ("latex", ".tex", "tectonic", "compile", "pdf", "bacblanc", "sujet", "exercice", "dm", "devoir maison")
+        )
+
+        # 2a. Si skill éducatif (/exercice, /dm, /bacblanc) et qu'aucun .tex n'a été produit,
+        # obligatoirement générer le fichier .tex basé sur le gabarit officiel
+        if is_education_skill and not has_tex_file and can_write and answer_text and not answer_text.startswith("⚠️"):
+            stem = f"{skill}_maths" if skill in ("exercice", "dm") else "bacblanc_sujet"
+            rel_tex = f"{stem}.tex"
+            try:
+                auto_tex = self._build_education_latex_document(skill or "exercice", clean_prompt, answer_text)
+                self.filesystem.write_file(rel_tex, auto_tex, overwrite=True)
+                modified_paths.append(rel_tex)
+                has_tex_file = True
+            except Exception as exc:
+                compilation_errors.append(
+                    {
+                        "source_path": rel_tex,
+                        "compiler": "template_validator",
+                        "error": str(exc),
+                        "log": str(exc),
+                    }
+                )
+
         if not has_tex_file and can_write and answer_text and (wants_latex or "\\documentclass" in answer_text):
             tex_match = re.search(r"```(?:latex|tex)\s*\r?\n([\s\S]*?)```", answer_text, re.IGNORECASE)
             if tex_match and ("\\documentclass" in tex_match.group(1) or "\\begin{document}" in tex_match.group(1)):
@@ -1483,6 +1815,7 @@ class NeoHarnessRuntimeBridge:
                         modified_paths.append(rel_tex)
                         has_tex_file = True
                     except Exception:
+                        pass
                         pass
 
         # 2b. Si l'utilisateur demande explicitement de créer/générer un PDF en langage naturel et qu'aucun .tex/.pdf n'a encore été produit,
@@ -1518,6 +1851,7 @@ class NeoHarnessRuntimeBridge:
                             "type": "pdf",
                             "title": Path(pdf_p).name,
                             "path": pdf_p,
+                            "pdf_path": pdf_p,
                             "source_path": str(comp.get("source_path") or rel_path),
                             "source_tex": str(comp.get("source_path") or rel_path),
                             "compiler": str(comp.get("compiler") or "tectonic"),
@@ -1542,6 +1876,16 @@ class NeoHarnessRuntimeBridge:
                             "log": str(comp.get("log") or "")[-1500:],
                         }
                     )
+
+        if is_education_skill and not compiled_pdf_paths and not compilation_errors:
+            compilation_errors.append(
+                {
+                    "source_path": f"{skill}_maths.tex",
+                    "compiler": "tectonic",
+                    "error": f"La compilation Tectonic du livrable obligatoire pour /{skill} n'a produit aucun fichier PDF valide.",
+                    "log": "Vérifiez la validité du document LaTeX ou l'installation de Tectonic.",
+                }
+            )
 
         # Recalculer les diffs si de nouveaux fichiers (.html, .tex, .pdf) ont été écrits
         latest_snapshot = self._snapshot_workspace()
@@ -1568,6 +1912,7 @@ class NeoHarnessRuntimeBridge:
                         "type": "pdf",
                         "title": pdf_info["name"],
                         "path": pdf_info["path"],
+                        "pdf_path": pdf_info["path"],
                         "source_path": "",
                         "compiler": "export",
                         "pages": pdf_info["pages"],
@@ -1589,26 +1934,56 @@ class NeoHarnessRuntimeBridge:
                     pass
             elif lower_p.endswith((".html", ".htm")):
                 try:
-                    full_html = self.filesystem.resolve(rel_path)
-                    html_content = self.filesystem.read_file(rel_path)
-                    if full_html.is_file() and html_content.strip():
-                        artifact_item = {
-                            "type": "html",
-                            "title": full_html.name,
-                            "path": rel_path,
-                            "bytes": full_html.stat().st_size,
-                            "preview_url": f"/api/preview/workspace/{quote(rel_path)}",
-                            "raw_url": f"/api/files/raw?path={quote(rel_path)}",
-                            "timestamp": datetime.now(timezone.utc).isoformat(),
-                        }
-                        preview_artifacts.append(artifact_item)
-                        self.event_bus.emit_normalized(
-                            event="ARTIFACT_READY",
-                            raw_event="artifact.ready",
-                            summary=f"Aperçu HTML prêt : {rel_path}",
-                            status="completed",
-                            details=artifact_item,
-                        )
+                    if can_write:
+                        comp = self.compile_workspace_html(rel_path, auto_repair=True)
+                        if comp.get("status") == "success":
+                            preview_artifacts.append(
+                                {
+                                    "type": "html",
+                                    "title": Path(rel_path).name,
+                                    "path": rel_path,
+                                    "size_bytes": int(comp.get("bytes") or comp.get("size_bytes") or 0),
+                                    "bytes": int(comp.get("bytes") or comp.get("size_bytes") or 0),
+                                    "preview_url": f"/api/preview/workspace/{quote(rel_path)}",
+                                    "raw_url": f"/api/files/raw?path={quote(rel_path)}",
+                                    "repaired": bool(comp.get("repaired", False)),
+                                    "auto_repaired": bool(comp.get("repaired", False)),
+                                    "repair_notes": list(comp.get("repair_notes") or []),
+                                    "scripts_checked": int(comp.get("scripts_checked") or 0),
+                                    "styles_checked": int(comp.get("styles_checked") or 0),
+                                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                                }
+                            )
+                        else:
+                            compilation_errors.append(
+                                {
+                                    "source_path": rel_path,
+                                    "compiler": "html_compiler",
+                                    "error": str(comp.get("error") or "Échec de validation/compilation HTML."),
+                                    "log": str(comp.get("log") or "")[-1500:],
+                                }
+                            )
+                    else:
+                        full_html = self.filesystem.resolve(rel_path)
+                        html_content = self.filesystem.read_file(rel_path)
+                        if full_html.is_file() and html_content.strip():
+                            artifact_item = {
+                                "type": "html",
+                                "title": full_html.name,
+                                "path": rel_path,
+                                "bytes": full_html.stat().st_size,
+                                "preview_url": f"/api/preview/workspace/{quote(rel_path)}",
+                                "raw_url": f"/api/files/raw?path={quote(rel_path)}",
+                                "timestamp": datetime.now(timezone.utc).isoformat(),
+                            }
+                            preview_artifacts.append(artifact_item)
+                            self.event_bus.emit_normalized(
+                                event="ARTIFACT_READY",
+                                raw_event="artifact.ready",
+                                summary=f"Aperçu HTML prêt : {rel_path}",
+                                status="completed",
+                                details=artifact_item,
+                            )
                 except Exception:
                     pass
 
@@ -1892,6 +2267,7 @@ class NeoHarnessRuntimeBridge:
 
         self._task_approved_tools.clear()
         self._stop_requested = False
+        self.agent_loop._stop_requested = False
         started_mono = monotonic()
 
         task_id = self.event_bus.start_task(
@@ -2075,8 +2451,14 @@ class NeoHarnessRuntimeBridge:
         )
 
         elapsed_ms = int((monotonic() - started_mono) * 1000)
+        is_education_skill = (used_skill or "").lower() in {"dm", "exercice", "bacblanc"}
+        is_html_error = any(e.get("compiler") == "html_compiler" for e in compilation_errors)
         if error_text and (result_obj is None or result_obj.status == "failed"):
             final_status = "Erreur"
+        elif compilation_errors and (is_education_skill or is_html_error):
+            final_status = "Erreur"
+            if not error_text:
+                error_text = compilation_errors[0].get("error", "Échec de compilation.")
         elif result_obj is not None and result_obj.status in {"incomplete", "clarification_required"}:
             final_status = "Partiel"
         else:
@@ -2137,6 +2519,19 @@ class NeoHarnessRuntimeBridge:
             "preview_artifacts": preview_artifacts,
             "compilation_errors": compilation_errors,
         }
+
+    def stop_active_task(self) -> dict[str, Any]:
+        """Interrompt immédiatement la tâche ou l'itération en cours de l'agent."""
+        self._stop_requested = True
+        self.agent_loop._stop_requested = True
+        self.current_task_status = "Arrêté"
+        self.event_bus.emit_normalized(
+            event="TASK_STOPPED",
+            raw_event="task.stopped",
+            summary="Arrêt demandé par l'utilisateur",
+            status="cancelled",
+        )
+        return {"ok": True, "task_id": self.current_task_id, "status": "Arrêté"}
 
     def _dispatch_mission(self, prompt: str) -> tuple[AgentResult | None, str, str]:
         """Exécute la mission en respectant exactement la logique de main._executer_mission."""
@@ -2347,6 +2742,8 @@ class NeoHarnessRuntimeBridge:
             "subtitle": "AI Agent Operating Environment",
             "creator": "Djamel BENMAKHLOUF",
             "author": "Djamel BENMAKHLOUF",
+            "current_time": datetime.now(timezone.utc).isoformat(),
+            "local_time_display": datetime.now().strftime("%A %d %B %Y, %H:%M:%S"),
             "task_status": self.current_task_status,
             "current_task_id": self.current_task_id,
             "mode": {
@@ -2529,6 +2926,10 @@ class NeoHarnessUIApp:
                 )
                 return HTTPStatus.OK, result
 
+            if path == "/api/tasks/stop":
+                res = self.bridge.stop_active_task()
+                return HTTPStatus.OK, res
+
             if path == "/api/approvals/resolve":
                 approval_id = str(body.get("id") or "")
                 decision = str(body.get("decision") or "deny")
@@ -2540,6 +2941,30 @@ class NeoHarnessUIApp:
                 scope = str(body.get("scope") or "session")
                 value = str(body.get("value") or "")
                 return HTTPStatus.OK, self.bridge.mutate_memory(action, scope, value)
+
+            if path == "/api/files/compile-html":
+                html_path = str(body.get("path") or "").strip()
+                if not html_path:
+                    return HTTPStatus.BAD_REQUEST, {"error": "Paramètre 'path' requis."}
+                if body.get("content") is not None:
+                    self.bridge.write_workspace_file(
+                        html_path,
+                        str(body.get("content")),
+                        compile_if_latex=False,
+                        compile_if_html=False,
+                    )
+                auto_repair = bool(body.get("auto_repair", True))
+                comp = self.bridge.compile_workspace_html(
+                    html_path,
+                    auto_repair=auto_repair,
+                )
+                if comp.get("status") != "success":
+                    err_msg = str(comp.get("error") or "Échec de validation/compilation HTML.")
+                    log_tail = str(comp.get("log") or "").strip()
+                    if log_tail:
+                        err_msg = f"{err_msg}\n\nJournal compilateur :\n{log_tail[-1200:]}"
+                    return HTTPStatus.BAD_REQUEST, {**comp, "error": err_msg}
+                return HTTPStatus.OK, comp
 
             if path == "/api/files/compile-latex":
                 tex_path = str(body.get("path") or "").strip()
@@ -2668,6 +3093,58 @@ def create_http_server(
                 content_type = "application/pdf"
             elif ext in {".html", ".htm"}:
                 content_type = "text/html; charset=utf-8"
+                if for_preview:
+                    try:
+                        html_text = raw.decode("utf-8", errors="replace")
+                        bridge_script = (
+                            '<script id="__neoharness_runtime_bridge__">\n'
+                            '(function() {\n'
+                            '  function notifyHost(type, err) {\n'
+                            '    try {\n'
+                            '      window.parent.postMessage({\n'
+                            '        type: "NEOHARNESS_HTML_RUNTIME_ERROR",\n'
+                            '        error: {\n'
+                            '          message: err.message || String(err),\n'
+                            '          filename: err.filename || "",\n'
+                            '          lineno: err.lineno || 0,\n'
+                            '          colno: err.colno || 0,\n'
+                            '          stack: err.stack || "",\n'
+                            '          errorType: type\n'
+                            '        }\n'
+                            '      }, "*");\n'
+                            '    } catch(e) {}\n'
+                            '  }\n'
+                            '  window.addEventListener("error", function(e) {\n'
+                            '    notifyHost("uncaught_error", {\n'
+                            '      message: e.message,\n'
+                            '      filename: e.filename,\n'
+                            '      lineno: e.lineno,\n'
+                            '      colno: e.colno,\n'
+                            '      stack: e.error ? e.error.stack : ""\n'
+                            '    });\n'
+                            '  });\n'
+                            '  window.addEventListener("unhandledrejection", function(e) {\n'
+                            '    var reason = e.reason || "Unhandled Promise Rejection";\n'
+                            '    notifyHost("unhandled_rejection", {\n'
+                            '      message: typeof reason === "object" ? (reason.message || JSON.stringify(reason)) : String(reason),\n'
+                            '      stack: (reason && reason.stack) ? reason.stack : ""\n'
+                            '    });\n'
+                            '  });\n'
+                            '})();\n'
+                            '</script>'
+                        )
+                        lower_text = html_text.lower()
+                        if "</head>" in lower_text:
+                            idx = lower_text.rfind("</head>")
+                            html_text = html_text[:idx] + bridge_script + "\n" + html_text[idx:]
+                        elif "</body>" in lower_text:
+                            idx = lower_text.rfind("</body>")
+                            html_text = html_text[:idx] + bridge_script + "\n" + html_text[idx:]
+                        else:
+                            html_text = bridge_script + "\n" + html_text
+                        raw = html_text.encode("utf-8")
+                    except Exception:
+                        pass
             elif ext == ".css":
                 content_type = "text/css; charset=utf-8"
             elif ext in {".js", ".mjs"}:

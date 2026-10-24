@@ -16,6 +16,8 @@ CANONICAL_SKILL_ORDER: tuple[str, ...] = (
     "context",
     "debug",
     "diagnostic",
+    "dm",
+    "exercice",
     "export",
     "memory",
     "mode",
@@ -73,12 +75,22 @@ class SkillRegistry:
             self.invalid[str(self.root)] = "Le chemin des Skills n'est pas un dossier."
             return []
 
-        for folder in sorted(
-            self.root.iterdir(),
-            key=lambda path: self.canonical_sort_key(path.name),
-        ):
+        # Recensement des dossiers de skills : à la racine ou dans des sous-dossiers de catégories (ex: education/bacblanc)
+        candidate_folders: list[Path] = []
+        for folder in self.root.iterdir():
             if not folder.is_dir() or folder.name.startswith("_"):
                 continue
+            if (folder / "skill.md").is_file():
+                candidate_folders.append(folder)
+            else:
+                for subfolder in folder.iterdir():
+                    if subfolder.is_dir() and not subfolder.name.startswith("_") and (subfolder / "skill.md").is_file():
+                        candidate_folders.append(subfolder)
+
+        for folder in sorted(
+            candidate_folders,
+            key=lambda path: self.canonical_sort_key(path.name),
+        ):
             name = self.normalize(folder.name)
             manifest = folder / "skill.md"
             try:
@@ -101,7 +113,10 @@ class SkillRegistry:
                 self.invalid[folder.name] = f"{type(error).__name__}: {error}"
                 continue
             if name in self._skills:
-                self.invalid[folder.name] = f"Nom de Skill dupliqué : {name}."
+                # Priorité aux dossiers de catégorie (comme education/)
+                if "education" in folder.parts:
+                    descriptor = SkillDescriptor(name=name, path=resolved, manifest_path=resolved_manifest)
+                    self._skills[name] = descriptor
                 continue
             descriptor = SkillDescriptor(name=name, path=resolved, manifest_path=resolved_manifest)
             self._skills[name] = descriptor

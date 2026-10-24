@@ -1,6 +1,5 @@
 \documentclass[a4paper,11pt]{article}
 \usepackage{fontspec}
-% libertinus-otf désactivé
 \usepackage[french]{babel}
 \usepackage{amsmath,amssymb,amsfonts}
 \usepackage{array}
@@ -41,12 +40,12 @@
 \pagestyle{fancy}
 \fancyhf{}
 \lhead{\small\bfseries\textcolor{bleuprimaire}{BAC BLANC} \textcolor{grisaccent}{-- Terminale Spécialité Mathématiques}}
-\rhead{\small\bfseries\textcolor{bleusecondaire}{Barème de correction -- Sujet 1}}
+\rhead{\small\bfseries\textcolor{bleusecondaire}{Barème et Corrigé -- Sujet 1}}
 \cfoot{\small\textcolor{grisaccent}{Page \thepage\ sur \pageref{LastPage}}}
 \renewcommand{\headrulewidth}{0.5pt}
 \begin{document}
 \begin{tcolorbox}[enhanced,colback=bleufond,colframe=bleuprimaire,arc=1.6mm,boxrule=0.8pt,top=4pt,bottom=4pt,left=8pt,right=8pt]
-    \textbf{\Large\textcolor{bleuprimaire}{Grille d'évaluation chiffrée}} \hfill \textbf{\Large\textcolor{bleuprimaire}{Total : 20 points}} \\[0.15em]
+    \textbf{\Large\textcolor{bleuprimaire}{Grille d'évaluation chiffrée et Corrigé}} \hfill \textbf{\Large\textcolor{bleuprimaire}{Total : 20 points}} \\[0.15em]
     \textbf{\textcolor{bleusecondaire}{Sujet 1 (Jour 1)}} \hspace{0.2cm}\textcolor{grisaccent}{\textbullet}\hspace{0.2cm} \textcolor{grisaccent}{Bac Blanc Mathématiques} \hfill \small\textcolor{grisaccent}{Durée : 4 heures}
 \end{tcolorbox}
 \vspace{0.10cm}
@@ -61,7 +60,7 @@
 \rowcolor{bleuprimaire}
 \textcolor{white}{\bfseries Réf.} &
 \textcolor{white}{\bfseries Compétence / Question} &
-\textcolor{white}{\bfseries Critères d'évaluation \& visuels attendus} &
+\textcolor{white}{\bfseries Critères d'évaluation \& corrigé détaillé} &
 \textcolor{white}{\bfseries Barème} \\
 \midrule[1pt]
 \endfirsthead
@@ -69,38 +68,12 @@
 \rowcolor{bleuprimaire}
 \textcolor{white}{\bfseries Réf.} &
 \textcolor{white}{\bfseries Compétence / Question} &
-\textcolor{white}{\bfseries Critères d'évaluation \& visuels attendus} &
+\textcolor{white}{\bfseries Critères d'évaluation \& corrigé détaillé} &
 \textcolor{white}{\bfseries Barème} \\
 \midrule[1pt]
 \endhead
-\rowcolor{bleusecondaire!15}
-\multicolumn{4}{l}{
-    \bfseries\textcolor{bleuprimaire}{\large Exercice 1 \hspace{0.2cm}\textbullet\hspace{0.2cm} Probabilités conditionnelles et variables aléatoires} \hfill \bfseries 4 points
-} \\* \midrule[0.6pt]
-\textbf{Q.1} &
-Affirmation 1 (Indépendance) &
-\textbullet\ \subpt{0,50} $P(A\cup B) = P(A)+P(B)-P(A)P(B)$.\newline
-\textbullet\ \subpt{0,50} $0,7 = 0,4 + P(B)(1-0,4) \implies P(B) = 0,5$ : \repbox{VRAI}. &
-\pts{1,00} \\
-\cmidrule(lr){2-4}
-\textbf{Q.2} &
-Affirmation 2 (Loi binomiale) &
-\textbullet\ \subpt{0,50} $P(X \ge 1) = 1 - P(X=0) = 1 - (0,7)^{10}$.\newline
-\textbullet\ \subpt{0,50} Calcul $1 - 0,02825 = 0,9717 \ge 0,97$ : \repbox{VRAI}. &
-\pts{1,00} \\
-\cmidrule(lr){2-4}
-\textbf{Q.3} &
-Affirmation 3 (Loi normale) &
-\textbullet\ \subpt{0,50} Propriété de cours de la loi normale $\mathcal{N}(0;1)$.\newline
-\textbullet\ \subpt{0,50} Valeur exacte $\approx 0,95$ : \repbox{VRAI}. &
-\pts{1,00} \\
-\cmidrule(lr){2-4}
-\textbf{Q.4} &
-Affirmation 4 (Loi exponentielle) &
-\textbullet\ \subpt{0,50} $P(Y \ge 2) = \mathrm{e}^{-2\lambda} = \mathrm{e}^{-1} \implies 2\lambda = 1$.\newline
-\textbullet\ \subpt{0,50} $\lambda = 0,5$ : \repbox{VRAI}. &
-\pts{1,00} \\
-\midrule[1pt]
+
+% ==================== EXERCICE 2 ====================
 \rowcolor{bleusecondaire!15}
 \multicolumn{4}{l}{
     \bfseries\textcolor{bleuprimaire}{\large Exercice 2 \hspace{0.2cm}\textbullet\hspace{0.2cm} Étude d'une fonction et calcul intégral} \hfill \bfseries 5 points
@@ -111,25 +84,25 @@ Affirmation 4 (Loi exponentielle) &
 } \\* \midrule[0.5pt]
 \textbf{A.1} &
 Limite en $0$ &
-\textbullet\ \subpt{0,25} $\lim_{x\to 0} x\ln(x) = 0$.\newline
+\textbullet\ \subpt{0,25} $\lim_{x\to 0} x\ln(x) = 0$ (croissances comparées).\newline
 \textbullet\ \subpt{0,25} $\lim_{x\to 0} g(x) = 0$ : \repbox{$0$}. &
 \pts{0,50} \\
 \cmidrule(lr){2-4}
 \textbf{A.2} &
 Limite en $+\infty$ &
-\textbullet\ \subpt{0,25} Factorisation par $x$ : $x(\ln(x)-1)$.\newline
+\textbullet\ \subpt{0,25} Factorisation $g(x) = x(\ln(x)-1)$.\newline
 \textbullet\ \subpt{0,25} $\lim_{x\to+\infty} g(x) = +\infty$ : \repbox{$+\infty$}. &
 \pts{0,50} \\
 \cmidrule(lr){2-4}
 \textbf{A.3} &
 Dérivée et variations &
-\textbullet\ \subpt{0,50} $g'(x) = \ln(x)$. Signe négatif sur $]0; 1[$, positif sur $]1; +\infty[$.\newline
-\textbullet\ \subpt{0,50} Tableau de variations correct. &
+\textbullet\ \subpt{0,50} $g'(x) = 1\cdot\ln(x) + x\cdot\frac{1}{x} - 1 = \ln(x)$. Signe de $\ln(x)$.\newline
+\textbullet\ \subpt{0,50} Tableau de variations correct (décroissante sur $]0;1]$, croissante sur $[1;+\infty[$). &
 \pts{1,00} \\
 \cmidrule(lr){2-4}
 \textbf{A.4} &
 Théorème des valeurs intermédiaires &
-\textbullet\ \subpt{0,50} Continuité, stricte monotonie et encadrement $\alpha \approx 1,76$ : \repbox{$\alpha \approx 1,76$}. &
+\textbullet\ \subpt{0,50} Continuité, stricte monotonie sur $[1;3]$, $g(1)=-1 < 0$ et $g(3) \approx 0,295 > 0$, d'où $\alpha \approx 1,76$ : \repbox{$\alpha \approx 1,76$}. &
 \pts{1,00} \\
 \midrule[0.6pt]
 \rowcolor{bleusecondaire!10}
@@ -138,15 +111,16 @@ Théorème des valeurs intermédiaires &
 } \\* \midrule[0.5pt]
 \textbf{B.1} &
 Vérification de primitive &
-\textbullet\ \subpt{0,50} Dérivation de $G$ menant à $g(x)$. &
+\textbullet\ \subpt{1,00} Dérivation de $G(x) = \frac{1}{2}x^2\ln(x) - \frac{3}{4}x^2 \implies G'(x) = x\ln(x) + \frac{1}{2}x - \frac{3}{2}x = x\ln(x)-x = g(x)$. &
 \pts{1,00} \\
 \cmidrule(lr){2-4}
 \textbf{B.2} &
 Calcul d'aire &
-\textbullet\ \subpt{0,50} Intégrale de $1$ à $\mathrm{e}$ de $-g(x)$.\newline
-\textbullet\ \subpt{0,50} Résultat : \repbox{$\frac{e^2 - 1}{4}$ u.a.}. &
+\textbullet\ \subpt{0,50} Intégrale $\int_{1}^{\mathrm{e}} -g(x)\,\mathrm{d}x$.\newline
+\textbullet\ \subpt{0,50} Résultat exact : \repbox{$\frac{\mathrm{e}^2 - 3}{4}$ u.a.}. &
 \pts{1,00} \\
 \midrule[1pt]
+% ==================== EXERCICE 3 ====================
 \rowcolor{bleusecondaire!15}
 \multicolumn{4}{l}{
     \bfseries\textcolor{bleuprimaire}{\large Exercice 3 \hspace{0.2cm}\textbullet\hspace{0.2cm} Suites numériques et fonction associée} \hfill \bfseries 6 points
@@ -157,27 +131,27 @@ Calcul d'aire &
 } \\* \midrule[0.5pt]
 \textbf{A.1} &
 Dérivée de $f$ &
-\textbullet\ \subpt{0,50} $f'(x) = \frac{10}{(x+4)^2} > 0$. &
+\textbullet\ \subpt{0,50} $f'(x) = \frac{3(x+4) - (3x+2)}{(x+4)^2} = \frac{10}{(x+4)^2} > 0$. &
 \pts{0,50} \\
 \cmidrule(lr){2-4}
 \textbf{A.2} &
 Stabilité de l'intervalle &
-\textbullet\ \subpt{0,75} $f$ croissante sur $[0;2]$, $f(0)=\frac{1}{2}$, $f(2)=\frac{8}{6}=\frac{4}{3} \in [0;2]$. &
+\textbullet\ \subpt{0,75} $f$ croissante sur $[0;2]$, $f(0)=0,5$, $f(2)=\frac{4}{3}$, donc $f([0;2]) \subset [0;2]$. &
 \pts{0,75} \\
 \cmidrule(lr){2-4}
 \textbf{A.3.a} &
 Équation $f(x)=x$ &
-\textbullet\ \subpt{0,50} $x^2 + x - 2 = 0$. &
+\textbullet\ \subpt{0,50} Résolution $3x+2 = x^2+4x \implies x^2+x-2=0$. &
 \pts{0,50} \\
 \cmidrule(lr){2-4}
 \textbf{A.3.b} &
 Points fixes &
-\textbullet\ \subpt{0,25} Solutions $1$ et $-2$ (seul $1$ dans $[0;2]$). &
+\textbullet\ \subpt{0,25} Solutions $1$ et $-2$ (seul $1$ appartient à $[0;2]$). &
 \pts{0,25} \\
 \cmidrule(lr){2-4}
 \textbf{A.4} &
 Récurrence &
-\textbullet\ \subpt{0,50} Initialisation et hérédité validées par croissance de $f$. &
+\textbullet\ \subpt{1,00} Initialisation évidente ($0 \le u_0 \le 2$), hérédité via la croissance de $f$. &
 \pts{1,00} \\
 \midrule[0.6pt]
 \rowcolor{bleusecondaire!10}
@@ -186,34 +160,35 @@ Récurrence &
 } \\* \midrule[0.5pt]
 \textbf{B.1} &
 Expression de $u_{n+1}-u_n$ &
-\textbullet\ \subpt{0,50} Calcul algébrique direct. &
+\textbullet\ \subpt{0,50} $u_{n+1}-u_n = \frac{3u_n+2 - u_n^2 - 4u_n}{u_n+4} = \frac{(1-u_n)(u_n+2)}{u_n+4}$. &
 \pts{0,50} \\
 \cmidrule(lr){2-4}
 \textbf{B.2} &
 Sens de variation &
-\textbullet\ \subpt{0,25} Suite décroissante (car $u_n \le 2$). &
+\textbullet\ \subpt{0,25} Comme $0 \le u_n \le 2$, $1-u_n$ change de signe mais $u_0=2 \implies u_1 = \frac{4}{3} \le 2$, suite décroissante. &
 \pts{0,25} \\
 \cmidrule(lr){2-4}
 \textbf{B.3} &
 Convergence &
-\textbullet\ \subpt{0,25} Minorée par 0 et décroissante. &
+\textbullet\ \subpt{0,25} Suite décroissante et minorée par $0$, donc convergente. &
 \pts{0,25} \\
 \cmidrule(lr){2-4}
 \textbf{B.4} &
 Limite $\ell$ &
-\textbullet\ \subpt{0,50} Résolution $\ell = f(\ell) \implies \ell = 1$. &
+\textbullet\ \subpt{0,50} $\ell = \frac{3\ell+2}{\ell+4} \implies \ell^2+\ell-2=0 \implies \ell=1$. &
 \pts{0,50} \\
 \cmidrule(lr){2-4}
 \textbf{B.5.a} &
 Complétion Python &
-\textbullet\ \subpt{0,50} Ligne 4 : `while abs(u - 1) >= eps:` &
+\textbullet\ \subpt{0,50} `while abs(u - 1) >= eps:` &
 \pts{0,50} \\
 \cmidrule(lr){2-4}
 \textbf{B.5.b} &
 Complétion Python &
-\textbullet\ \subpt{0,50} Ligne 6 : `n = n + 1` &
+\textbullet\ \subpt{0,50} `n = n + 1` &
 \pts{0,50} \\
 \midrule[1pt]
+% ==================== EXERCICE 4 ====================
 \rowcolor{bleusecondaire!15}
 \multicolumn{4}{l}{
     \bfseries\textcolor{bleuprimaire}{\large Exercice 4 \hspace{0.2cm}\textbullet\hspace{0.2cm} Géométrie dans l'espace} \hfill \bfseries 5 points
@@ -224,12 +199,12 @@ Complétion Python &
 } \\* \midrule[0.5pt]
 \textbf{A.1} &
 Non-alignement &
-\textbullet\ \subpt{0,50} Vecteurs $\vec{AB}$ et $\vec{AC}$ non colinéaires. &
+\textbullet\ \subpt{0,50} $\vec{AB}(-1;2;-1)$ et $\vec{AC}(1;1;-2)$ non colinéaires $\implies$ plan $\mathcal{P}$. &
 \pts{0,50} \\
 \cmidrule(lr){2-4}
 \textbf{A.2} &
 Équation cartésienne &
-\textbullet\ \subpt{0,50} Vérification des coordonnées de $A$, $B$, $C$ dans $x+y+z-3=0$. &
+\textbullet\ \subpt{0,50} Vérification de $x+y+z-3=0$ pour $A, B, C$. &
 \pts{0,50} \\
 \cmidrule(lr){2-4}
 \textbf{A.3} &
@@ -239,7 +214,7 @@ Appartenance de $D$ &
 \cmidrule(lr){2-4}
 \textbf{A.4} &
 Volume du tétraèdre &
-\textbullet\ \subpt{0,50} Calcul via hauteur et aire de base : $V = \frac{3}{2}$. &
+\textbullet\ \subpt{0,50} Calcul via hauteur $DH$ et aire de la base $ABC$ : $V = \frac{3}{2}$. &
 \pts{0,50} \\
 \midrule[0.6pt]
 \rowcolor{bleusecondaire!10}
@@ -253,17 +228,17 @@ Représentation paramétrique &
 \cmidrule(lr){2-4}
 \textbf{B.2} &
 Projeté orthogonal $H$ &
-\textbullet\ \subpt{0,50} Injection dans $\mathcal{P} \implies t = -1 \implies H(2;2;2)$. &
+\textbullet\ \subpt{0,50} Injection de la droite dans $\mathcal{P} \implies t = -1 \implies H(2;2;2)$. &
 \pts{0,50} \\
 \cmidrule(lr){2-4}
 \textbf{B.3} &
 Distance $DH$ &
-\textbullet\ \subpt{0,50} $\|\vec{DH}\| = \sqrt{3}$. &
+\textbullet\ \subpt{0,50} $\|\vec{DH}\| = \sqrt{(-1)^2+(-1)^2+(-1)^2} = \sqrt{3}$. &
 \pts{0,50} \\
 \cmidrule(lr){2-4}
 \textbf{B.4} &
 Intersection sphère/plan &
-\textbullet\ \subpt{0,25} Distance $d = \sqrt{3} < R = 3$, intersection est un cercle. &
+\textbullet\ \subpt{0,25} Distance $d = \sqrt{3} < R = 3$, l'intersection est un cercle. &
 \pts{0,25} \\
 \cmidrule(lr){2-4}
 \textbf{B.5.a} &
@@ -280,4 +255,5 @@ Rayon du cercle &
 \multicolumn{3}{r}{\textcolor{white}{\bfseries\large TOTAL GÉNÉRAL}} &
 \textcolor{white}{\bfseries\large 20 pts} \\
 \bottomrule[1.2pt]
-\end{longtable}\end{document}
+\end{longtable}
+\end{document}

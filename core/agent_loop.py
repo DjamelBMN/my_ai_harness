@@ -109,9 +109,9 @@ class AgentLoop:
                     "rapporte seulement les conclusions utiles et les preuves observées."
                 ),
                 (
-                    "Si des sources Web sont demandées, distingue FACT, SOURCE, INFERENCE "
-                    "et UNKNOWN. Cite uniquement les sources remontées par l'outil de recherche."
-                    if state.requires_web_search
+                    "Si des sources Web sont demandées ou si tu as besoin de vérifier une information factuelle ou récente, utilise de toi-même l'outil web_search comme source RAG complémentaire. Distingue FACT, SOURCE, INFERENCE "
+                    "et UNKNOWN. Cite uniquement les sources effectivement remontées par l'outil de recherche."
+                    if state.requires_web_search or ("web_search" in (agent.allowed_tools or ()))
                     else "N'invente pas de sources Web ni de citations."
                 ),
                 (
@@ -320,6 +320,18 @@ class AgentLoop:
         provider_error: str | None = None
 
         for iteration in range(1, iteration_limit + 1):
+            if getattr(self, "_stop_requested", False):
+                self._emit("[AGENT LOOP] Arrêt demandé par l'utilisateur.")
+                state.status = TaskStatus.FAILED
+                return AgentResult(
+                    task_id=state.task_id,
+                    status="failed",
+                    summary="Exécution arrêtée par l'utilisateur.",
+                    answer="⚠️ Exécution interrompue par l'utilisateur.",
+                    steps_executed=max(0, iteration - 1),
+                    observations=state.observations,
+                    verification={"status": "cancelled", "summary": "Arrêté par l'utilisateur"},
+                )
             state.current_step = iteration
             state.status = TaskStatus.EXECUTING
             self._emit(f"[AGENT LOOP] iteration {iteration}/{iteration_limit}")

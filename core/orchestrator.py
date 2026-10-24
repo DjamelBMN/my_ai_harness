@@ -92,10 +92,8 @@ class Orchestrator:
         if hasattr(agent_loop.planner, "set_agent_registry"):
             agent_loop.planner.set_agent_registry(self.agent_registry)
         state = state or agent_loop.planner.plan(task)
-        if task.skill is not None:
+        if task.skill is not None and task.skill.agent is not None:
             agent = task.skill.agent
-            if agent is None:
-                raise ValueError(f"Le Skill /{task.skill.name} ne fournit aucun agent dans agent.py.")
             agent_key = agent.routing_key
             score = 100
             selection_reasons = (f"Skill explicite /{task.skill.name}",)

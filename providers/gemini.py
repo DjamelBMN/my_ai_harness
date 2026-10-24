@@ -361,57 +361,58 @@ class GeminiProvider(BaseProvider):
         if configured_tools:
             config["tools"] = configured_tools
 
+        from types import SimpleNamespace
+
+        response = None
         if (
-            not configured_tools
-            and callable(getattr(self, "stream_callback", None))
+            callable(getattr(self, "stream_callback", None))
             and hasattr(self._client, "models")
             and hasattr(self._client.models, "generate_content_stream")
         ):
+            streamed_text: list[str] = []
             try:
                 stream = self._client.models.generate_content_stream(
                     model=self.model,
                     contents=contents,
                     config=types.GenerateContentConfig(**config),
                 )
-                streamed_parts: list[str] = []
+                all_parts = []
                 last_candidate = None
+                stream_grounding = None
                 for chunk in stream:
                     cands = getattr(chunk, "candidates", None) or []
-                    if cands:
-                        last_candidate = cands[0]
-                    chunk_text = ""
-                    rc = getattr(last_candidate, "content", None) if cands else None
-                    for part in getattr(rc, "parts", None) or []:
-                        if getattr(part, "text", None) and not getattr(part, "thought", False):
-                            chunk_text += part.text
-                    if not chunk_text:
-                        t_attr = getattr(chunk, "text", "")
-                        if isinstance(t_attr, str) and t_attr:
-                            chunk_text = t_attr
-                    if chunk_text:
-                        streamed_parts.append(chunk_text)
-                        try:
-                            self.stream_callback(chunk_text, "".join(streamed_parts))
-                        except Exception:
-                            pass
-                full_text = "".join(streamed_parts).strip()
-                if full_text:
-                    contents.append(
-                        types.Content(role="model", parts=[types.Part(text=full_text)])
+                    if not cands:
+                        continue
+                    last_candidate = cands[0]
+                    if getattr(last_candidate, "grounding_metadata", None):
+                        stream_grounding = last_candidate.grounding_metadata
+                    for part in getattr(getattr(last_candidate, "content", None), "parts", None) or []:
+                        all_parts.append(part)
+                        txt = getattr(part, "text", None)
+                        if txt and not getattr(part, "thought", False):
+                            streamed_text.append(txt)
+                            try:
+                                self.stream_callback(txt, "".join(streamed_text))
+                            except Exception:
+                                pass
+                if all_parts:
+                    response = SimpleNamespace(
+                        text="".join(streamed_text),
+                        candidates=[
+                            SimpleNamespace(
+                                content=types.Content(role="model", parts=all_parts),
+                                finish_reason=getattr(last_candidate, "finish_reason", ""),
+                                grounding_metadata=stream_grounding,
+                            )
+                        ],
                     )
-                    finish_reason = str(getattr(last_candidate, "finish_reason", ""))
-                    return AgentTurn(
-                        text=full_text,
-                        tool_calls=[],
-                        continuation={"contents": contents},
-                        partial="MAX_TOKENS" in finish_reason.upper(),
-                        sources=[],
-                    )
-            except Exception:
-                pass
+            except Exception as error:
+                if streamed_text:
+                    raise self._api_error(error, "la génération en streaming") from None
+                response = None
 
         try:
-            response = self._generate_content(
+            response = response or self._generate_content(
                 contents,
                 config=types.GenerateContentConfig(**config),
                 phase="la génération avec outils",

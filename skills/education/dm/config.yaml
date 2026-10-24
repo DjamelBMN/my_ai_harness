@@ -1,0 +1,41 @@
+name: dm
+display_name: Devoir Maison
+description: Conception de Devoirs Maison de mathématiques complets et gradués conformes aux programmes du lycée.
+agent: researcher
+intent: homework_creation
+max_iterations: 15
+max_output_tokens: 16384
+partial_delivery_on_failure: true
+requires_workspace: false
+requires_file_read: false
+requires_modification: false
+requires_tests: false
+requires_web: false
+requires_web_when:
+  - officiel
+  - programme officiel
+  - source officielle
+  - annales
+risk_level: READ_ONLY
+requires_user_confirmation: false
+capabilities:
+  - math_homework
+  - latex_compilation
+secondary_capabilities:
+  - research
+  - review
+allowed_secondary_agents:
+  - researcher
+  - reviewer
+tools:
+  - list_files
+  - find_file
+  - search_files
+  - read_file
+  - read_document
+  - write_file
+  - web_search
+templates:
+  - template_dm.tex
+rag_directory: rag
+

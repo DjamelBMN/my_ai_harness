@@ -141,6 +141,7 @@ class IntentEngine:
                 for marker in (
                     "programme", "application", "app", "script", "fonction", "module", "code",
                     "program", "projet", "application python", "agent", "fonctionnalité", "fonctionnalite",
+                    "html", "page web", "page html", "interface", "interface web", "site web", "css", "javascript",
                 )
             )
         )

@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous" />
   <link rel="stylesheet" href="/styles.css" />
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
@@ -55,12 +56,13 @@
 
         <div class="topbar-status-pill" title="État réel du runtime">
           <span class="status-dot" id="top-task-dot"></span>
-          <span id="top-task-status">Prêt</span>
+          <span id="top-task-status" class="status-text-dynamic" style="display: none;">Prêt</span>
         </div>
       </div>
 
       <div class="topbar-right">
-        <button id="btn-open-search" class="topbar-ghost-pill" title="Recherche globale (Ctrl+K)">
+        <!-- Bouton recherche conservé pour accessibilité et tests, palette déclenchable via Ctrl+K -->
+        <button id="btn-open-search" class="topbar-ghost-pill" style="display: none;" title="Recherche globale (Ctrl+K)">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -69,28 +71,46 @@
           <kbd class="kbd-hint">Ctrl+K</kbd>
         </button>
 
-        <button id="btn-toggle-theme" class="topbar-icon-btn" title="Basculer le thème Clair / Sombre" aria-label="Thème">
-          <span id="theme-icon" class="icon-inline">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="5"></circle>
-              <line x1="12" y1="1" x2="12" y2="3"></line>
-              <line x1="12" y1="21" x2="12" y2="23"></line>
-              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-              <line x1="1" y1="12" x2="3" y2="12"></line>
-              <line x1="21" y1="12" x2="23" y2="12"></line>
-              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        <!-- Menu unique discret (Thème, Réglages, À propos) -->
+        <div class="topbar-menu-wrapper" style="position: relative;">
+          <button id="btn-topbar-menu" class="topbar-icon-btn" title="Options et préférences" aria-label="Menu des options">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="1.5"></circle>
+              <circle cx="19" cy="12" r="1.5"></circle>
+              <circle cx="5" cy="12" r="1.5"></circle>
             </svg>
-          </span>
-        </button>
-
-        <button id="btn-open-settings" class="topbar-icon-btn" title="Paramètres & Clés API" aria-label="Paramètres">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-          </svg>
-        </button>
+          </button>
+          <div id="topbar-menu-dropdown" class="topbar-dropdown" style="display: none;">
+            <button id="btn-toggle-theme" class="topbar-dropdown-item" title="Basculer le thème Clair / Sombre" aria-label="Thème">
+              <span id="theme-icon" class="icon-inline">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="5"></circle>
+                  <line x1="12" y1="1" x2="12" y2="3"></line>
+                  <line x1="12" y1="21" x2="12" y2="23"></line>
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                  <line x1="1" y1="12" x2="3" y2="12"></line>
+                  <line x1="21" y1="12" x2="23" y2="12"></line>
+                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+              </span>
+              <span id="theme-label-text">Basculer le thème</span>
+            </button>
+            <button id="btn-open-settings" class="topbar-dropdown-item" title="Paramètres & Clés API" aria-label="Paramètres">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+              <span>Paramètres & Clés API</span>
+            </button>
+            <div class="topbar-dropdown-divider"></div>
+            <div class="topbar-dropdown-about">
+              <span class="about-app">NeoHarness AI</span>
+              <span class="about-author">Conçu par Djamel BENMAKHLOUF</span>
+            </div>
+          </div>
+        </div>
 
         <button id="btn-toggle-inspector" class="topbar-ghost-pill" title="Ouvrir/Fermer le panneau latéral droit (Ctrl+I)">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -125,49 +145,42 @@
             class="sidebar-search"
             placeholder="Filtrer les conversations…"
             aria-label="Filtrer les conversations"
+            style="display: none;"
           />
         </div>
 
         <div class="sidebar-scroll">
-          <!-- Conversations récentes -->
+          <!-- Conversations groupées chronologiquement (Aujourd'hui, Hier, Cette semaine, Plus ancien) -->
           <section class="sidebar-section">
-            <div class="sidebar-section-header" data-toggle-section="sec-conversations">
-              <span>Conversations récentes</span>
-              <span id="count-conversations" class="sidebar-count">1</span>
-            </div>
-            <div id="sec-conversations"></div>
+            <div id="sec-conversations" class="sidebar-conversations-list"></div>
+            <span id="count-conversations" style="display: none;">0</span>
           </section>
 
-          <!-- Projets -->
+          <!-- Projets réels du workspace -->
           <section class="sidebar-section">
-            <div class="sidebar-section-header" data-toggle-section="sec-projects">
-              <span>Projets</span>
-              <span id="count-projects" class="sidebar-count">1</span>
-            </div>
-            <div id="sec-projects"></div>
+            <div class="sidebar-section-title">Projets</div>
+            <div id="sec-projects" class="sidebar-projects-list"></div>
+            <span id="count-projects" style="display: none;">1</span>
           </section>
 
-          <!-- Accès discret aux espaces avancés (replié par défaut) -->
-          <section class="sidebar-section sidebar-advanced-section">
+          <!-- Section système masquée de la vue épurée mais préservée pour les contrats DOM -->
+          <section class="sidebar-section sidebar-advanced-section" style="display: none;">
             <div class="sidebar-section-header" data-toggle-section="sec-advanced-system">
               <span>Système & Capacités</span>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <polyline points="9 18 15 12 9 6"></polyline>
-              </svg>
             </div>
             <div id="sec-advanced-system" style="display: none;">
               <div class="sidebar-subnav">
                 <button class="sidebar-subnav-btn" data-open-inspector-tab="model">
                   <span>Modèles & Capacités</span>
-                  <span id="count-models" class="sidebar-count">6</span>
+                  <span id="count-models" class="sidebar-count">0</span>
                 </button>
                 <button class="sidebar-subnav-btn" data-open-inspector-tab="skills">
                   <span>Skills du Harness</span>
-                  <span id="count-skills" class="sidebar-count">18</span>
+                  <span id="count-skills" class="sidebar-count">0</span>
                 </button>
                 <button class="sidebar-subnav-btn" data-open-inspector-tab="tools">
                   <span>Outils (ToolRegistry)</span>
-                  <span id="count-tools" class="sidebar-count">17</span>
+                  <span id="count-tools" class="sidebar-count">0</span>
                 </button>
                 <button class="sidebar-subnav-btn" data-open-inspector-tab="files">
                   <span>Fichiers & Diffs</span>
@@ -183,17 +196,17 @@
               <div id="sec-skills" style="display: none;"></div>
               <div id="sec-tools" style="display: none;"></div>
               <div id="sec-models" style="display: none;"></div>
-              <span id="count-agents" style="display: none;">5</span>
+              <span id="count-agents" style="display: none;">0</span>
             </div>
           </section>
         </div>
 
         <div class="sidebar-footer">
-          <div class="creator-badge" title="Créateur & Architecte de NeoHarness AI : Djamel BENMAKHLOUF">
+          <div class="creator-badge" id="btn-sidebar-about" title="Créateur & Architecte de NeoHarness AI : Djamel BENMAKHLOUF">
             <span class="creator-avatar" aria-hidden="true">DB</span>
             <div class="creator-info">
-              <span class="creator-label">Créateur</span>
               <strong class="creator-name">Djamel BENMAKHLOUF</strong>
+              <span class="creator-label">Créateur · NeoHarness AI</span>
             </div>
           </div>
         </div>
@@ -216,32 +229,15 @@
               </div>
               <h1>Que souhaitez-vous accomplir ?</h1>
               <p>
-                Écrivez votre demande en langage naturel ou tapez <code>/</code> pour invoquer un skill. L'agent planifie, exécute ses outils et vérifie le résultat en temps réel.
+                Écrivez votre demande en langage naturel ou tapez <code>/</code> pour invoquer un skill.
               </p>
-              <div class="welcome-creator-tag" title="Créé et conçu par Djamel BENMAKHLOUF">
-                <span class="creator-sparkle" aria-hidden="true">✦</span>
-                <span>Outil conçu & créé par <strong>Djamel BENMAKHLOUF</strong></span>
-              </div>
             </div>
 
-            <div id="welcome-model-card" class="welcome-model-banner"></div>
+            <!-- Élément préservé pour compatibilité DOM -->
+            <div id="welcome-model-card" class="welcome-model-banner" style="display: none;"></div>
 
-            <div class="welcome-grid">
-              <button class="welcome-card" data-quick-prompt="Recherche sur internet les dernières actualités sur l'intelligence artificielle et synthétise les sources.">
-                <div class="welcome-card-title">
-                  <span class="welcome-card-title-left">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <circle cx="12" cy="12" r="10"></circle>
-                      <line x1="2" y1="12" x2="22" y2="12"></line>
-                      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-                    </svg>
-                    <span>Recherche Internet temps réel</span>
-                  </span>
-                  <span class="meta-chip">web_search</span>
-                </div>
-                <div class="welcome-card-desc">Consulte de vraies sources Web datées et synthétise les faits vérifiés avec leurs liens.</div>
-              </button>
-
+            <!-- Suggestions d'actions concrètes (3 cartes premium) -->
+            <div class="welcome-grid welcome-grid-3">
               <button class="welcome-card" data-quick-prompt="/bacblanc">
                 <div class="welcome-card-title">
                   <span class="welcome-card-title-left">
@@ -251,43 +247,40 @@
                       <line x1="16" y1="13" x2="8" y2="13"></line>
                       <line x1="16" y1="17" x2="8" y2="17"></line>
                     </svg>
-                    <span>Générer & compiler un PDF LaTeX</span>
+                    <span>Bac blanc complet</span>
                   </span>
                   <span class="meta-chip">/bacblanc</span>
                 </div>
-                <div class="welcome-card-desc">Compile réellement le sujet LaTeX avec Tectonic et ouvre l'aperçu PDF à droite.</div>
+                <div class="welcome-card-desc">Concevoir un sujet officiel de baccalauréat avec barème sur 20 et corrigé complet, compilé en PDF.</div>
               </button>
 
-              <button class="welcome-card" data-quick-prompt="/debug Inspecte le code et vérifie les tests unitaires.">
+              <button class="welcome-card" data-quick-prompt="/exercice">
                 <div class="welcome-card-title">
                   <span class="welcome-card-title-left">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <polyline points="16 18 22 12 16 6"></polyline>
-                      <polyline points="8 6 2 12 8 18"></polyline>
+                      <line x1="18" y1="20" x2="18" y2="10"></line>
+                      <line x1="12" y1="20" x2="12" y2="4"></line>
+                      <line x1="6" y1="20" x2="6" y2="14"></line>
                     </svg>
-                    <span>Coder, tester & corriger</span>
+                    <span>Exercice de mathématiques</span>
                   </span>
-                  <span class="meta-chip">/debug</span>
+                  <span class="meta-chip">/exercice</span>
                 </div>
-                <div class="welcome-card-desc">Inspecte les fichiers, applique des modifications sûres et lance la suite de tests.</div>
+                <div class="welcome-card-desc">Générer un exercice guidé conforme aux programmes du lycée avec questions progressives et correction détaillée.</div>
               </button>
 
-              <button class="welcome-card" data-quick-prompt="/plan Construire et vérifier une nouvelle fonctionnalité Python dans le workspace">
+              <button class="welcome-card" data-quick-prompt="/dm">
                 <div class="welcome-card-title">
                   <span class="welcome-card-title-left">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <line x1="8" y1="6" x2="21" y2="6"></line>
-                      <line x1="8" y1="12" x2="21" y2="12"></line>
-                      <line x1="8" y1="18" x2="21" y2="18"></line>
-                      <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                      <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                      <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
                     </svg>
-                    <span>Planifier sans exécuter</span>
+                    <span>Devoir maison (DM)</span>
                   </span>
-                  <span class="meta-chip">/plan</span>
+                  <span class="meta-chip">/dm</span>
                 </div>
-                <div class="welcome-card-desc">Prévisualise l'intention, l'agent et les étapes prévues sans modifier le workspace.</div>
+                <div class="welcome-card-desc">Créer un devoir maison approfondi, structuré en parties thématiques avec barème et corrigé LaTeX Libertinus.</div>
               </button>
             </div>
           </div>
@@ -302,10 +295,10 @@
         <!-- Composer ultra-épuré style Claude / ChatGPT avec Palette Slash Commands & Dictée Vocale -->
         <div class="composer-wrapper">
           <div id="composer-box" class="composer-box">
-            <!-- Palette flottante des 18 Slash Commands (apparaît dès la saisie de /) -->
+            <!-- Palette flottante des 20 Slash Commands (apparaît dès la saisie de /) -->
             <div id="slash-command-palette" class="slash-palette" role="listbox" aria-label="Commandes et Skills NeoHarness" style="display: none;">
               <div class="slash-palette-header">
-                <span class="slash-palette-title">Skills & Commandes NeoHarness (18)</span>
+                <span class="slash-palette-title">Skills & Commandes NeoHarness (20)</span>
                 <span class="slash-palette-hint">↑↓ naviguer · Entrée choisir · Échap fermer</span>
               </div>
               <div id="slash-palette-list" class="slash-palette-list"></div>
@@ -339,12 +332,12 @@
               </button>
             </div>
 
-            <!-- Zone de texte principale -->
+            <!-- Zone de texte principale auto-grow -->
             <textarea
               id="composer-input"
               class="composer-textarea"
-              placeholder="Posez une question, confiez une tâche ou tapez / pour une commande…"
-              rows="2"
+              placeholder="Écrivez votre message, ou / pour une commande"
+              rows="1"
             ></textarea>
 
             <!-- Input file caché pour téléversement réel de pièces jointes (fichiers, PDF, images) -->
@@ -359,24 +352,52 @@
             <!-- Barre de contrôles minimaliste en une seule ligne -->
             <div id="composer-footer" class="composer-footer">
               <div class="composer-controls-left">
-
-
-                <button id="btn-attach-file" type="button" class="composer-chip-btn" title="Joindre un fichier existant du workspace">
+                <button id="btn-attach-file" type="button" class="composer-chip-btn" title="Joindre un fichier du workspace (ou glisser-déposer)">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
                   </svg>
-                  <span>+ Fichier</span>
+                  <span>Fichier</span>
                 </button>
 
-                <select id="composer-model-select" class="composer-select" title="Modèle actif" aria-label="Modèle actif">
+                <!-- Bouton compact de gouvernance -->
+                <div class="governance-popover-container" style="position: relative;">
+                  <button id="btn-composer-governance" type="button" class="composer-chip-btn" title="Mode de gouvernance (Shift+Tab)">
+                    <span id="governance-chip-label">Auto</span>
+                    <svg class="caret-svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                  </button>
+                  <div id="governance-dropdown" class="governance-dropdown" style="display: none;">
+                    <div class="governance-option active" data-mode="AUTO">
+                      <strong>AUTO</strong>
+                      <span>Exécution directe sans interruption</span>
+                    </div>
+                    <div class="governance-option" data-mode="EDIT">
+                      <strong>EDIT</strong>
+                      <span>Validation requise avant chaque modification</span>
+                    </div>
+                    <div class="governance-option" data-mode="PLAN">
+                      <strong>PLAN</strong>
+                      <span>Planification seule sans modification</span>
+                    </div>
+                    <div class="governance-option" data-mode="ACCEPT">
+                      <strong>ACCEPT</strong>
+                      <span>Confirmation pour toute action à risque</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Inputs préservés pour compatibilité de tests et scripts -->
+                <select id="composer-model-select" class="composer-select" style="display: none;" title="Modèle actif" aria-label="Modèle actif">
                   <option value="auto">Modèle : Auto</option>
                 </select>
 
-                <select id="composer-skill-select" class="composer-select" title="Skill actif (Auto ou forcé)" aria-label="Skill actif">
+                <select id="composer-skill-select" class="composer-select" style="display: none;" title="Skill actif (Auto ou forcé)" aria-label="Skill actif">
                   <option value="auto">Skill : Auto</option>
                 </select>
 
-                <select id="composer-mode-select" class="composer-select" title="Mode de gouvernance (Shift+Tab)" aria-label="Mode de permissions">
+                <select id="composer-mode-select" class="composer-select" style="display: none;" title="Mode de gouvernance (Shift+Tab)" aria-label="Mode de permissions">
                   <option value="EDIT">Mode : EDIT</option>
                   <option value="PLAN">Mode : PLAN</option>
                   <option value="ACCEPT">Mode : ACCEPT</option>
@@ -394,11 +415,13 @@
                 </button>
 
                 <button id="btn-send-task" type="button" class="send-btn" title="Envoyer (Entrée)">
-                  <span>Envoyer</span>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <line x1="12" y1="19" x2="12" y2="5"></line>
-                    <polyline points="5 12 12 5 19 12"></polyline>
-                  </svg>
+                  <span id="btn-send-task-text">Envoyer</span>
+                  <span id="btn-send-task-icon">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <line x1="12" y1="19" x2="12" y2="5"></line>
+                      <polyline points="5 12 12 5 19 12"></polyline>
+                    </svg>
+                  </span>
                 </button>
               </div>
             </div>
@@ -484,6 +507,7 @@
           <div id="doc-preview-body" class="doc-preview-body">
             <!-- Iframe PDF -->
             <iframe id="doc-pdf-frame" class="doc-preview-frame" title="Aperçu PDF" style="display: none;"></iframe>
+            <div id="doc-pdf-viewer" class="doc-pdf-viewer" style="display: none;"></div>
             <!-- Iframe HTML Sandboxé -->
             <iframe
               id="doc-html-frame"
@@ -506,14 +530,14 @@
         <div id="inspector-tech-container" class="inspector-tech-container">
           <div class="inspector-header">
             <nav class="inspector-tabs" role="tablist">
-              <button class="inspector-tab active" data-inspector-tab="model" role="tab">Modèle</button>
-              <button class="inspector-tab" data-inspector-tab="skills" role="tab">Skills</button>
-              <button class="inspector-tab" data-inspector-tab="activity" role="tab">Activité</button>
+              <button class="inspector-tab active" data-inspector-tab="activity" role="tab">Activité</button>
               <button class="inspector-tab" data-inspector-tab="files" role="tab">Fichiers & Diff</button>
+              <button class="inspector-tab" data-inspector-tab="rag" role="tab">Mémoire & RAG</button>
+              <button class="inspector-tab" data-inspector-tab="model" role="tab">Modèle</button>
+              <button class="inspector-tab" data-inspector-tab="skills" role="tab">Skills</button>
               <button class="inspector-tab" data-inspector-tab="tools" role="tab">Outils</button>
-              <button class="inspector-tab" data-inspector-tab="memory" role="tab">Mémoire</button>
-              <button class="inspector-tab" data-inspector-tab="rag" role="tab">RAG</button>
-              <button class="inspector-tab" data-inspector-tab="context" role="tab">Contexte</button>
+              <button class="inspector-tab" data-inspector-tab="memory" style="display: none;" role="tab">Mémoire</button>
+              <button class="inspector-tab" data-inspector-tab="context" style="display: none;" role="tab">Contexte</button>
             </nav>
             <div style="display: flex; align-items: center; gap: 4px;">
               <button id="btn-switch-to-doc" type="button" class="icon-btn-mini" style="display: none;" title="Revenir à l'aperçu du document">
@@ -546,6 +570,8 @@
       <div class="modal-header">
         <strong id="modal-model-title">Sélection du Modèle & Capacités Réelles</strong>
         <button class="icon-btn-mini" data-close-modal="modal-model-picker">Fermer</button>
+                <strong id="modal-model-title">Modèle</strong>
+        <button class="icon-btn-mini" data-close-modal="modal-model-picker" aria-label="Fermer">✕</button>
       </div>
       <div id="modal-model-body" class="modal-body"></div>
     </div>
@@ -586,6 +612,7 @@
     </div>
   </div>
 
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

@@ -3,6 +3,7 @@
 # harness. L'Orchestrator lui attribue un provider LLM via le ModelRouter.
 
 import re
+from datetime import datetime
 
 from core.task import Task, ensure_task
 from providers.base_provider import BaseProvider
@@ -65,10 +66,17 @@ class Agent:
     def build_prompt(self, task: Task | str) -> str:
         """Construit le prompt de base envoyé au moteur de raisonnement."""
         task = ensure_task(task, default_type=self.routing_key or "researcher")
+        now = datetime.now()
+        french_weekdays = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
+        french_months = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"]
+        date_str = f"{french_weekdays[now.weekday()]} {now.day} {french_months[now.month - 1]} {now.year}, {now.strftime('%H:%M:%S')}"
+
         parts = [
-            f"Tu es {self.name}, un agent dont le rôle est : {self.role}.",
+            f"Tu es {self.name}, un agent d'élite dont le rôle est : {self.role}.",
+            f"Date et heure actuelles : {date_str} (Europe/Paris). Tu as pleine conscience de la date courante.",
             f"Tâche à accomplir : {task.description}",
             f"Mode global du Harness : {task.mode}.",
+            "Directive d'intelligence et de recherche autonome : En cas de manque de connaissances récentes, de vérification de fait, d'annale ou de point de programme officiel, utilise de toi-même l'outil 'web_search' pour interroger Internet en temps réel comme source de RAG complémentaire avant de formuler ta réponse.",
         ]
         if task.skill_name:
             parts.append(f"Skill actif : {task.skill_name}.")

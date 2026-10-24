@@ -251,8 +251,10 @@ class WorkspaceFilesystem:
             "sha256": digest,
         }
 
-    def write_bytes(self, relative_path: str, content: bytes) -> dict[str, object]:
-        """Crée un artefact binaire dans le workspace sans écraser l'existant."""
+    def write_bytes(
+        self, relative_path: str, content: bytes, *, overwrite: bool = False
+    ) -> dict[str, object]:
+        """Crée un artefact binaire dans le workspace sans écraser l'existant sauf si overwrite=True."""
         if not isinstance(content, bytes):
             raise TypeError("Le contenu binaire doit être de type bytes.")
         if len(content) > self.max_file_bytes:
@@ -265,10 +267,10 @@ class WorkspaceFilesystem:
             raise PermissionError("Écriture refusée : le contenu ressemble à un secret ou une clé API.")
         path = self.resolve(relative_path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path = self.resolve(relative_path)
-        if path.exists():
+        if path.exists() and not overwrite:
             raise FileExistsError(f"Le fichier existe déjà : {relative_path}")
-        with path.open("xb") as file:
+        mode = "wb" if overwrite else "xb"
+        with path.open(mode) as file:
             file.write(content)
             file.flush()
             os.fsync(file.fileno())

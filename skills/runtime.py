@@ -51,10 +51,19 @@ class SkillRuntime:
         )
         if skill is not None:
             task.skill_name = skill.name
-        if skill is not None:
+            task.skill = skill
             skill_text = "\n\n".join(
                 part for part in (skill.instructions, skill.rules) if part
             )
+            if skill.template_contents:
+                template_sections = []
+                for tmpl_name, tmpl_code in skill.template_contents.items():
+                    template_sections.append(
+                        f"=== GABARIT LATEX OBLIGATOIRE ({tmpl_name}) ===\n"
+                        f"Tu DOIS utiliser strictement les commandes et la structure de ce gabarit officiel :\n"
+                        f"```latex\n{tmpl_code}\n```"
+                    )
+                skill_text += "\n\n" + "\n\n".join(template_sections)
             instructions = "\n\n".join(
                 part for part in (skill_text, instructions) if part
             )

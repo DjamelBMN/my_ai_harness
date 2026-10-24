@@ -36,7 +36,7 @@ class Planner:
             raise ClarificationRequired("Décris la mission que tu veux confier au harness.")
 
         skill = task.skill
-        if skill is not None:
+        if skill is not None and not bool(skill.config.get("auto_route")):
             config = skill.config
             intent = str(config.get("intent") or "specialized")
             agent = skill.agent.routing_key if skill.agent is not None else task.type
@@ -88,7 +88,7 @@ class Planner:
             except ValueError as error:
                 raise ClarificationRequired(str(error)) from None
 
-        if skill is not None:
+        if skill is not None and not bool(skill.config.get("auto_route")):
             intent = decision.intent
         elif task.explicit_agent or task.type != "researcher":
             agent = task.type.strip().lower()
@@ -113,6 +113,8 @@ class Planner:
             decision.primary_agent = skill.agent.name
         elif task.explicit_agent or task.type != "researcher":
             decision.primary_agent = task.type.strip()
+        else:
+            decision.primary_agent = agent
 
         state = TaskState(
             user_request=request,

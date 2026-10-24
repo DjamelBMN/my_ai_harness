@@ -498,7 +498,7 @@ class NeoHarnessUIEnvironmentTests(unittest.TestCase):
         self.assertIn("Gemini Flash", result.answer)
 
     def test_28_canonical_18_skills_order_and_slash_palette_markup(self) -> None:
-        """28. Ordre canonique strict des 18 skills (1..18) dans SkillRegistry et /api/skills."""
+        """28. Ordre canonique strict des skills (avec éducation : bacblanc, exercice, dm) dans SkillRegistry et /api/skills."""
         expected_canonical = [
             "analyze",
             "auto",
@@ -507,6 +507,8 @@ class NeoHarnessUIEnvironmentTests(unittest.TestCase):
             "context",
             "debug",
             "diagnostic",
+            "dm",
+            "exercice",
             "export",
             "memory",
             "mode",
@@ -524,7 +526,7 @@ class NeoHarnessUIEnvironmentTests(unittest.TestCase):
         self.assertEqual(status, HTTPStatus.OK)
         skills = payload["skills"]
         self.assertEqual([s["name"] for s in skills], expected_canonical)
-        self.assertEqual([s["canonical_index"] for s in skills], list(range(1, 19)))
+        self.assertEqual([s["canonical_index"] for s in skills], list(range(1, len(expected_canonical) + 1)))
 
     def test_29_tectonic_latex_compilation_auto_repair_and_error_handling(self) -> None:
         """29. Compilation LaTeX réelle via Tectonic, auto-réparation et gestion d'erreur sans PDF obsolète."""
