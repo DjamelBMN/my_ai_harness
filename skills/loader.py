@@ -10,12 +10,14 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import ModuleType
-from typing import Any
+from typing import Any, Callable
 
 import yaml
 
 from core.agent import Agent
 from skills.registry import SkillDescriptor
+from tools.documents import read_document
+from tools.filesystem import WorkspaceFilesystem
 
 
 class SkillLoadError(RuntimeError):
@@ -30,13 +32,18 @@ class SkillDefinition:
     path: Path
     instructions: str
     rules: str
-    agent: Agent | None
+    agent: Agent | None = None
+    command_handler: Callable[..., Any] | None = None
+    dispatch_agent: str | None = None
     tools: list[str] = field(default_factory=list)
     rag_path: Path | None = None
     rag_resources: list[Path] = field(default_factory=list)
     templates: list[str] = field(default_factory=list)
     available_templates: list[Path] = field(default_factory=list)
     config: dict[str, Any] = field(default_factory=dict)
+    rag_contents: dict[str, str] = field(default_factory=dict)
+    template_contents: dict[str, str] = field(default_factory=dict)
+    resource_errors: dict[str, str] = field(default_factory=dict)
 
     @property
     def relative_path(self) -> str:
@@ -75,6 +82,20 @@ class SkillLoader:
             )
         description = str(config.get("description") or self._first_heading(instructions) or name)
         agent = self._load_agent(path, config, descriptor.name)
+        command_handler = self._load_command_handler(path, descriptor.name)
+        dispatch_agent = config.get("agent")
+        if dispatch_agent is not None:
+            if not isinstance(dispatch_agent, str) or not dispatch_agent.strip():
+                raise SkillLoadError(f"agent de /{descriptor.name} doit être une clé d'agent.")
+            dispatch_agent = dispatch_agent.strip().casefold()
+        if agent is not None and (dispatch_agent is not None or command_handler is not None):
+            raise SkillLoadError(
+                f"/{descriptor.name} ne peut pas combiner agent.py et une commande de délégation."
+            )
+        if command_handler is not None and dispatch_agent is not None:
+            raise SkillLoadError(
+                f"/{descriptor.name} ne peut pas combiner command.py et agent dans config.yaml."
+            )
         allowed_tools = self._string_list(config.get("tools", []), "tools", descriptor.name)
         templates = self._string_list(config.get("templates", []), "templates", descriptor.name)
         rag_path = (path / str(config.get("rag_directory", "rag"))).resolve()
@@ -91,6 +112,13 @@ class SkillLoader:
         except ValueError:
             raise SkillLoadError(f"Le chemin templates de /{descriptor.name} sort de son dossier.") from None
         available_templates = self._list_files_inside(templates_dir) if templates_dir.is_dir() else []
+        rag_contents, rag_errors = self._read_resources(rag_path, rag_resources, max_total_chars=36_000)
+        template_contents, template_errors = self._read_resources(
+            templates_dir,
+            available_templates,
+            max_total_chars=120_000,
+        )
+        resource_errors = {**rag_errors, **template_errors}
 
         if agent is not None:
             agent.skill_name = name
@@ -100,8 +128,11 @@ class SkillLoader:
             agent.skill_config = dict(config)
             agent.skill_rag_path = rag_path
             agent.skill_rag_resources = list(rag_resources)
+            agent.skill_rag_contents = dict(rag_contents)
             agent.skill_templates = list(templates)
             agent.skill_available_templates = list(available_templates)
+            agent.skill_template_contents = dict(template_contents)
+            agent.skill_resource_errors = dict(resource_errors)
             agent.skill_source_path = (
                 Path(self.root.name) / path.relative_to(self.root) / "skill.md"
             ).as_posix()
@@ -115,12 +146,17 @@ class SkillLoader:
             instructions=instructions,
             rules=rules,
             agent=agent,
+            command_handler=command_handler,
+            dispatch_agent=dispatch_agent,
             tools=allowed_tools,
             rag_path=rag_path,
             rag_resources=rag_resources,
             templates=templates,
             available_templates=available_templates,
             config=config,
+            rag_contents=rag_contents,
+            template_contents=template_contents,
+            resource_errors=resource_errors,
         )
 
     @staticmethod
@@ -182,6 +218,45 @@ class SkillLoader:
         return sorted(files)
 
     @staticmethod
+    def _read_resources(
+        root: Path,
+        files: list[Path],
+        *,
+        max_total_chars: int,
+    ) -> tuple[dict[str, str], dict[str, str]]:
+        """Lit les ressources du Skill avec les extracteurs du workspace sécurisé."""
+        contents: dict[str, str] = {}
+        errors: dict[str, str] = {}
+        if not root.is_dir():
+            return contents, errors
+
+        filesystem = WorkspaceFilesystem(root)
+        total_chars = 0
+        document_extensions = {".pdf", ".docx", ".xlsx", ".pptx"}
+        for path in files:
+            relative = path.relative_to(root).as_posix()
+            try:
+                if path.suffix.casefold() in document_extensions:
+                    extracted = read_document(relative, filesystem=filesystem)
+                    text = extracted["text"]
+                else:
+                    text = filesystem.read_file(relative)
+                text = text.strip()
+                if not text:
+                    raise ValueError("Aucun texte exploitable n'a été extrait.")
+                remaining = max_total_chars - total_chars
+                if remaining <= 0:
+                    errors[relative] = "Non transmis : limite de contexte des ressources atteinte."
+                    continue
+                if len(text) > remaining:
+                    text = text[:remaining] + "\n[Extrait tronqué : le document complet n'est pas transmis.]"
+                contents[relative] = text
+                total_chars += len(text)
+            except Exception as error:
+                errors[relative] = f"{type(error).__name__}: {error}"
+        return contents, errors
+
+    @staticmethod
     def _module_from_file(path: Path, module_name: str) -> ModuleType:
         spec = importlib.util.spec_from_file_location(module_name, path)
         if spec is None or spec.loader is None:
@@ -225,4 +300,30 @@ class SkillLoader:
         except Exception as error:
             raise SkillLoadError(
                 f"Impossible de charger l'agent du Skill /{skill_name} : {type(error).__name__}: {error}"
+            ) from None
+
+    def _load_command_handler(self, path: Path, skill_name: str) -> Callable[..., Any] | None:
+        try:
+            command_path = self._safe_file(path, "command.py", skill_name)
+        except SkillLoadError:
+            raise
+        if not command_path.is_file():
+            return None
+        safe_name = re.sub(r"[^a-z0-9_]", "_", skill_name.casefold())
+        try:
+            module = self._module_from_file(
+                command_path, f"my_ai_harness_skill_{safe_name}_command"
+            )
+            handler = getattr(module, "handle", None)
+            if not callable(handler):
+                raise SkillLoadError(
+                    f"command.py de /{skill_name} doit exposer handle(runtime, mission, skill)."
+                )
+            return handler
+        except SkillLoadError:
+            raise
+        except Exception as error:
+            raise SkillLoadError(
+                f"Impossible de charger la commande /{skill_name} : "
+                f"{type(error).__name__}: {error}"
             ) from None

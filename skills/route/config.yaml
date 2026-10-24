@@ -1,0 +1,14 @@
+name: route
+display_name: Route
+description: Affiche puis exécute la sélection d'agent/provider du runtime.
+auto_route: true
+tools:
+  - list_files
+  - find_file
+  - search_files
+  - read_file
+  - read_document
+  - write_file
+  - patch_file
+  - run_tests
+  - run_python

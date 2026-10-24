@@ -18,7 +18,7 @@ class OllamaProviderError(RuntimeError):
 
 
 class OllamaProvider(BaseProvider):
-    DEFAULT_MODEL = "qwen3.5:4b-q4_K_M"
+    DEFAULT_MODEL = "qwen3:1.7b"
     DEFAULT_URL = "http://127.0.0.1:11434"
 
     def __init__(
@@ -159,8 +159,10 @@ class OllamaProvider(BaseProvider):
         tools: list[dict[str, Any]],
         continuation: Any = None,
         tool_results: list[dict[str, Any]] | None = None,
+        *,
+        stream_callback: Any = None,
     ) -> AgentTurn:
-        """Appelle l'API Ollama chat avec ses déclarations d'outils natives."""
+        """Appelle l'API Ollama chat avec ses déclarations d'outils natives et streaming réel."""
         if not self._verified:
             self.check_available()
         messages = list(continuation) if isinstance(continuation, list) else []
@@ -186,7 +188,8 @@ class OllamaProvider(BaseProvider):
             }
             for item in tools
         ]
-        body = {"model": self.model, "messages": messages, "stream": False}
+        use_stream = callable(stream_callback)
+        body: dict[str, Any] = {"model": self.model, "messages": messages, "stream": use_stream}
         if self.max_output_tokens:
             body["options"] = {"num_predict": self.max_output_tokens}
         if ollama_tools:
@@ -199,7 +202,41 @@ class OllamaProvider(BaseProvider):
         )
         try:
             with urlopen(request, timeout=300) as response:
-                result = json.loads(response.read().decode("utf-8"))
+                if use_stream:
+                    acc_text: list[str] = []
+                    collected_tool_calls: list[dict[str, Any]] = []
+                    done_reason = ""
+                    for raw_line in response:
+                        line = raw_line.decode("utf-8", errors="replace").strip()
+                        if not line:
+                            continue
+                        chunk_obj = json.loads(line)
+                        if not isinstance(chunk_obj, dict):
+                            continue
+                        msg_part = chunk_obj.get("message")
+                        if isinstance(msg_part, dict):
+                            delta = msg_part.get("content")
+                            if isinstance(delta, str) and delta:
+                                acc_text.append(delta)
+                                try:
+                                    stream_callback(delta, "".join(acc_text))
+                                except Exception:
+                                    pass
+                            tcs = msg_part.get("tool_calls")
+                            if isinstance(tcs, list) and tcs:
+                                collected_tool_calls.extend(tcs)
+                        if chunk_obj.get("done"):
+                            done_reason = str(chunk_obj.get("done_reason") or "")
+                    result = {
+                        "message": {
+                            "role": "assistant",
+                            "content": "".join(acc_text),
+                            "tool_calls": collected_tool_calls,
+                        },
+                        "done_reason": done_reason,
+                    }
+                else:
+                    result = json.loads(response.read().decode("utf-8"))
         except HTTPError as error:
             raise OllamaProviderError(
                 f"Erreur du serveur Ollama pendant le tour agentique (HTTP {error.code})."

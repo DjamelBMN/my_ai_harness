@@ -1,0 +1,280 @@
+\documentclass[a4paper,11pt]{article}
+
+\usepackage{fontspec}
+\usepackage{libertinus-otf}
+\usepackage[french]{babel}
+
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{geometry}
+\usepackage{multirow}
+\usepackage[table]{xcolor}
+\usepackage{colortbl}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{enumitem}
+\usepackage{eurosym}
+\usepackage{tikz}
+\usepackage[most]{tcolorbox}
+
+\geometry{
+    a4paper,
+    left=1.1cm,
+    right=1.1cm,
+    top=1.6cm,
+    bottom=1.5cm,
+    headheight=20pt,
+    headsep=10pt,
+    footskip=20pt
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\tabcolsep}{4.5pt}
+\renewcommand{\arraystretch}{1.18}
+\setlength{\aboverulesep}{1.5pt}
+\setlength{\belowrulesep}{1.5pt}
+
+\definecolor{bleuprimaire}{RGB}{20, 52, 98}
+\definecolor{bleusecondaire}{RGB}{31, 95, 168}
+\definecolor{bleufond}{RGB}{238, 244, 251}
+\definecolor{grisaccent}{RGB}{100, 116, 139}
+\definecolor{vertvrai}{RGB}{16, 120, 60}
+\definecolor{rougefaux}{RGB}{195, 20, 20}
+\definecolor{filetgris}{RGB}{220, 226, 235}
+
+\tikzset{
+    tabcadre/.style={draw=bleuprimaire, line width=0.8pt},
+    tabligne/.style={draw=bleuprimaire!45, line width=0.6pt},
+    tabrep/.style={
+        draw=rougefaux!90,
+        fill=rougefaux!8,
+        text=rougefaux,
+        font=\bfseries\footnotesize,
+        rounded corners=2.5pt,
+        inner sep=1.8pt,
+        line width=0.6pt
+    },
+    tabfleche/.style={
+        ->,
+        >=stealth,
+        thick,
+        draw=bleusecondaire,
+        shorten <= 3pt,
+        shorten >= 3pt
+    }
+}
+
+\newcommand{\pts}[1]{%
+    \tcbox[on line, size=small, colback=bleufond, colframe=bleusecondaire!50,
+           arc=2.5mm, boxrule=0.6pt, top=1.2pt, bottom=1.2pt, left=4pt, right=4pt]{%
+        \small\bfseries\textcolor{bleuprimaire}{#1}%
+    }%
+}
+
+\newcommand{\repbox}[1]{%
+    \tcbox[on line, size=small, colback=rougefaux!6, colframe=rougefaux!90,
+           arc=1.2mm, boxrule=0.7pt, top=1pt, bottom=1pt, left=3.5pt, right=3.5pt]{%
+        \bfseries\textcolor{rougefaux}{#1}%
+    }%
+}
+
+\newcommand{\vrai}{\textcolor{vertvrai}{\textbf{[VRAI]}}}
+\newcommand{\faux}{\textcolor{rougefaux}{\textbf{[FAUX]}}}
+\newcommand{\subpt}[1]{\textcolor{bleusecondaire}{\bfseries [#1]}}
+\newcommand{\tol}[1]{\textcolor{grisaccent}{\footnotesize\textit{(#1)}}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small\bfseries\textcolor{bleuprimaire}{BAC BLANC} \textcolor{grisaccent}{-- Terminale Spécialité Mathématiques}}
+\rhead{\small\bfseries\textcolor{bleusecondaire}{Corrigé et Barème Officiel}}
+\cfoot{\small\textcolor{grisaccent}{Page \thepage\ sur \pageref{LastPage}}}
+
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{bleusecondaire!60}\leaders\hrule height \headrulewidth\hfill}}
+\renewcommand{\footrulewidth}{0.3pt}
+\renewcommand{\footrule}{\hbox to\headwidth{\color{filetgris}\leaders\hrule height \footrulewidth\hfill}}
+
+\begin{document}
+
+\begin{tcolorbox}[
+    enhanced,
+    colback=bleufond,
+    colframe=bleuprimaire,
+    arc=1.6mm,
+    boxrule=0.8pt,
+    top=4pt, bottom=4pt, left=8pt, right=8pt
+]
+    \textbf{\Large\textcolor{bleuprimaire}{Grille d'évaluation chiffrée et Corrigé détaillé}} \hfill \textbf{\Large\textcolor{bleuprimaire}{Total : 20 points}} \\[0.15em]
+    \textbf{\textcolor{bleusecondaire}{Sujet Unique}} \hspace{0.2cm}\textcolor{grisaccent}{\textbullet}\hspace{0.2cm} \textcolor{grisaccent}{Bienaymé-Tchebychev & Équations Différentielles} \hfill \small\textcolor{grisaccent}{Durée : 4 heures}
+\end{tcolorbox}
+
+\vspace{0.10cm}
+
+\begin{longtable}{
+    >{\centering\arraybackslash\bfseries}p{1.1cm}
+    >{\raggedright\arraybackslash\bfseries}p{4.1cm}
+    !{\color{filetgris}\vrule width 0.7pt}
+    >{\raggedright\arraybackslash}p{11.1cm}
+    >{\centering\arraybackslash}p{1.2cm}
+}
+
+\toprule[1.2pt]
+\rowcolor{bleuprimaire}
+\textcolor{white}{\bfseries Réf.} &
+\textcolor{white}{\bfseries Compétence / Question} &
+\textcolor{white}{\bfseries Éléments de correction & Barème détaillé} &
+\textcolor{white}{\bfseries Barème} \\
+\midrule[1pt]
+\endfirsthead
+
+\toprule[1.2pt]
+\rowcolor{bleuprimaire}
+\textcolor{white}{\bfseries Réf.} &
+\textcolor{white}{\bfseries Compétence / Question} &
+\textcolor{white}{\bfseries Éléments de correction & Barème détaillé} &
+\textcolor{white}{\bfseries Barème} \\
+\midrule[1pt]
+\endhead
+
+% ==================== EXERCICE 1 ====================
+\rowcolor{bleusecondaire!15}
+\multicolumn{4}{l}{
+    \bfseries\textcolor{bleuprimaire}{\large Exercice 1 \hspace{0.2cm}\textbullet\hspace{0.2cm} Probabilités -- Inégalité de Bienaymé-Tchebychev} \hfill \bfseries 4 points
+} \\* \midrule[0.6pt]
+
+\textbf{Q.1} &
+Espérance et variance de $X$ et $Y_n$ &
+\textbullet\ \subpt{0,50} $E(X)=0,4n$, $V(X)=0,24n$.\newline
+\textbullet\ \subpt{0,50} $E(Y_n)=0,4$ et $V(Y_n) = \frac{0,24}{n}$ : \repbox{Formules exactes}. &
+\pts{1,00} \\
+\cmidrule(lr){2-4}
+\textbf{Q.2} &
+Énoncé Bienaymé-Tchebychev &
+\textbullet\ \subpt{0,50} Rappel rigoureux de l'inégalité générale.\newline
+\textbullet\ \subpt{0,50} Application aux variables aléatoires d'espérance finie : \repbox{Validé}. &
+\pts{1,00} \\
+\cmidrule(lr){2-4}
+\textbf{Q.3} &
+Démonstration pour $Y_n$ &
+\textbullet\ \subpt{0,50} Substitution de $\mu$ et $\sigma^2$.\newline
+\textbullet\ \subpt{0,50} Obtention de $\frac{0,24}{n\varepsilon^2}$ : \repbox{Démonstration complète}. &
+\pts{1,00} \\
+\cmidrule(lr){2-4}
+\textbf{Q.4} &
+Détermination du seuil $n$ &
+\textbullet\ \subpt{0,50} Mise en inéquation $\frac{0,24}{n(0,05)^2} \leq 0,05$.\newline
+\textbullet\ \subpt{0,50} Conclusion $n \geq 1920$ : \repbox{1920 épreuves}. &
+\pts{1,00} \\
+
+\midrule[1pt]
+
+% ==================== EXERCICE 2 ====================
+\rowcolor{bleusecondaire!15}
+\multicolumn{4}{l}{
+    \bfseries\textcolor{bleuprimaire}{\large Exercice 2 \hspace{0.2cm}\textbullet\hspace{0.2cm} Analyse -- Équations différentielles et Intégration} \hfill \bfseries 5 points
+} \\* \midrule[0.6pt]
+
+\textbf{A.1} &
+Équation homogène $(E_0)$ &
+\textbullet\ \subpt{0,50} Forme générale $y' + ay = 0$.\newline
+\textbullet\ \subpt{0,50} Solution $y(x) = C\mathrm{e}^{-2x}$ : \repbox{C\mathrm{e}^{-2x}}. &
+\pts{1,00} \\
+\cmidrule(lr){2-4}
+\textbf{A.2} &
+Solution particulière $f_p$ &
+\textbullet\ \subpt{0,50} Dérivation de $f_p(x) = ax\mathrm{e}^{-2x}$.\newline
+\textbullet\ \subpt{0,50} Identification $a = 4$ : \repbox{4x\mathrm{e}^{-2x}}. &
+\pts{1,00} \\
+\cmidrule(lr){2-4}
+\textbf{A.3} &
+Ensemble des solutions de $(E)$ &
+\textbullet\ \subpt{0,75} Somme solution homogène et particulière : \repbox{(C+4x)\mathrm{e}^{-2x}}. &
+\pts{0,75} \\
+\cmidrule(lr){2-4}
+\textbf{A.4} &
+Condition initiale $f(0) = 3$ &
+\textbullet\ \subpt{0,75} Détermination de $C = 3$ : \repbox{(3+4x)\mathrm{e}^{-2x}}. &
+\pts{0,75} \\
+\cmidrule(lr){2-4}
+\textbf{A.5} &
+Limites, variations et intégrale $I$ &
+\textbullet\ \subpt{0,50} Limite en $+\infty$ nulle.\newline
+\textbullet\ \subpt{0,50} Variations et tableau.\newline
+\textbullet\ \subpt{0,50} Calcul exact de l'intégrale $I$ : \repbox{Valeur exacte}. &
+\pts{1,50} \\
+
+\midrule[1pt]
+
+% ==================== EXERCICE 3 ====================
+\rowcolor{bleusecondaire!15}
+\multicolumn{4}{l}{
+    \bfseries\textcolor{bleuprimaire}{\large Exercice 3 \hspace{0.2cm}\textbullet\hspace{0.2cm} Nombres complexes et Géométrie} \hfill \bfseries 6 points
+} \\* \midrule[0.6pt]
+
+\textbf{A.1} &
+Équation du second degré &
+\textbullet\ \subpt{0,50} Calcul du discriminant $\Delta = -16$.\newline
+\textbullet\ \subpt{0,75} Solutions complexes conjuguées $2 \pm 2\mathrm{i}$ : \repbox{2\pm 2\mathrm{i}}. &
+\pts{1,25} \\
+\cmidrule(lr){2-4}
+\textbf{A.2} &
+Modules, arguments et triangle $OAB$ &
+\textbullet\ \subpt{0,75} $|z_A| = 2\sqrt{2}$, $\arg(z_A) = \frac{\pi}{4}$.\newline
+\textbullet\ \subpt{0,75} Égalité $OA = OB = 2\sqrt{2}$ : \repbox{Isocèle en O}. &
+\pts{1,50} \\
+\cmidrule(lr){2-4}
+\textbf{B.1} &
+Transformation $f$ et image $A'$ &
+\textbullet\ \subpt{0,75} Nature : similitude directe (rotation + translation).\newline
+\textbullet\ \subpt{0,50} Affixe de $A'$ : \repbox{-2+4\mathrm{i}}. &
+\pts{1,25} \\
+\cmidrule(lr){2-4}
+\textbf{B.2} &
+Suite complexe et convergence &
+\textbullet\ \subpt{0,50} Calculs de $z_1$ et $z_2$.\n\newline
+\textbullet\ \subpt{0,75} Suite géométrique de raison $\frac{1}{2}\mathrm{i}$.\newline
+\textbullet\ \subpt{0,75} Expression générale et limite : \repbox{Convergence}. &
+\pts{2,00} \\
+
+\midrule[1pt]
+
+% ==================== EXERCICE 4 ====================
+\rowcolor{bleusecondaire!15}
+\multicolumn{4}{l}{
+    \bfseries\textcolor{bleuprimaire}{\large Exercice 4 \hspace{0.2cm}\textbullet\hspace{0.2cm} Analyse -- Étude de fonction et Intégration par parties} \hfill \bfseries 5 points
+} \\* \midrule[0.6pt]
+
+\textbf{A.1} &
+Limite en $0^+$ de $g$ &
+\textbullet\ \subpt{0,50} Croissance comparée $x\ln(x) \to 0$.\newline
+\textbullet\ \subpt{0,50} Limite globale : \repbox{0}. &
+\pts{1,00} \\
+\cmidrule(lr){2-4}
+\textbf{A.2} &
+Variations de $g$ &
+\textbullet\ \subpt{0,75} Dérivée $g'(x) = \ln(x)$.\newline
+\textbullet\ \subpt{0,75} Tableau de variations complet : \repbox{Minimum en 1}. &
+\pts{1,50} \\
+\cmidrule(lr){2-4}
+\textbf{A.3} &
+Intégrale $J$ par IPP &
+\textbullet\ \subpt{1,00} Intégration par parties rigoureuse : \repbox{J = 1}. &
+\pts{1,00} \\
+\cmidrule(lr){2-4}
+\textbf{B.1} &
+Primitive et calcul d'aire &
+\textbullet\ \subpt{0,75} Dérivation de $h$ vérifiant $h'(x) = g(x)$.\newline
+\textbullet\ \subpt{0,75} Calcul de l'aire exacte : \repbox{Unités d'aire}. &
+\pts{1,50} \\
+
+\midrule[1.2pt]
+\rowcolor{bleuprimaire}
+\multicolumn{3}{r}{\textcolor{white}{\bfseries\large TOTAL GÉNÉRAL}} &
+\textcolor{white}{\bfseries\large 20 pts} \\
+\bottomrule[1.2pt]
+
+\longtable}
+
+\end{document}

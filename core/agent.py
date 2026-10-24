@@ -1,10 +1,10 @@
-﻿# RÔLE DE CE FICHIER :
+# RÔLE DE CE FICHIER :
 # Définit la classe commune Agent, qui représente un programme construit dans ce
 # harness. L'Orchestrator lui attribue un provider LLM via le ModelRouter.
 
 import re
 
-from core.task import Task
+from core.task import Task, ensure_task
 from providers.base_provider import BaseProvider
 
 
@@ -62,24 +62,51 @@ class Agent:
         """Reçoit le provider sélectionné par ModelRouter."""
         self.provider = provider
 
-    def build_prompt(self, task: Task) -> str:
+    def build_prompt(self, task: Task | str) -> str:
         """Construit le prompt de base envoyé au moteur de raisonnement."""
+        task = ensure_task(task, default_type=self.routing_key or "researcher")
         parts = [
             f"Tu es {self.name}, un agent dont le rôle est : {self.role}.",
             f"Tâche à accomplir : {task.description}",
+            f"Mode global du Harness : {task.mode}.",
         ]
+        if task.skill_name:
+            parts.append(f"Skill actif : {task.skill_name}.")
+        if task.mode == "PLAN":
+            parts.append(
+                "PLAN MODE : inspecte et prépare un plan vérifiable; ne demande ni "
+                "n'effectue aucune écriture, suppression, commande ou suite mutatrice."
+            )
+        elif task.mode == "EDIT":
+            parts.append(
+                "EDIT MODE : les écritures autorisées sont précédées d'un aperçu "
+                "terminal de la cible et de l'action; respecte les autres permissions."
+            )
+        elif task.mode == "AUTO":
+            parts.append(
+                "AUTO MODE : poursuis les étapes utiles jusqu'à vérification ou "
+                "blocage avec les permissions autonomes du Harness; respecte "
+                "toujours le dry-run et les restrictions globales."
+            )
+        else:
+            parts.append(
+                "ACCEPT MODE : attends une confirmation pour les actions sensibles."
+            )
         if task.context is not None:
             context_description = task.context.describe()
             if context_description:
                 parts.append(f"Contexte de session : {context_description}")
+        if task.instructions.strip():
+            parts.append("Instructions du Skill :\n" + task.instructions.strip())
         return "\n".join(parts)
 
     def interpret_response(self, llm_response: str) -> str:
         """Point d'extension pour interpréter la réponse du LLM."""
         return llm_response.strip()
 
-    def run(self, task: Task) -> str:
+    def run(self, task: Task | str) -> str:
         """Construit le prompt, appelle le provider puis interprète sa réponse."""
+        task = ensure_task(task, default_type=self.routing_key or "researcher")
         if self.provider is None:
             raise RuntimeError(
                 f"Aucun provider n'a été attribué à {self.name}. "

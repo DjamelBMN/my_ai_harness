@@ -1,0 +1,4 @@
+name: diagnostic
+display_name: Diagnostic
+description: Inspecte l'état local du Harness sans appeler les modèles.
+tools: []

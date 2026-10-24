@@ -1,0 +1,14 @@
+name: debug
+display_name: Debug
+description: Diagnostic et correction d'une panne avec CodeAgent.
+agent: coder
+tools:
+  - list_files
+  - find_file
+  - search_files
+  - read_file
+  - read_document
+  - write_file
+  - patch_file
+  - run_tests
+  - run_python

@@ -63,6 +63,39 @@ class IntentEngine:
     def __init__(self, agent_registry: "AgentRegistry | None" = None) -> None:
         self.agent_registry = agent_registry
 
+    @staticmethod
+    def is_web_query(text: str) -> bool:
+        normalized = " ".join(text.casefold().strip().split())
+        return any(
+            marker in normalized
+            for marker in (
+                "sur internet",
+                "sur le web",
+                "en ligne",
+                "sources officielles",
+                "source officielle",
+                "recherche web",
+                "recherche internet",
+                "vérifie cette information",
+                "verifie cette information",
+                "dernières informations",
+                "derniere information",
+                "dernières nouvelles",
+                "dernieres nouvelles",
+                "programmes officiels",
+                "actualité",
+                "actualite",
+                "actualités",
+                "actualites",
+                "aujourd'hui",
+                "aujourd hui",
+                "en 2025",
+                "en 2026",
+                "sources web",
+                "liens web",
+            )
+        )
+
     def decide(self, request: str) -> IntentDecision:
         text = " ".join(request.casefold().strip().split())
         if not text:
@@ -91,14 +124,7 @@ class IntentEngine:
             marker in text
             for marker in ("officiel", "programme", "source fiable", "sources", "sur internet", "sur le web")
         ) and any(marker in text for marker in ("cherche", "recherche", "vérifie", "verifie", "respecte", "conforme"))
-        asks_web = any(
-            marker in text
-            for marker in (
-                "sur internet", "sur le web", "en ligne", "sources officielles", "source officielle",
-                "recherche web", "vérifie cette information", "verifie cette information",
-                "dernières informations", "derniere information", "programmes officiels",
-            )
-        ) or asks_official
+        asks_web = self.is_web_query(text) or asks_official
 
         asks_debug_and_fix = any(
             marker in text for marker in ("corrige", "répare", "repare", "fix", "résous", "resous")

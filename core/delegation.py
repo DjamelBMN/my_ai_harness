@@ -135,7 +135,14 @@ class DelegationEngine:
             history=["Contexte de délégation : " + json.dumps(handoff, ensure_ascii=False)[:7000]],
             files=list(parent_state.files[-20:]),
         )
-        child_task = Task(description=description, type=key, context=child_context, explicit_agent=True)
+        child_task = Task(
+            description=description,
+            type=key,
+            context=child_context,
+            explicit_agent=True,
+            mode=parent_state.mode,
+            skill_name=parent_state.skill_name,
+        )
         try:
             child_state = self.agent_loop.planner.plan(child_task)
             child_state.task_id = record.task_id
@@ -161,6 +168,7 @@ class DelegationEngine:
             )
             result_data = {
                 "status": child_result.status,
+                "task": description,
                 "summary": child_result.summary,
                 "answer": child_result.answer,
                 "artifacts": child_result.artifacts,
@@ -209,7 +217,13 @@ class DelegationEngine:
                 {"phase": "delegation", "agent": key, "message": message}
             )
             parent_state.delegation_results.append(
-                {"status": "failed", "agent": agent.name, "task_id": record.task_id, "errors": [message]}
+                {
+                    "status": "failed",
+                    "agent": agent.name,
+                    "task": description,
+                    "task_id": record.task_id,
+                    "errors": [message],
+                }
             )
             parent_state.observations.append(
                 {"kind": "delegation", "status": "failed", "agent": agent.name, "task_id": record.task_id, "error": message}

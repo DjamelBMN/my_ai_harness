@@ -8,6 +8,27 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+CANONICAL_SKILL_ORDER: tuple[str, ...] = (
+    "analyze",
+    "auto",
+    "bacblanc",
+    "compare",
+    "context",
+    "debug",
+    "diagnostic",
+    "export",
+    "memory",
+    "mode",
+    "model",
+    "plan",
+    "refactor",
+    "research",
+    "review",
+    "route",
+    "test",
+    "workflow",
+)
+
 
 @dataclass(frozen=True)
 class SkillDescriptor:
@@ -34,6 +55,15 @@ class SkillRegistry:
     def normalize(name: str) -> str:
         return re.sub(r"[^a-z0-9_-]+", "", name.strip().casefold())
 
+    @staticmethod
+    def canonical_sort_key(name: str) -> tuple[int, str]:
+        normalized = SkillRegistry.normalize(name)
+        try:
+            index = CANONICAL_SKILL_ORDER.index(normalized)
+        except ValueError:
+            index = len(CANONICAL_SKILL_ORDER)
+        return (index, normalized)
+
     def discover(self) -> list[SkillDescriptor]:
         self._skills.clear()
         self.invalid.clear()
@@ -43,8 +73,10 @@ class SkillRegistry:
             self.invalid[str(self.root)] = "Le chemin des Skills n'est pas un dossier."
             return []
 
-        discovered = []
-        for folder in sorted(self.root.iterdir(), key=lambda path: path.name.casefold()):
+        for folder in sorted(
+            self.root.iterdir(),
+            key=lambda path: self.canonical_sort_key(path.name),
+        ):
             if not folder.is_dir() or folder.name.startswith("_"):
                 continue
             name = self.normalize(folder.name)
@@ -73,15 +105,15 @@ class SkillRegistry:
                 continue
             descriptor = SkillDescriptor(name=name, path=resolved, manifest_path=resolved_manifest)
             self._skills[name] = descriptor
-            discovered.append(descriptor)
-        return discovered
+        return self.list_skills()
 
     def get(self, name: str) -> SkillDescriptor | None:
         return self._skills.get(self.normalize(name))
 
     def list_skills(self) -> list[SkillDescriptor]:
-        return [self._skills[name] for name in sorted(self._skills)]
+        ordered_names = sorted(self._skills, key=self.canonical_sort_key)
+        return [self._skills[name] for name in ordered_names]
 
     @property
     def names(self) -> list[str]:
-        return sorted(self._skills)
+        return sorted(self._skills, key=self.canonical_sort_key)

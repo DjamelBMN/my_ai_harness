@@ -1,0 +1,83 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{geometry}
+\geometry{hmargin=2.5cm,vmargin=2.5cm}
+
+\title{Les Équations Différentielles : Cours et Notions Clés}
+\author{ResearchAgent}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction et importance}
+Une \textbf{équation différentielle} est une équation mathématique qui met en relation une fonction inconnue et ses dérivées successives. Contrairement aux équations algébriques classiques dont les solutions sont des nombres, les solutions d'une équation différentielle sont des \textbf{fonctions}.
+
+Dans la nature, de nombreux phénomènes évoluent au cours du temps ou de l'espace. Souvent, il est plus facile de décrire \textbf{la vitesse de variation} d'un phénomène (sa dérivée) que son état global à un instant donné :
+\begin{itemize}
+    \item \textbf{En physique :} la chute des corps, les circuits électriques, la mécanique quantique.
+    \item \textbf{En biologie :} la croissance de populations (bactéries, épidémies).
+    \item \textbf{En économie :} l'évolution des taux d'intérêt ou des marchés financiers.
+\end{itemize}
+
+\section{Les notions clés}
+\begin{itemize}
+    \item \textbf{Fonction inconnue :} Souvent notée $y(x)$ (ou $y(t)$ si la variable est le temps $t$).
+    \item \textbf{Dérivées :} La présence de $y'$ (première dérivée), $y''$ (seconde dérivée), etc., indique comment la fonction varie.
+    \item \textbf{Ordre de l'équation :} Il correspond au degré de la dérivée la plus élevée présente dans l'équation. Par exemple :
+    \begin{itemize}
+        \item D'ordre 1 : $y' + 2y = 0$
+        \item D'ordre 2 : $y'' + 4y = 0$
+    \end{itemize}
+    \item \textbf{Linéarité :} Une équation différentielle est linéaire si la fonction inconnue et ses dérivées apparaissent à la puissance 1 et ne sont pas multipliées entre elles.
+\end{itemize}
+
+\section{Les grands types d'équations différentielles}
+
+\subsection{A. Les équations différentielles linéaires d'ordre 1 à coefficients constants}
+Elles s'écrivent généralement sous la forme :
+\[ y' + a \cdot y = b \]
+où $a$ et $b$ sont des constantes réelles.
+
+\begin{enumerate}
+    \item \textbf{Solution de l'équation homogène (sans second membre) :} 
+    \[ y' + a \cdot y = 0 \]
+    La solution générale est de la forme :
+    \[ y_h(x) = C \cdot e^{-a \cdot x} \]
+    où $C$ est une constante réelle déterminée par les conditions initiales.
+    
+    \item \textbf{Recherche d'une solution particulière :}
+    Si $b$ est une constante, on cherche une solution constante $y_p = \text{constante}$. En remplaçant dans l'équation, on obtient $0 + a \cdot y_p = b$, soit :
+    \[ y_p = \frac{b}{a} \quad (\text{si } a \neq 0) \]
+    
+    \item \textbf{Solution générale :}
+    La solution complète est la somme de la solution homogène et de la solution particulière :
+    \[ y(x) = y_h(x) + y_p = C \cdot e^{-a \cdot x} + \frac{b}{a} \]
+\end{enumerate}
+
+\subsection{B. Les équations différentielles linéaires d'ordre 2 à coefficients constants}
+Elles s'écrivent sous la forme générale :
+\[ a \cdot y'' + b \cdot y' + c \cdot y = 0 \]
+\emph{(où $a, b, c$ sont des constantes avec $a \neq 0$)}.
+
+Pour les résoudre, on utilise l'\textbf{équation caractéristique} associée :
+\[ a \cdot r^2 + b \cdot r + c = 0 \]
+
+On calcule le discriminant $\Delta = b^2 - 4ac$ :
+\begin{enumerate}
+    \item \textbf{Si $\Delta > 0$} (deux racines réelles $r_1$ et $r_2$) :
+    La solution générale est :
+    \[ y(x) = C_1 e^{r_1 x} + C_2 e^{r_2 x} \]
+    \item \textbf{Si $\Delta = 0$} (une racine double $r_0$) :
+    La solution générale est :
+    \[ y(x) = (C_1 + C_2 x) e^{r_0 x} \]
+    \item \textbf{Si $\Delta < 0$} (deux racines complexes conjuguées $r = \alpha \pm i\beta$) :
+    La solution générale est :
+    \[ y(x) = e^{\alpha x} \left( C_1 \cos(\beta x) + C_2 \sin(\beta x) \right) \]
+\end{enumerate}
+
+\end{document}

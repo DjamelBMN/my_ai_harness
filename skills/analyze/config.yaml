@@ -1,0 +1,10 @@
+name: analyze
+display_name: Analyze
+description: Analyse de fichier, projet ou architecture avec ResearchAgent.
+agent: researcher
+tools:
+  - list_files
+  - find_file
+  - search_files
+  - read_file
+  - read_document

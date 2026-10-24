@@ -1,0 +1,424 @@
+\documentclass[12pt,a4paper]{article}
+
+% --- Encodage et typographie française ---
+\usepackage[utf8]{inputenc}
+\usepackage{fontspec}
+\usepackage{libertinus-otf}
+\usepackage[french]{babel}
+\usepackage{microtype}
+\usepackage{icomma}
+
+% --- Suppression de l'indentation ---
+\setlength{\parindent}{0pt}
+
+% --- Géométrie calibrée (exactement 1 page par exercice) ---
+\usepackage[
+    top=1.6cm,
+    bottom=1.6cm,
+    left=1.6cm,
+    right=1.6cm,
+    headheight=15pt,
+    headsep=12pt,
+    footskip=22pt
+]{geometry}
+
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{tabularx}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+
+% --- Filigrane et graphisme ---
+\usepackage{eso-pic}
+\usepackage{tikz}
+\usepackage{xcolor}
+
+% --- Mathématiques de précision ---
+\usepackage{amsmath, amssymb, esvect, mathtools}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\e}{\mathrm{e}}
+\newcommand{\vect}[1]{\vv{#1}}
+
+% --- Réglage des espacements pour affichages mathématiques ---
+\setlength{\abovedisplayskip}{6pt}
+\setlength{\belowdisplayskip}{6pt}
+\setlength{\abovedisplayshortskip}{3pt}
+\setlength{\belowdisplayshortskip}{3pt}
+
+% --- Colonne centrée pour tableau homogène ---
+\newcolumntype{Y}{>{\centering\arraybackslash}X}
+
+% --- Commandes d'exercices aérées ---
+\newcommand{\exercice}[3][5]{%
+    \noindent{\Large\textbf{Exercice #2}} \hfill \textbf{#1 points}\\[0.20cm]%
+    {\normalsize\textit{#3}}%
+    \par\vspace{0.28cm}\hrule\vspace{0.55cm}%
+}
+\newcommand{\partie}[1]{\vspace{0.45cm}\noindent\textbf{\large Partie #1}\par\vspace{0.25cm}}
+
+% --- Listes numérotées : 1. et a. TOUS EN GRAS ---
+\setlist[enumerate,1]{label=\textbf{\arabic*.}, leftmargin=*, itemsep=0.35em, parsep=0pt, topsep=0.2em}
+\setlist[enumerate,2]{label=\textbf{\alph*.}, leftmargin=*, itemsep=0.25em, parsep=0pt, topsep=0.15em}
+
+% --- SQUELETTE : marqueur magenta des zones à remplir (utilisable en texte ET en mode maths) ---
+\newcommand{\ph}[1]{\ifmmode\text{\color{magenta}[#1]}\else\textcolor{magenta}{[#1]}\fi}
+
+% --- En-têtes et pieds de page pour le Sujet 1 ---
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textit{Bac Blanc -- Sujet 1}}
+\fancyhead[C]{\small\textit{Sujet 1 (Jour 1)}}
+\fancyhead[R]{\small\textbf{Term\textsuperscript{spé}}}
+\fancyfoot[C]{\thepage\ / \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+% =========================================================================
+\begin{document}
+
+% -------------------------------------------------------------------------
+% PAGE DE GARDE OFFICIELLE (Page 1)
+% -------------------------------------------------------------------------
+\thispagestyle{empty}
+
+% FILIGRANE DISCRET ET ÉLÉGANT
+\AddToShipoutPictureFG*{%
+    \begin{tikzpicture}[remember picture, overlay]
+        \node[
+            rotate=32,
+            scale=1.1,
+            text=black,
+            opacity=0.06,
+            font=\fontsize{72pt}{72pt}\bfseries\sffamily
+        ] at (current page.center) {SP{\'E}CIALIT{\'E}};
+    \end{tikzpicture}%
+}
+
+% En-tête de la page de garde
+\noindent
+\begin{minipage}[t]{0.52\textwidth}
+    \textbf{\Large LYCÉE JEAN ROSTAND}\\[0.12cm]
+    \textsc{Année scolaire 2026--2027}\\
+    \textit{Classe de Terminale Générale}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.45\textwidth}
+    \raggedleft
+    \textbf{\large BACCALAURÉAT BLANC}\\[0.10cm]
+    \textbf{Épreuve de spécialité}\\[0.10cm]
+    \textit{Sujet 1 --- Jour 1}\\[0.12cm]
+    \small Date : \ph{JJ mois AAAA}
+\end{minipage}
+
+\vspace{0.30cm}
+\hrule height 0.8pt
+\vspace{0.45cm}
+
+\vfill
+
+% Titre officiel
+\begin{center}
+    {\LARGE \textbf{BACCALAURÉAT BLANC}}\\[0.20cm]
+    {\large \textbf{SESSION \ph{MOIS AAAA}}}\\[0.15cm]
+    {\textbf{\Large SUJET 1 --- JOUR 1}}\\[0.45cm]
+
+    \begin{tcolorbox}[colback=white, colframe=black, arc=0mm, boxrule=1.5pt, width=0.96\textwidth, top=4mm, bottom=4mm]
+        \centering
+        {\fontsize{26pt}{30pt}\selectfont\textbf{MATHÉMATIQUES}}\\[0.30cm]
+        {\Large \textsc{Épreuve d'Enseignement de Spécialité}}
+    \end{tcolorbox}
+
+    \vspace{0.50cm}
+    {\large \textbf{Durée de l'épreuve : 4 heures}}\\[0.25cm]
+    \textbf{L'usage de la calculatrice avec \underline{mode examen actif} est autorisé.}\\[0.10cm]
+    \textit{L'usage de la calculatrice sans mémoire, « type collège », est autorisé.}
+\end{center}
+
+\vfill
+
+% Tableau de structure officiel : 4 / 5 / 6 / 5 = 20 points
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabularx}{0.96\textwidth}{|>{\centering\arraybackslash\bfseries}m{2.6cm}|*{4}{Y|}>{\centering\arraybackslash\bfseries}m{2.2cm}|}
+    \hline
+    Exercice & \textbf{Exercice 1} & \textbf{Exercice 2} & \textbf{Exercice 3} & \textbf{Exercice 4} & \textbf{Total} \\ \hline
+    Thème    & \ph{Thème 1} & \ph{Thème 2} & \ph{Thème 3} & \ph{Thème 4} & --- \\ \hline
+    Barème   & 4 points & 5 points & 6 points & 5 points & 20 points \\ \hline
+\end{tabularx}
+\end{center}
+
+\vfill
+
+% MESSAGE SURVEILLANTS
+\begin{center}
+\begin{tcolorbox}[colback=gray!5, colframe=black, boxrule=1pt, arc=1mm, width=0.96\textwidth, top=3mm, bottom=3mm, left=4mm, right=4mm]
+    \centering
+    \textbf{\textsc{Consigne importante aux surveillants}}\\[0.15cm]
+    \normalsize
+    Nous remercions les surveillants de veiller à ce que chaque candidat inscrive lisiblement sur sa copie le \textbf{nom de son professeur de spécialité}.
+\end{tcolorbox}
+\end{center}
+
+\vfill
+
+% Consignes officielles
+\begin{tcolorbox}[colback=white, colframe=black, arc=0mm, boxrule=0.8pt, title=\textbf{\textsc{Consignes aux candidats}}, coltitle=black, colbacktitle=gray!15, top=3mm, bottom=3mm, left=4mm, right=4mm]
+    \small
+    \begin{itemize}[leftmargin=1.5em, itemsep=0.25em, label=---]
+        \item Le sujet comporte \textbf{\pageref{LastPage} pages} numérotées de 1 à \pageref{LastPage}.
+        \item Le candidat doit traiter les \textbf{4 exercices}.
+        \item La qualité de la rédaction, la clarté et la précision des raisonnements seront prises en compte dans l'appréciation des copies.
+        \item Tous les résultats doivent être justifiés, sauf mention contraire explicite.
+        \item L'usage de tout document, téléphone ou appareil électronique connecté autre que la calculatrice autorisée est strictement interdit.
+    \end{itemize}
+\end{tcolorbox}
+
+% -------------------------------------------------------------------------
+% PAGE 2 : EXERCICE 1 (4 points)
+% -------------------------------------------------------------------------
+\newpage
+
+\exercice[4]{1}{Thème : \ph{Thème de l'exercice 1}}
+
+Pour chacune des affirmations suivantes, indiquer si elle est vraie ou fausse. Chaque réponse devra être soigneusement justifiée ; une réponse non justifiée ne rapporte aucun point. Une absence de réponse ou une réponse inexacte n'enlève pas de point. Les questions de cet exercice sont indépendantes.
+
+\vspace{0.55cm}
+
+\begin{enumerate}
+    \item \ph{Contexte de l'affirmation 1}
+    \[
+        \ph{formule centrée}\,.
+    \]
+    \ph{Complément de contexte de l'affirmation 1}\\[0.2cm]
+    \textbf{Affirmation 1 :} \ph{Énoncé de l'affirmation 1}
+    
+    \vspace{0.75cm}
+    \item \ph{Contexte de l'affirmation 2}\\[0.2cm]
+    \textbf{Affirmation 2 :} \ph{Énoncé de l'affirmation 2}
+    
+    \vspace{0.75cm}
+    \item \ph{Contexte de l'affirmation 3}\\[0.2cm]
+    \textbf{Affirmation 3 :} \ph{Énoncé de l'affirmation 3}
+    
+    \vspace{0.75cm}
+    \item \ph{Contexte de l'affirmation 4}
+    \[
+        \ph{formule centrée}.
+    \]
+    \ph{Précision ou propriété admise}\\[0.2cm]
+    \textbf{Affirmation 4 :} \ph{Énoncé de l'affirmation 4}
+\end{enumerate}
+
+% -------------------------------------------------------------------------
+% PAGE 3 : EXERCICE 2 (5 points)
+% -------------------------------------------------------------------------
+\newpage
+
+\exercice[5]{2}{Thème : \ph{Thème de l'exercice 2}}
+
+\ph{Contexte de l'exercice 2}
+
+\vspace{0.25cm}
+\ph{Phrase d'introduction des notations} On note :
+\begin{itemize}[label=\textbullet, itemsep=0.25em, topsep=0.15cm]
+    \item $\ph{notation 1}$ \ph{définition 1} ;
+    \item $\ph{notation 2}$ \ph{définition 2} ;
+    \item $\ph{notation 3}$ \ph{définition 3}.
+\end{itemize}
+
+\vspace{0.45cm}
+\noindent\textbf{\large Partie A --- \ph{Titre de la partie A}}
+\vspace{0.25cm}
+
+\begin{enumerate}
+    \item \ph{Question A.1}
+    
+    \vspace{0.35cm}
+    \item \ph{Question A.2}
+    
+    \vspace{0.35cm}
+    \item \ph{Question A.3}
+    
+    \vspace{0.35cm}
+    \item \ph{Question A.4} \textit{(\ph{consigne éventuelle}).}
+\end{enumerate}
+
+\vspace{0.55cm}
+\noindent\textbf{\large Partie B --- \ph{Titre de la partie B}}
+\vspace{0.25cm}
+
+\begin{enumerate}
+    \item \ph{Contexte de la question B.1}
+    \begin{enumerate}[topsep=0.15cm, itemsep=0.3em]
+        \item \ph{Question B.1.a}
+        \item \ph{Question B.1.b}
+        \item \ph{Question B.1.c} \textit{(\ph{consigne éventuelle}).}
+    \end{enumerate}
+    
+    \vspace{0.45cm}
+    \item \ph{Contexte de la question B.2}
+    \begin{enumerate}[topsep=0.15cm, itemsep=0.3em]
+        \item \ph{Question B.2.a}
+        \item \ph{Question B.2.b}
+    \end{enumerate}
+\end{enumerate}
+
+% -------------------------------------------------------------------------
+% PAGE 4 : EXERCICE 3 (6 points)
+% -------------------------------------------------------------------------
+\newpage
+
+\exercice[6]{3}{Thème : \ph{Thème de l'exercice 3}}
+
+\ph{Contexte de l'exercice 3}
+\[
+    \ph{formule centrée}\,.
+\]
+
+\partie{A --- \ph{Titre de la partie A}}
+
+\begin{enumerate}
+    \item \ph{Question A.1}
+    
+    \item \ph{Question A.2}\\[0.05cm]
+    \textit{(\ph{indication ou propriété admise})}.
+    
+    \item 
+    \begin{enumerate}
+        \item \ph{Question A.3.a}
+        \[
+            \ph{formule centrée}\,.
+        \]
+        \item \ph{Question A.3.b}
+    \end{enumerate}
+    
+    \item \ph{Question A.4}
+\end{enumerate}
+
+\partie{B --- \ph{Titre de la partie B}}
+
+\ph{Introduction de la partie B}
+\[
+    \ph{formule centrée}\,.
+\]
+
+\begin{enumerate}
+    \item \ph{Question B.1}
+    
+    \item \ph{Question B.2}
+    
+    \item 
+    \begin{enumerate}
+        \item \ph{Question B.3.a}
+        \item \ph{Question B.3.b}
+        \item \ph{Question B.3.c}
+    \end{enumerate}
+    
+    \item \ph{Question B.4}
+    
+    \item \ph{Question B.5 : introduction}
+    
+    \par\vspace{0.12cm}
+    \noindent
+    \begin{minipage}[t]{0.66\linewidth}
+        \vspace{0pt}
+        \begin{enumerate}[topsep=0pt, partopsep=0pt, leftmargin=1.5em, itemsep=0.45em]
+            \item \ph{Question B.5.a}
+            \item \ph{Question B.5.b}
+        \end{enumerate}
+    \end{minipage}\hfill
+    \begin{minipage}[t]{0.32\linewidth}
+        \vspace{0pt}
+        \centering
+        \begin{tcolorbox}[
+            colback=gray!4,
+            colframe=black!85,
+            boxrule=0.6pt,
+            arc=0.8mm,
+            top=1.6mm,
+            bottom=1.6mm,
+            left=2.5mm,
+            right=2mm,
+            title={\footnotesize\textbf{\textsf{\ph{Titre de l'encadré}}}},
+            coltitle=black,
+            colbacktitle=gray!20
+        ]
+            \ttfamily\small
+            \renewcommand{\arraystretch}{1.18}
+            \begin{tabular}{r@{\hspace{0.45em}}|@{\hspace{0.45em}}l}
+                1 & \ph{l.\,1} \\
+                2 & \quad \ph{l.\,2} \\
+                3 & \quad \ph{l.\,3} \\
+                4 & \quad \ph{l.\,4} \makebox[1.4cm]{\dotfill} \\
+                5 & \qquad \ph{l.\,5} \\
+                6 & \qquad \ph{l.\,6} \makebox[1.4cm]{\dotfill} \\
+                7 & \quad \ph{l.\,7}
+            \end{tabular}
+        \end{tcolorbox}
+    \end{minipage}
+\end{enumerate}
+
+% -------------------------------------------------------------------------
+% PAGE 5 : EXERCICE 4 (5 points)
+% -------------------------------------------------------------------------
+\newpage
+
+\exercice[5]{4}{Thème : \ph{Thème de l'exercice 4}}
+
+\ph{Introduction de l'exercice 4}
+\[
+    \ph{formule centrée}\,.
+\]
+
+\vspace{0.45cm}
+\noindent\textbf{\large Partie A --- \ph{Titre de la partie A}}
+\vspace{0.25cm}
+
+\ph{Introduction de la partie A}
+\[
+    \ph{formule centrée}.
+\]
+
+\vspace{0.25cm}
+\begin{enumerate}
+    \item \ph{Question A.1}
+    
+    \vspace{0.35cm}
+    \item \ph{Question A.2}
+    
+    \vspace{0.35cm}
+    \item \ph{Question A.3}
+    
+    \vspace{0.35cm}
+    \item \ph{Question A.4}
+\end{enumerate}
+
+\vspace{0.55cm}
+\noindent\textbf{\large Partie B --- \ph{Titre de la partie B}}
+\vspace{0.25cm}
+
+\begin{enumerate}
+    \item \ph{Question B.1}
+    \[
+        \ph{formule centrée}
+    \]
+    
+    \vspace{0.30cm}
+    \item \ph{Question B.2}
+    
+    \vspace{0.30cm}
+    \item \ph{Question B.3}
+    
+    \vspace{0.30cm}
+    \item \ph{Question B.4}
+    
+    \vspace{0.30cm}
+    \item 
+    \begin{enumerate}[topsep=0.15cm, itemsep=0.3em]
+        \item \ph{Question B.5.a}
+        \item \ph{Question B.5.b}
+    \end{enumerate}
+\end{enumerate}
+
+\end{document}

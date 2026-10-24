@@ -1,0 +1,4 @@
+name: plan
+display_name: Plan
+description: Affiche un plan local sans appeler un LLM ni modifier de fichier.
+tools: []

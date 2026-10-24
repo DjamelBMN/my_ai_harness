@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import re
 
-from core.task import Task
+from core.task import Task, ensure_task
 from core.task_state import PlanStep, TaskState
 from core.intent_engine import IntentDecision, IntentEngine
 
@@ -29,7 +29,8 @@ class Planner:
         """Active la reconnaissance des capacités ajoutées par les plugins."""
         self.intent_engine.agent_registry = registry
 
-    def plan(self, task: Task) -> TaskState:
+    def plan(self, task: Task | str) -> TaskState:
+        task = ensure_task(task)
         request = task.description.strip()
         if not request:
             raise ClarificationRequired("Décris la mission que tu veux confier au harness.")
@@ -42,8 +43,13 @@ class Planner:
             normalized_request = request.casefold()
             web_triggers = [str(item).casefold() for item in config.get("requires_web_when", [])]
             test_triggers = [str(item).casefold() for item in config.get("requires_tests_when", [])]
-            web_required = bool(config.get("requires_web", False)) or any(
-                trigger in normalized_request for trigger in web_triggers
+            web_required = (
+                bool(config.get("requires_web", False))
+                or any(trigger in normalized_request for trigger in web_triggers)
+                or (
+                    "web_search" in skill.tools
+                    and self.intent_engine.is_web_query(normalized_request)
+                )
             )
             tests_required = bool(config.get("requires_tests", False)) or any(
                 trigger in normalized_request for trigger in test_triggers
@@ -110,6 +116,8 @@ class Planner:
 
         state = TaskState(
             user_request=request,
+            mode=task.mode,
+            skill_name=(task.skill_name or (skill.name if skill is not None else None)),
             intent=intent,
             intent_decision=decision.to_dict(),
             complexity=self._complexity(intent, request),
@@ -121,6 +129,34 @@ class Planner:
                 "Ne jamais prétendre avoir lu un fichier si l'extraction a échoué.",
             ],
         )
+        if skill is not None:
+            for relative_path, content in skill.template_contents.items():
+                state.observations.append(
+                    {
+                        "kind": "skill_template_read",
+                        "path": relative_path,
+                        "status": "success",
+                        "characters": len(content),
+                    }
+                )
+            for relative_path, content in skill.rag_contents.items():
+                state.observations.append(
+                    {
+                        "kind": "skill_rag_read",
+                        "path": relative_path,
+                        "status": "success",
+                        "characters": len(content),
+                    }
+                )
+            for relative_path, error in skill.resource_errors.items():
+                state.observations.append(
+                    {
+                        "kind": "skill_resource_read",
+                        "path": relative_path,
+                        "status": "error",
+                        "error": error,
+                    }
+                )
         state.plan = self._steps(intent, request, agent)
         state.observations.append(
             {"kind": "intent", "value": intent, "agent": agent, "status": "inferred"}

@@ -1,0 +1,11 @@
+name: test
+display_name: Test
+description: Exécution et analyse de tests avec TestAgent.
+agent: tester
+tools:
+  - list_files
+  - find_file
+  - search_files
+  - read_file
+  - run_tests
+  - run_python

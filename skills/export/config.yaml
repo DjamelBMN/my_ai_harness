@@ -1,0 +1,4 @@
+name: export
+display_name: Export
+description: Exporte le dernier résultat dans le workspace.
+tools: []

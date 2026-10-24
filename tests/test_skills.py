@@ -83,7 +83,13 @@ class SkillCommandTests(unittest.TestCase):
         self.assertIn("durée", launch.skill.instructions.casefold())
         self.assertIn("barème", launch.skill.instructions.casefold())
         self.assertEqual(launch.skill.rag_resources, [])
-        self.assertEqual(launch.skill.available_templates, [])
+        self.assertEqual(
+            {path.name for path in launch.skill.available_templates},
+            {"sujet_bacblanc.tex", "bareme_bacblanc.tex"},
+        )
+        self.assertEqual(set(launch.skill.template_contents), {
+            "sujet_bacblanc.tex", "bareme_bacblanc.tex"
+        })
 
     def test_unknown_slash_skill_is_explicit_error(self) -> None:
         with self.assertRaises(SkillCommandError) as caught:
@@ -206,7 +212,7 @@ class SkillCommandTests(unittest.TestCase):
                 WorkspaceFilesystem(Path(temporary)),
                 PermissionPolicy(autonomous=True),
             )
-            loop = AgentLoop(tools, emit=None, max_retries=0)
+            loop = AgentLoop(tools, emit=print, max_retries=0)
             orchestrator = Orchestrator(generic_agents, router, context=Context())
             orchestrator.skill_router = self.make_router()
             output = io.StringIO()
@@ -230,8 +236,13 @@ class SkillCommandTests(unittest.TestCase):
         self.assertIn("Tu es BacBlancAgent", provider.prompts[0])
         self.assertIn("Structure de sortie", provider.prompts[0])
         self.assertIn("RÈGLES DU SKILL", provider.prompts[0])
-        self.assertIn("delegate_to_agent", [item["name"] for item in provider.schemas[0]])
+        schema_names = [item["name"] for item in provider.schemas[0]]
+        self.assertIn("delegate_to_agent", schema_names)
+        self.assertIn("write_file", schema_names)
+        self.assertIn("[COMPLETENESS] INCOMPLETE", terminal)
+        self.assertIn("ÉCHEC DE LA LIVRAISON COMPLÈTE", terminal)
         self.assertIn("Sujet de test construit", terminal)
+        self.assertIn("peut être incomplet ou non vérifié", terminal)
 
 
 if __name__ == "__main__":

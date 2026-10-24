@@ -7,10 +7,13 @@ openai:
 providers:
   ollama:
     enabled: true
-    model: "qwen3.5:4b-q4_K_M"
+    model: "qwen3:1.7b"
   gemini:
     enabled: true
     model: "gemini-3.8-flash"
+  mistral:
+    enabled: true
+    model: "mistral-small-latest"
   claude:
     enabled: false
 

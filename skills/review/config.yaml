@@ -1,0 +1,10 @@
+name: review
+display_name: Review
+description: Revue critique avec ReviewAgent.
+agent: reviewer
+tools:
+  - list_files
+  - find_file
+  - search_files
+  - read_file
+  - read_document

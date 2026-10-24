@@ -1,0 +1,4 @@
+name: model
+display_name: Model
+description: État et sélection dynamique du provider actif.
+tools: []

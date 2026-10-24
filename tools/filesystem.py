@@ -79,6 +79,11 @@ class WorkspaceFilesystem:
             raise ValueError("Cette opération nécessite un fichier dans le workspace.")
         return resolved
 
+    @staticmethod
+    def contains_secret_text(value: str) -> bool:
+        """Best-effort check shared by text writes and format exporters."""
+        return any(pattern.search(value) for pattern in _SECRET_PATTERNS)
+
     def _read_bytes(self, path: Path) -> bytes:
         if not path.is_file():
             raise FileNotFoundError(f"Fichier introuvable : {path.relative_to(self.root)}")
@@ -206,7 +211,7 @@ class WorkspaceFilesystem:
     ) -> dict[str, object]:
         if not isinstance(content, str):
             raise TypeError("Le contenu à écrire doit être du texte.")
-        if any(pattern.search(content) for pattern in _SECRET_PATTERNS):
+        if self.contains_secret_text(content):
             raise PermissionError("Écriture refusée : le contenu ressemble à un secret ou une clé API.")
         if len(content.encode("utf-8")) > self.max_file_bytes:
             raise ValueError("Le contenu dépasse la limite autorisée pour un fichier.")
@@ -244,6 +249,33 @@ class WorkspaceFilesystem:
             "path": path.relative_to(self.root).as_posix(),
             "bytes": len(data),
             "sha256": digest,
+        }
+
+    def write_bytes(self, relative_path: str, content: bytes) -> dict[str, object]:
+        """Crée un artefact binaire dans le workspace sans écraser l'existant."""
+        if not isinstance(content, bytes):
+            raise TypeError("Le contenu binaire doit être de type bytes.")
+        if len(content) > self.max_file_bytes:
+            raise ValueError("Le fichier binaire dépasse la limite autorisée.")
+        try:
+            text = content.decode("utf-8")
+        except UnicodeDecodeError:
+            text = ""
+        if self.contains_secret_text(text):
+            raise PermissionError("Écriture refusée : le contenu ressemble à un secret ou une clé API.")
+        path = self.resolve(relative_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path = self.resolve(relative_path)
+        if path.exists():
+            raise FileExistsError(f"Le fichier existe déjà : {relative_path}")
+        with path.open("xb") as file:
+            file.write(content)
+            file.flush()
+            os.fsync(file.fileno())
+        return {
+            "path": path.relative_to(self.root).as_posix(),
+            "bytes": len(content),
+            "sha256": hashlib.sha256(content).hexdigest(),
         }
 
     def patch_file(

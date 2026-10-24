@@ -64,6 +64,25 @@ class TaskState:
     created_at: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
+    mode: str = "ACCEPT"
+    skill_name: str | None = None
+
+    def __post_init__(self) -> None:
+        normalized_plan: list[PlanStep] = []
+        for item in self.plan:
+            if isinstance(item, PlanStep):
+                normalized_plan.append(item)
+            elif isinstance(item, str):
+                normalized_plan.append(PlanStep(description=item))
+            elif isinstance(item, dict):
+                normalized_plan.append(
+                    PlanStep(
+                        description=str(item.get("description", "")),
+                        status=str(item.get("status", "pending")),
+                        agent=item.get("agent"),
+                    )
+                )
+        self.plan = normalized_plan
 
     def record_tool_result(self, result: dict) -> None:
         self.tool_results.append(result)

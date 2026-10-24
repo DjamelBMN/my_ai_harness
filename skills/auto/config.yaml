@@ -1,0 +1,14 @@
+name: auto
+display_name: Auto
+description: Exécute une mission après sélection automatique agent/provider.
+auto_route: true
+tools:
+  - list_files
+  - find_file
+  - search_files
+  - read_file
+  - read_document
+  - write_file
+  - patch_file
+  - run_tests
+  - run_python

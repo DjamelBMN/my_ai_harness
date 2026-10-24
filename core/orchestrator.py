@@ -1,4 +1,4 @@
-﻿# RÔLE DE CE FICHIER :
+# RÔLE DE CE FICHIER :
 # Coordonne toute tâche : choisit l'agent, demande un provider au ModelRouter,
 # attribue le provider à l'agent, récupère sa réponse et la présente à l'utilisateur.
 
@@ -10,7 +10,7 @@ from core.context_manager import ContextManager
 from core.delegation import DelegationEngine
 from core.multi_agent_coordinator import MultiAgentCoordinator
 from core.router import ModelRouter
-from core.task import Task
+from core.task import Task, ensure_task
 from core.task_state import AgentResult
 
 
@@ -36,8 +36,9 @@ class Orchestrator:
         self.default_agent = default_agent.lower()
         self.agent_selector = AgentSelector(self.agent_registry, self.default_agent)
 
-    def run(self, task: Task) -> str:
+    def run(self, task: Task | str) -> str:
         """Envoie la tâche à l'agent, puis affiche le résultat final."""
+        task = ensure_task(task, default_type=self.default_agent)
         agent_key = task.type.strip().lower() or self.default_agent
         try:
             _, agent = self.agent_registry.resolve(agent_key)
@@ -85,11 +86,12 @@ class Orchestrator:
         print(result)
         return result
 
-    def run_agentic(self, task: Task, agent_loop) -> AgentResult:
+    def run_agentic(self, task: Task | str, agent_loop, state=None) -> AgentResult:
         """Nouveau runtime agentique sans modifier le contrat historique run()."""
+        task = ensure_task(task, default_type=self.default_agent)
         if hasattr(agent_loop.planner, "set_agent_registry"):
             agent_loop.planner.set_agent_registry(self.agent_registry)
-        state = agent_loop.planner.plan(task)
+        state = state or agent_loop.planner.plan(task)
         if task.skill is not None:
             agent = task.skill.agent
             if agent is None:
@@ -173,6 +175,17 @@ class Orchestrator:
         result.observations = state.observations
         result.errors = state.errors
         self.context.agent_results[agent.name] = result.answer
+        self.context.last_result = result.answer
+        self.context.mission_memory = {
+            "task_id": state.task_id,
+            "objective": state.objective,
+            "intent": state.intent,
+            "status": result.status,
+            "agents": list(state.agent_history),
+            "files": list(state.files),
+            "errors": list(state.errors),
+            "verification": list(state.verification_results),
+        }
         for path in state.files:
             if path not in self.context.files:
                 self.context.files.append(path)

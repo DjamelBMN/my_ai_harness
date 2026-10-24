@@ -1,0 +1,4 @@
+name: compare
+display_name: Compare
+description: Compare plusieurs providers chargés et synthétise leurs réponses.
+tools: []

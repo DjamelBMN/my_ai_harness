@@ -369,6 +369,50 @@ class FilesystemAndDocumentTests(TemporaryWorkspaceTestCase):
 
 
 class AgentLoopIntegrationTests(TemporaryWorkspaceTestCase):
+    def test_long_generation_reports_partial_turns_and_exhaustion_reason(self):
+        provider = ProbeProvider(
+            turns=[
+                AgentTurn(text="Début du document ", continuation="turn-1", partial=True),
+                AgentTurn(text="suite du document", continuation="turn-2", partial=True),
+            ]
+        )
+        agent = ResearchAgent()
+        agent.set_provider(provider)
+        events = []
+        loop = AgentLoop(
+            ToolRegistry(self.fs, PermissionPolicy()),
+            emit=events.append,
+            max_iterations=2,
+            max_retries=0,
+        )
+
+        result = loop.run(agent, Task("Explique un concept"))
+
+        self.assertEqual(result.status, "failed")
+        self.assertIn("limite de 2 tours", result.answer)
+        self.assertIn("2 réponse(s) partielle(s)", result.answer)
+        self.assertTrue(any(event.startswith("[MODEL TURN]") for event in events))
+        self.assertTrue(
+            any(
+                error.get("phase") == "agent_loop"
+                and error.get("partial_turns") == 2
+                for error in result.errors
+            )
+        )
+
+    def test_cli_and_bacblanc_defaults_allow_long_agent_deliverables(self):
+        args = main_module._arguments([])
+        self.assertEqual(args.max_iterations, 20)
+        self.assertEqual(args.max_output_tokens, 2048)
+        from skills.loader import SkillLoader
+        from skills.registry import SkillRegistry
+
+        skill = SkillLoader(PROJECT_ROOT / "skills").load(
+            SkillRegistry.from_directory(PROJECT_ROOT / "skills").get("bacblanc")
+        )
+        self.assertEqual(skill.config["max_iterations"], 20)
+        self.assertEqual(skill.config["max_output_tokens"], 16_384)
+
     def test_orchestrator_tool_observation_verification_and_delivery(self):
         (self.root / "notes.md").write_text("The verified note says agent loops observe tools.", encoding="utf-8")
         provider = ProbeProvider(

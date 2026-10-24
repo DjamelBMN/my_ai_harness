@@ -110,6 +110,22 @@ class ModelRouter:
             key.strip().lower(): provider_name.strip().lower()
             for key, provider_name in (task_provider_map or {}).items()
         }
+        self.session_provider_key = self.default_provider
+        self.last_provider_key = self.default_provider
+        self.automatic_routing = True
+
+    def set_active_provider(self, provider_name: str) -> None:
+        """Épingle le provider choisi par /model jusqu'à la commande /auto."""
+        key = provider_name.strip().lower()
+        if key not in self.providers:
+            raise ValueError(f"Le provider '{provider_name}' n'est pas disponible.")
+        self.session_provider_key = key
+        self.last_provider_key = key
+        self.automatic_routing = False
+
+    def enable_automatic_routing(self) -> None:
+        """Réactive les routes configurées et les préférences par intention."""
+        self.automatic_routing = True
 
     def get_provider(
         self,
@@ -129,15 +145,21 @@ class ModelRouter:
             (self.task_provider_map[key] for key in route_candidates if key in self.task_provider_map),
             None,
         )
-        default_agent_route = self.agent_provider_map.get(agent_key, self.default_provider)
-        provider_name = configured or default_agent_route
+        default_agent_route = self.agent_provider_map.get(agent_key, self.session_provider_key)
+        provider_name = (
+            (configured or default_agent_route)
+            if self.automatic_routing
+            else self.session_provider_key
+        )
         provider = self.providers.get(provider_name)
         if provider is None and configured is not None:
             # Une préférence de tâche indisponible retombe sur la route historique.
-            provider = self.providers.get(default_agent_route)
+            provider = self.providers.get(self.session_provider_key)
+            provider_name = self.session_provider_key
         if provider is None:
             raise ValueError(
                 f"Le provider '{provider_name}' de l'agent '{agent_key}' "
                 "est absent ou désactivé."
             )
+        self.last_provider_key = provider_name
         return provider

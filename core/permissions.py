@@ -24,12 +24,18 @@ class PermissionPolicy:
     confirm: Callable[[str, RiskLevel], bool] | None = None
     dry_run: bool = False
     autonomous: bool = False
+    mode: str = "ACCEPT"
+    edit_preview: Callable[[str, dict], None] | None = None
 
     def authorize(self, name: str, risk: RiskLevel, mutates: bool) -> tuple[bool, str]:
         if not mutates and risk <= RiskLevel.LOW:
             return True, "lecture autorisée"
+        if self.mode == "PLAN" and mutates:
+            return False, "PLAN MODE : aucune modification, commande ou suite mutatrice autorisée"
         if self.dry_run:
             return False, "dry-run : aucune modification ni commande exécutée"
+        if self.mode == "EDIT" and name in {"write_file", "patch_file"}:
+            return True, "autorisé par EDIT après affichage de l'aperçu"
         if self.autonomous:
             return True, "mode autonome explicitement activé"
         if self.confirm is None:

@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NeoHarness AI — Agent Operating Environment</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- ====================================================================
+         TOP BAR MINIMALISTE (ICÔNES VECTORIELLES EXCLUSIVEMENT)
+         ==================================================================== -->
+    <header class="topbar" role="banner">
+      <div class="topbar-left">
+        <button id="btn-toggle-sidebar" class="topbar-icon-btn" title="Afficher/Masquer la navigation (Ctrl+B)" aria-label="Basculer la barre latérale">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+            <line x1="9" y1="3" x2="9" y2="21"></line>
+          </svg>
+        </button>
+        <button id="btn-brand-home" class="brand-button" title="NeoHarness AI — Conçu & créé par Djamel BENMAKHLOUF">
+          <span class="brand-logo" aria-hidden="true">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+              <polyline points="2 17 12 22 22 17"></polyline>
+              <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+          </span>
+          <span class="brand-title">NeoHarness AI</span>
+        </button>
+        <span class="topbar-divider"></span>
+        <button id="btn-top-project" class="topbar-ghost-pill" title="Projet actif dans le workspace">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <span class="pill-muted">Projet</span>
+          <span id="top-project-name">NeoHarness AI</span>
+        </button>
+      </div>
+
+      <div class="topbar-center">
+        <button id="btn-open-model-picker" class="topbar-model-pill" title="Changer de modèle IA">
+          <span class="status-dot" id="top-model-dot"></span>
+          <span id="top-model-label">Auto</span>
+          <svg class="caret-svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+
+        <div class="topbar-status-pill" title="État réel du runtime">
+          <span class="status-dot" id="top-task-dot"></span>
+          <span id="top-task-status">Prêt</span>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <button id="btn-open-search" class="topbar-ghost-pill" title="Recherche globale (Ctrl+K)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <span>Rechercher</span>
+          <kbd class="kbd-hint">Ctrl+K</kbd>
+        </button>
+
+        <button id="btn-toggle-theme" class="topbar-icon-btn" title="Basculer le thème Clair / Sombre" aria-label="Thème">
+          <span id="theme-icon" class="icon-inline">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+          </span>
+        </button>
+
+        <button id="btn-open-settings" class="topbar-icon-btn" title="Paramètres & Clés API" aria-label="Paramètres">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+
+        <button id="btn-toggle-inspector" class="topbar-ghost-pill" title="Ouvrir/Fermer le panneau latéral droit (Ctrl+I)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+            <line x1="15" y1="3" x2="15" y2="21"></line>
+          </svg>
+          <span>Inspecteur</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ====================================================================
+         MAIN WORKSPACE (SIDEBAR DISCRÈTE + CONVERSATION + PANNEAU DROIT FERMÉ PAR DÉFAUT)
+         ==================================================================== -->
+    <div class="main-area">
+      <!-- 1. LEFT SIDEBAR (COMPACTE & DISCRÈTE) -->
+      <aside id="left-sidebar" class="sidebar" aria-label="Navigation principale">
+        <div class="sidebar-header">
+          <button id="btn-new-task" class="new-task-btn" title="Nouvelle tâche (Ctrl+N)">
+            <span class="new-task-btn-label">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span>Nouvelle tâche</span>
+            </span>
+            <kbd class="kbd-hint">Ctrl+N</kbd>
+          </button>
+          <input
+            id="sidebar-filter-input"
+            type="search"
+            class="sidebar-search"
+            placeholder="Filtrer les conversations…"
+            aria-label="Filtrer les conversations"
+          />
+        </div>
+
+        <div class="sidebar-scroll">
+          <!-- Conversations récentes -->
+          <section class="sidebar-section">
+            <div class="sidebar-section-header" data-toggle-section="sec-conversations">
+              <span>Conversations récentes</span>
+              <span id="count-conversations" class="sidebar-count">1</span>
+            </div>
+            <div id="sec-conversations"></div>
+          </section>
+
+          <!-- Projets -->
+          <section class="sidebar-section">
+            <div class="sidebar-section-header" data-toggle-section="sec-projects">
+              <span>Projets</span>
+              <span id="count-projects" class="sidebar-count">1</span>
+            </div>
+            <div id="sec-projects"></div>
+          </section>
+
+          <!-- Accès discret aux espaces avancés (replié par défaut) -->
+          <section class="sidebar-section sidebar-advanced-section">
+            <div class="sidebar-section-header" data-toggle-section="sec-advanced-system">
+              <span>Système & Capacités</span>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </div>
+            <div id="sec-advanced-system" style="display: none;">
+              <div class="sidebar-subnav">
+                <button class="sidebar-subnav-btn" data-open-inspector-tab="model">
+                  <span>Modèles & Capacités</span>
+                  <span id="count-models" class="sidebar-count">6</span>
+                </button>
+                <button class="sidebar-subnav-btn" data-open-inspector-tab="skills">
+                  <span>Skills du Harness</span>
+                  <span id="count-skills" class="sidebar-count">18</span>
+                </button>
+                <button class="sidebar-subnav-btn" data-open-inspector-tab="tools">
+                  <span>Outils (ToolRegistry)</span>
+                  <span id="count-tools" class="sidebar-count">17</span>
+                </button>
+                <button class="sidebar-subnav-btn" data-open-inspector-tab="files">
+                  <span>Fichiers & Diffs</span>
+                </button>
+                <button class="sidebar-subnav-btn" data-open-inspector-tab="memory">
+                  <span>Mémoire</span>
+                </button>
+                <button class="sidebar-subnav-btn" data-open-inspector-tab="rag">
+                  <span>RAG & Sources</span>
+                </button>
+              </div>
+              <div id="sec-agents" style="display: none;"></div>
+              <div id="sec-skills" style="display: none;"></div>
+              <div id="sec-tools" style="display: none;"></div>
+              <div id="sec-models" style="display: none;"></div>
+              <span id="count-agents" style="display: none;">5</span>
+            </div>
+          </section>
+        </div>
+
+        <div class="sidebar-footer">
+          <div class="creator-badge" title="Créateur & Architecte de NeoHarness AI : Djamel BENMAKHLOUF">
+            <span class="creator-avatar" aria-hidden="true">DB</span>
+            <div class="creator-info">
+              <span class="creator-label">Créateur</span>
+              <strong class="creator-name">Djamel BENMAKHLOUF</strong>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div id="resizer-left" class="resizer" title="Redimensionner la barre latérale"></div>
+
+      <!-- 2. CENTER WORKSPACE (ESPACE PRINCIPAL DE CONVERSATION) -->
+      <main class="workspace" role="main">
+        <div id="workspace-scroll" class="workspace-scroll">
+          <!-- Écran d'accueil minimaliste -->
+          <div id="welcome-screen" class="welcome-container">
+            <div class="welcome-header">
+              <div class="welcome-emblem" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                  <polyline points="2 17 12 22 22 17"></polyline>
+                  <polyline points="2 12 12 17 22 12"></polyline>
+                </svg>
+              </div>
+              <h1>Que souhaitez-vous accomplir ?</h1>
+              <p>
+                Écrivez votre demande en langage naturel ou tapez <code>/</code> pour invoquer un skill. L'agent planifie, exécute ses outils et vérifie le résultat en temps réel.
+              </p>
+              <div class="welcome-creator-tag" title="Créé et conçu par Djamel BENMAKHLOUF">
+                <span class="creator-sparkle" aria-hidden="true">✦</span>
+                <span>Outil conçu & créé par <strong>Djamel BENMAKHLOUF</strong></span>
+              </div>
+            </div>
+
+            <div id="welcome-model-card" class="welcome-model-banner"></div>
+
+            <div class="welcome-grid">
+              <button class="welcome-card" data-quick-prompt="Recherche sur internet les dernières actualités sur l'intelligence artificielle et synthétise les sources.">
+                <div class="welcome-card-title">
+                  <span class="welcome-card-title-left">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="2" y1="12" x2="22" y2="12"></line>
+                      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                    </svg>
+                    <span>Recherche Internet temps réel</span>
+                  </span>
+                  <span class="meta-chip">web_search</span>
+                </div>
+                <div class="welcome-card-desc">Consulte de vraies sources Web datées et synthétise les faits vérifiés avec leurs liens.</div>
+              </button>
+
+              <button class="welcome-card" data-quick-prompt="/bacblanc">
+                <div class="welcome-card-title">
+                  <span class="welcome-card-title-left">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                      <line x1="16" y1="13" x2="8" y2="13"></line>
+                      <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                    <span>Générer & compiler un PDF LaTeX</span>
+                  </span>
+                  <span class="meta-chip">/bacblanc</span>
+                </div>
+                <div class="welcome-card-desc">Compile réellement le sujet LaTeX avec Tectonic et ouvre l'aperçu PDF à droite.</div>
+              </button>
+
+              <button class="welcome-card" data-quick-prompt="/debug Inspecte le code et vérifie les tests unitaires.">
+                <div class="welcome-card-title">
+                  <span class="welcome-card-title-left">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="16 18 22 12 16 6"></polyline>
+                      <polyline points="8 6 2 12 8 18"></polyline>
+                    </svg>
+                    <span>Coder, tester & corriger</span>
+                  </span>
+                  <span class="meta-chip">/debug</span>
+                </div>
+                <div class="welcome-card-desc">Inspecte les fichiers, applique des modifications sûres et lance la suite de tests.</div>
+              </button>
+
+              <button class="welcome-card" data-quick-prompt="/plan Construire et vérifier une nouvelle fonctionnalité Python dans le workspace">
+                <div class="welcome-card-title">
+                  <span class="welcome-card-title-left">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <line x1="8" y1="6" x2="21" y2="6"></line>
+                      <line x1="8" y1="12" x2="21" y2="12"></line>
+                      <line x1="8" y1="18" x2="21" y2="18"></line>
+                      <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                      <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                      <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                    </svg>
+                    <span>Planifier sans exécuter</span>
+                  </span>
+                  <span class="meta-chip">/plan</span>
+                </div>
+                <div class="welcome-card-desc">Prévisualise l'intention, l'agent et les étapes prévues sans modifier le workspace.</div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Flux de messages de la conversation active -->
+          <div id="conversation-stream" class="conversation-stream" style="display: none;"></div>
+        </div>
+
+        <!-- Bannière d'approbation humaine (Human-in-the-Loop) -->
+        <div id="approval-banner-container"></div>
+
+        <!-- Composer ultra-épuré style Claude / ChatGPT avec Palette Slash Commands & Dictée Vocale -->
+        <div class="composer-wrapper">
+          <div id="composer-box" class="composer-box">
+            <!-- Palette flottante des 18 Slash Commands (apparaît dès la saisie de /) -->
+            <div id="slash-command-palette" class="slash-palette" role="listbox" aria-label="Commandes et Skills NeoHarness" style="display: none;">
+              <div class="slash-palette-header">
+                <span class="slash-palette-title">Skills & Commandes NeoHarness (18)</span>
+                <span class="slash-palette-hint">↑↓ naviguer · Entrée choisir · Échap fermer</span>
+              </div>
+              <div id="slash-palette-list" class="slash-palette-list"></div>
+            </div>
+
+            <!-- Bannière d'état / diagnostic vocal ou skill -->
+            <div id="voice-status-banner" class="voice-status-banner" style="display: none;" role="status"></div>
+
+            <!-- Fichiers du workspace ou pièces jointes (affiché uniquement si un fichier est joint) -->
+            <div id="composer-attachments-bar" class="composer-attachments-bar" style="display: none;"></div>
+
+            <!-- Mode Dictée Audio style GPT (remplace le champ texte pendant l'enregistrement) -->
+            <div id="voice-dictation-bar" class="voice-dictation-bar" style="display: none;" aria-live="polite">
+              <button id="btn-voice-cancel" type="button" class="voice-btn-cancel" title="Annuler la dictée (Échap)" aria-label="Annuler la dictée">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+              <div class="voice-waveform-center">
+                <span class="voice-rec-dot" aria-hidden="true"></span>
+                <canvas id="voice-waveform-canvas" class="voice-waveform-canvas" width="280" height="32"></canvas>
+                <span id="voice-timer" class="voice-timer mono">00:00</span>
+              </div>
+              <div id="voice-live-preview" class="voice-live-preview" title="Transcription en cours">Écoute du microphone…</div>
+              <button id="btn-voice-confirm" type="button" class="voice-btn-confirm" title="Terminer la dictée et insérer le texte" aria-label="Valider la dictée">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                <span>Terminer</span>
+              </button>
+            </div>
+
+            <!-- Zone de texte principale -->
+            <textarea
+              id="composer-input"
+              class="composer-textarea"
+              placeholder="Posez une question, confiez une tâche ou tapez / pour une commande…"
+              rows="2"
+            ></textarea>
+
+            <!-- Input file caché pour téléversement réel de pièces jointes (fichiers, PDF, images) -->
+            <input
+              id="composer-file-input"
+              type="file"
+              multiple
+              accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.svg,.txt,.md,.py,.js,.ts,.json,.yaml,.yml,.csv,.tex,.html,.css,.docx,.xlsx,.pptx"
+              style="display: none;"
+            />
+
+            <!-- Barre de contrôles minimaliste en une seule ligne -->
+            <div id="composer-footer" class="composer-footer">
+              <div class="composer-controls-left">
+
+
+                <button id="btn-attach-file" type="button" class="composer-chip-btn" title="Joindre un fichier existant du workspace">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                  </svg>
+                  <span>+ Fichier</span>
+                </button>
+
+                <select id="composer-model-select" class="composer-select" title="Modèle actif" aria-label="Modèle actif">
+                  <option value="auto">Modèle : Auto</option>
+                </select>
+
+                <select id="composer-skill-select" class="composer-select" title="Skill actif (Auto ou forcé)" aria-label="Skill actif">
+                  <option value="auto">Skill : Auto</option>
+                </select>
+
+                <select id="composer-mode-select" class="composer-select" title="Mode de gouvernance (Shift+Tab)" aria-label="Mode de permissions">
+                  <option value="EDIT">Mode : EDIT</option>
+                  <option value="PLAN">Mode : PLAN</option>
+                  <option value="ACCEPT">Mode : ACCEPT</option>
+                  <option value="AUTO" selected>Mode : AUTO</option>
+                </select>
+              </div>
+
+              <div class="composer-controls-right">
+                <button id="btn-voice-dictate" type="button" class="voice-mic-btn" title="Dicter au microphone (style GPT)" aria-label="Dicter un message au microphone">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                    <line x1="12" x2="12" y1="19" y2="22"></line>
+                  </svg>
+                </button>
+
+                <button id="btn-send-task" type="button" class="send-btn" title="Envoyer (Entrée)">
+                  <span>Envoyer</span>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="12" y1="19" x2="12" y2="5"></line>
+                    <polyline points="5 12 12 5 19 12"></polyline>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <div id="resizer-right" class="resizer" title="Redimensionner le panneau latéral droit"></div>
+
+      <!-- 3. RIGHT PANEL : APERÇU DOCUMENT (PDF / HTML) & INSPECTEUR TECHNIQUE (FERMÉ PAR DÉFAUT) -->
+      <aside id="right-inspector" class="inspector collapsed" aria-label="Panneau latéral droit (Aperçu Document & Inspecteur)">
+        <!-- VUE A : APERÇU DE DOCUMENT (PDF TECTONIC & HTML SANDBOXÉ) -->
+        <div id="doc-preview-container" class="doc-preview-container" style="display: none;">
+          <div class="doc-preview-header">
+            <div class="doc-preview-title-group">
+              <span id="doc-preview-badge" class="meta-chip accent">PDF</span>
+              <strong id="doc-preview-filename" class="doc-preview-filename mono">document.pdf</strong>
+              <span id="doc-preview-meta" class="doc-preview-meta"></span>
+            </div>
+            <div class="doc-preview-actions">
+              <div id="doc-view-switcher" class="doc-view-switcher">
+                <button id="btn-doc-view-render" type="button" class="doc-switch-btn active">Aperçu</button>
+                <button id="btn-doc-view-source" type="button" class="doc-switch-btn">Code source</button>
+              </div>
+              <div id="doc-pdf-zoom-controls" class="doc-zoom-controls" style="display: none;">
+                <button id="btn-pdf-zoom-out" type="button" class="icon-btn-mini" title="Zoom arrière">−</button>
+                <span id="pdf-zoom-label" class="mono" style="font-size: 11px;">100%</span>
+                <button id="btn-pdf-zoom-in" type="button" class="icon-btn-mini" title="Zoom avant">+</button>
+              </div>
+              <button id="btn-doc-recompile" type="button" class="composer-chip-btn" style="display: none;" title="Compiler le fichier LaTeX avec Tectonic">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                </svg>
+                <span>Compiler</span>
+              </button>
+              <button id="btn-doc-save-source" type="button" class="composer-chip-btn" style="display: none;" title="Enregistrer les modifications et actualiser l'aperçu">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                  <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                  <polyline points="7 3 7 8 15 8"></polyline>
+                </svg>
+                <span>Enregistrer</span>
+              </button>
+              <button id="btn-doc-refresh" type="button" class="icon-btn-mini" title="Actualiser l'aperçu" aria-label="Actualiser l'aperçu">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="23 4 23 10 17 10"></polyline>
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                </svg>
+              </button>
+              <a id="btn-doc-download" class="icon-btn-mini" href="#" download title="Télécharger le fichier" aria-label="Télécharger">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+              </a>
+              <button id="btn-doc-fullscreen" type="button" class="icon-btn-mini" title="Plein écran" aria-label="Plein écran">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="15 3 21 3 21 9"></polyline>
+                  <polyline points="9 21 3 21 3 15"></polyline>
+                  <line x1="21" y1="3" x2="14" y2="10"></line>
+                  <line x1="3" y1="21" x2="10" y2="14"></line>
+                </svg>
+              </button>
+              <button id="btn-switch-to-inspector" type="button" class="icon-btn-mini" title="Basculer vers l'Inspecteur technique">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                  <line x1="15" y1="3" x2="15" y2="21"></line>
+                </svg>
+                <span>Inspecteur</span>
+              </button>
+              <button id="btn-close-doc-preview" type="button" class="topbar-icon-btn" title="Fermer l'aperçu" aria-label="Fermer l'aperçu">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div id="doc-preview-notice" class="doc-preview-notice" style="display: none;"></div>
+
+          <div id="doc-preview-body" class="doc-preview-body">
+            <!-- Iframe PDF -->
+            <iframe id="doc-pdf-frame" class="doc-preview-frame" title="Aperçu PDF" style="display: none;"></iframe>
+            <!-- Iframe HTML Sandboxé -->
+            <iframe
+              id="doc-html-frame"
+              class="doc-preview-frame"
+              title="Aperçu HTML Sandboxé"
+              sandbox="allow-scripts"
+              referrerpolicy="no-referrer"
+              style="display: none;"
+            ></iframe>
+            <!-- Éditeur / Lecteur Code Source (.tex / .html) -->
+            <div id="doc-source-wrap" class="doc-source-wrap" style="display: none;">
+              <textarea id="doc-source-editor" class="doc-source-editor mono" spellcheck="false"></textarea>
+            </div>
+            <!-- État d'erreur explicite de compilation ou de chargement -->
+            <div id="doc-error-box" class="doc-error-box" style="display: none;"></div>
+          </div>
+        </div>
+
+        <!-- VUE B : INSPECTEUR TECHNIQUE -->
+        <div id="inspector-tech-container" class="inspector-tech-container">
+          <div class="inspector-header">
+            <nav class="inspector-tabs" role="tablist">
+              <button class="inspector-tab active" data-inspector-tab="model" role="tab">Modèle</button>
+              <button class="inspector-tab" data-inspector-tab="skills" role="tab">Skills</button>
+              <button class="inspector-tab" data-inspector-tab="activity" role="tab">Activité</button>
+              <button class="inspector-tab" data-inspector-tab="files" role="tab">Fichiers & Diff</button>
+              <button class="inspector-tab" data-inspector-tab="tools" role="tab">Outils</button>
+              <button class="inspector-tab" data-inspector-tab="memory" role="tab">Mémoire</button>
+              <button class="inspector-tab" data-inspector-tab="rag" role="tab">RAG</button>
+              <button class="inspector-tab" data-inspector-tab="context" role="tab">Contexte</button>
+            </nav>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <button id="btn-switch-to-doc" type="button" class="icon-btn-mini" style="display: none;" title="Revenir à l'aperçu du document">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+                <span>Aperçu</span>
+              </button>
+              <button id="btn-close-inspector" class="topbar-icon-btn" title="Fermer l'Inspecteur (Ctrl+I)" aria-label="Fermer l'Inspecteur">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div id="inspector-body" class="inspector-content"></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       MODAL 1 : MODEL PICKER & CAPABILITIES MATRIX
+       ====================================================================== -->
+  <div id="modal-model-picker" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-model-title">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <strong id="modal-model-title">Sélection du Modèle & Capacités Réelles</strong>
+        <button class="icon-btn-mini" data-close-modal="modal-model-picker">Fermer</button>
+      </div>
+      <div id="modal-model-body" class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       MODAL 2 : RECHERCHE GLOBALE (Ctrl+K)
+       ====================================================================== -->
+  <div id="modal-global-search" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-search-title">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <strong id="modal-search-title">Recherche Globale (Ctrl+K)</strong>
+        <button class="icon-btn-mini" data-close-modal="modal-global-search">Fermer</button>
+      </div>
+      <div class="modal-body">
+        <input
+          id="global-search-input"
+          type="search"
+          class="sidebar-search"
+          style="height: 36px; font-size: 13px;"
+          placeholder="Rechercher conversations, fichiers, skills, agents, outils, modèles…"
+        />
+        <div id="global-search-results" style="display: flex; flex-direction: column; gap: 10px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       MODAL 3 : PARAMÈTRES & CLÉS API
+       ====================================================================== -->
+  <div id="modal-settings" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-settings-title">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <strong id="modal-settings-title">Paramètres & Clés API</strong>
+        <button class="icon-btn-mini" data-close-modal="modal-settings">Fermer</button>
+      </div>
+      <div id="modal-settings-body" class="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

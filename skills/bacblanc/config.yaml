@@ -3,6 +3,9 @@ display_name: BacBlanc
 description: Conception d'un sujet de bac blanc, de son barème et de son corrigé.
 agent_class: BacBlancAgent
 intent: exam_creation
+max_iterations: 20
+max_output_tokens: 16384
+partial_delivery_on_failure: true
 requires_workspace: false
 requires_file_read: false
 requires_modification: false
@@ -37,6 +40,9 @@ tools:
   - search_files
   - read_file
   - read_document
+  - write_file
   - run_tests
-templates: []
+templates:
+  - sujet_bacblanc.tex
+  - bareme_bacblanc.tex
 rag_directory: rag

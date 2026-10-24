@@ -1,4 +1,4 @@
-﻿# RÔLE DE CE FICHIER :
+# RÔLE DE CE FICHIER :
 # Définit les informations d'une demande utilisateur. main.py crée une Task et
 # l'Orchestrator la transmet à l'agent spécialisé.
 
@@ -20,3 +20,25 @@ class Task:
     context: Context | None = None
     explicit_agent: bool = False
     skill: object | None = None
+    instructions: str = ""
+    allowed_tools: tuple[str, ...] | None = None
+    mode: str = "ACCEPT"
+    skill_name: str | None = None
+
+
+def ensure_task(
+    task: Task | str,
+    *,
+    default_type: str = "researcher",
+    mode: str = "ACCEPT",
+) -> Task:
+    """Normalise une demande brute (str) ou vérifie qu'il s'agit bien d'une instance Task."""
+    if isinstance(task, Task):
+        if not isinstance(task.description, str):
+            task.description = str(task.description or "")
+        return task
+    if isinstance(task, str):
+        return Task(description=task, type=default_type, mode=mode)
+    raise TypeError(
+        f"Contrat invalide : une instance de Task ou une chaîne (str) est attendue, reçu {type(task).__name__}."
+    )

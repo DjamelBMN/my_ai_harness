@@ -1,0 +1,240 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{fontspec}
+% libertinus-otf désactivé
+\usepackage[french]{babel}
+\usepackage{microtype}
+\usepackage{icomma}
+\setlength{\parindent}{0pt}
+\usepackage[top=1.6cm,bottom=1.6cm,left=1.6cm,right=1.6cm,headheight=15pt,headsep=12pt,footskip=22pt]{geometry}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{tabularx}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+\usepackage{eso-pic}
+\usepackage{tikz}
+\usepackage{xcolor}
+\usepackage{amsmath,amssymb,esvect,mathtools}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\e}{\mathrm{e}}
+\newcommand{\vect}[1]{\vv{#1}}
+\setlength{\abovedisplayskip}{6pt}
+\setlength{\belowdisplayskip}{6pt}
+\setlength{\abovedisplayshortskip}{3pt}
+\setlength{\belowdisplayshortskip}{3pt}
+\newcolumntype{Y}{>{\centering\arraybackslash}X}
+\newcommand{\exercice}[3][5]{%
+    \noindent{\Large\textbf{Exercice #2}} \hfill \textbf{#1 points}\\[0.20cm]%
+    {\normalsize\textit{#3}}%
+    \par\vspace{0.28cm}\hrule\vspace{0.55cm}%
+}
+\newcommand{\partie}[1]{\vspace{0.45cm}\noindent\textbf{\large Partie #1}\par\vspace{0.25cm}}
+\setlist[enumerate,1]{label=\textbf{\arabic*.}, leftmargin=*, itemsep=0.35em, parsep=0pt, topsep=0.2em}
+\setlist[enumerate,2]{label=\textbf{\alph*.}, leftmargin=*, itemsep=0.25em, parsep=0pt, topsep=0.15em}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textit{Bac Blanc -- Sujet 1}}
+\fancyhead[C]{\small\textit{Sujet 1 (Jour 1)}}
+\fancyhead[R]{\small\textbf{Term\textsuperscript{spé}}}
+\fancyfoot[C]{\thepage\ / \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+\begin{document}
+\thispagestyle{empty}
+\AddToShipoutPictureFG*{%
+    \begin{tikzpicture}[remember picture, overlay]
+        \node[rotate=32, scale=1.1, text=black, opacity=0.06, font=\fontsize{72pt}{72pt}\bfseries\sffamily] at (current page.center) {SP{\'E}CIALIT{\'E}};
+    \end{tikzpicture}%
+}
+\noindent
+\begin{minipage}[t]{0.52\textwidth}
+    \textbf{\Large LYCÉE JEAN ROSTAND}\\[0.12cm]
+    \textsc{Année scolaire 2026--2027}\\
+    \textit{Classe de Terminale Générale}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.45\textwidth}
+    \raggedleft
+    \textbf{\large BACCALAURÉAT BLANC}\\[0.10cm]
+    \textbf{Épreuve de spécialité}\\[0.10cm]
+    \textit{Sujet 1 --- Jour 1}\\[0.12cm]
+    \small Date : Mai 2027
+\end{minipage}
+\vspace{0.30cm}
+\hrule height 0.8pt
+\vspace{0.45cm}
+\vfill
+\begin{center}
+    {\LARGE \textbf{BACCALAURÉAT BLANC}}\\[0.20cm]
+    {\large \textbf{SESSION MAI 2027}}\\[0.15cm]
+    {\textbf{\Large SUJET 1 --- JOUR 1}}\\[0.45cm]
+    \begin{tcolorbox}[colback=white, colframe=black, arc=0mm, boxrule=1.5pt, width=0.96\textwidth, top=4mm, bottom=4mm]
+        \centering
+        {\fontsize{26pt}{30pt}\selectfont\textbf{MATHÉMATIQUES}}\\[0.30cm]
+        {\Large \textsc{Épreuve d'Enseignement de Spécialité}}
+    \end{tcolorbox}
+    \vspace{0.50cm}
+    {\large \textbf{Durée de l'épreuve : 4 heures}}\\[0.25cm]
+    \textbf{L'usage de la calculatrice avec \underline{mode examen actif} est autorisé.}\\[0.10cm]
+    \textit{L'usage de la calculatrice sans mémoire, « type collège », est autorisé.}
+\end{center}
+\vfill
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabularx}{0.96\textwidth}{|>{\centering\arraybackslash\bfseries}m{2.6cm}|*{4}{Y|}>{\centering\arraybackslash\bfseries}m{2.2cm}|}
+    \hline
+    Exercice & \textbf{Exercice 1} & \textbf{Exercice 2} & \textbf{Exercice 3} & \textbf{Exercice 4} & \textbf{Total} \\ \hline
+    Thème    & Probabilités & Analyse & Suites et Fonctions & Géométrie dans l'espace & --- \\ \hline
+    Barème   & 4 points & 5 points & 6 points & 5 points & 20 points \\ \hline
+\end{tabularx}
+\end{center}
+\vfill
+\begin{center}
+\begin{tcolorbox}[colback=gray!5, colframe=black, boxrule=1pt, arc=1mm, width=0.96\textwidth, top=3mm, bottom=3mm, left=4mm, right=4mm]
+    \centering
+    \textbf{\textsc{Consigne importante aux surveillants}}\\[0.15cm]
+    \normalsize
+    Nous remercions les surveillants de veiller à ce que chaque candidat inscrive lisiblement sur sa copie le \textbf{nom de son professeur de spécialité}.
+\end{tcolorbox}
+\end{center}
+\vfill
+\begin{tcolorbox}[colback=white, colframe=black, arc=0mm, boxrule=0.8pt, title=\textbf{\textsc{Consignes aux candidats}}, coltitle=black, colbacktitle=gray!15, top=3mm, bottom=3mm, left=4mm, right=4mm]
+    \small
+    \begin{itemize}[leftmargin=1.5em, itemsep=0.25em, label=---]
+        \item Le sujet comporte \textbf{\pageref{LastPage} pages} numérotées de 1 à \pageref{LastPage}.
+        \item Le candidat doit traiter les \textbf{4 exercices}.
+        \item La qualité de la rédaction, la clarté et la précision des raisonnements seront prises en compte dans l'appréciation des copies.
+        \item Tous les résultats doivent être justifiés, sauf mention contraire explicite.
+        \item L'usage de tout document, téléphone ou appareil électronique connecté autre que la calculatrice autorisée est strictement interdit.
+    \end{itemize}
+\end{tcolorbox}
+\newpage
+\exercice[4]{1}{Thème : Probabilités conditionnelles et variables aléatoires}
+Pour chacune des affirmations suivantes, indiquer si elle est vraie ou fausse. Chaque réponse devra être soigneusement justifiée ; une réponse non justifiée ne rapporte aucun point. Une absence de réponse ou une réponse inexacte n'enlève pas de point. Les questions de cet exercice sont indépendantes.
+\vspace{0.55cm}
+\begin{enumerate}
+    \item Soit $A$ et $B$ deux événements indépendants d'une même probabilité $P$ tels que $P(A) = 0,4$ et $P(A \cup B) = 0,7$.\\[0.2cm]
+    \textbf{Affirmation 1 :} La probabilité de l'événement $B$ est égale à $0,5$.
+    \vspace{0.75cm}
+    \item On considère une variable aléatoire $X$ suivant la loi binomiale $\mathcal{B}(10; 0,3)$.\\[0.2cm]
+    \textbf{Affirmation 2 :} La probabilité de l'événement $\{X \ge 1\}$ est supérieure ou égale à $0,97$.
+    \vspace{0.75cm}
+    \item Soit $Z$ une variable aléatoire suivant la loi normale centrée réduite $\mathcal{N}(0;1)$.\\[0.2cm]
+    \textbf{Affirmation 3 :} $P(-1,96 \le Z \le 1,96) \approx 0,95$.
+    \vspace{0.75cm}
+    \item Soit $Y$ une variable aléatoire suivant une loi exponentielle de paramètre $\lambda > 0$ telle que $P(Y \ge 2) = \mathrm{e}^{-1}$.\\[0.2cm]
+    \textbf{Affirmation 4 :} Le paramètre $\lambda$ est égal à $0,5$.
+\end{enumerate}
+\newpage
+\exercice[5]{2}{Thème : Étude d'une fonction et calcul intégral}
+On considère la fonction $g$ définie sur l'intervalle $]0; +\infty[$ par :
+\[
+    g(x) = x \ln(x) - x.
+\]
+On note $\mathcal{C}_g$ sa courbe représentative dans un repère orthonormé.
+\vspace{0.25cm}
+\partie{A --- Étude de la fonction $g$}
+\begin{enumerate}
+    \item Déterminer la limite de la fonction $g$ en $0$ (par valeurs supérieures).
+    \item Déterminer la limite de la fonction $g$ en $+\infty$.
+    \item Calculer la dérivée $g'(x)$ pour tout $x \in ]0; +\infty[$ et en déduire le tableau de variations de $g$.
+    \item Démontrer que l'équation $g(x) = 0$ admet une unique solution $\alpha$ sur l'intervalle $[1; 3]$ et donner un encadrement d'amplitude $10^{-2}$ de $\alpha$.
+\end{enumerate}
+\vspace{0.55cm}
+\partie{B --- Calcul d'aire et primitive}
+\begin{enumerate}
+    \item Démontrer que la fonction $G$ définie sur $]0; +\infty[0$ par $G(x) = \frac{1}{2}x^2\ln(x) - \frac{3}{4}x^2$ est une primitive de $g$ sur $]0; +\infty[$.
+    \item Calculer l'aire exacte, en unité d'aire, du domaine compris entre la courbe $\mathcal{C}_g$, l'axe des abscisses et les droites d'équations $x = 1$ et $x = \mathrm{e}$.
+\end{enumerate}
+\newpage
+\exercice[6]{3}{Thème : Suites numériques et fonction associée}
+On considère la suite $(u_n)$ définie par $u_0 = 2$ et, pour tout entier naturel $n$,
+\[
+    u_{n+1} = \frac{3u_n + 2}{u_n + 4}.
+\]
+\partie{A --- Étude d'une fonction auxiliaire}
+\begin{enumerate}
+    \item Soit $f$ la fonction définie sur $[0; +\infty[$ par $f(x) = \frac{3x+2}{x+4}$. Calculer $f'(x)$ et étudier son signe.
+    \item Démontrer que pour tout $x \in [0; 2]$, $f(x) \in [0; 2]$.
+    \item 
+    \begin{enumerate}
+        \item Résoudre dans $[0; +\infty[$ l'équation $f(x) = x$.
+        \item En déduire les points fixes de la fonction $f$.
+    \end{enumerate}
+    \item Démontrer que pour tout entier naturel $n$, on a : $0 \le u_n \le 2$.
+\end{enumerate}
+\partie{B --- Monotonie et convergence de la suite}
+\begin{enumerate}
+    \item Démontrer que pour tout $n \in \mathbb{N}$, $u_{n+1} - u_n = \frac{(2-u_n)(u_n+1)}{u_n+4}$.
+    \item En déduire le sens de variation de la suite $(u_n)$.
+    \item Démontrer que la suite $(u_n)$ est convergente.
+    \item Déterminer la limite $\ell$ de la suite $(u_n)$.
+    \item On considère l'algorithme suivant écrit en Python :
+    \par\vspace{0.12cm}
+    \noindent
+    \begin{minipage}[t]{0.66\linewidth}
+        \vspace{0pt}
+        \begin{enumerate}[topsep=0pt, partopsep=0pt, leftmargin=1.5em, itemsep=0.45em]
+            \item Écrire une fonction Python `seuil(eps)` qui renvoie le plus petit entier $n$ tel que $|u_n - 1| < \varepsilon$.
+            \item Interpréter la valeur renvoyée par cet algorithme.
+        \end{enumerate}
+    \end{minipage}\hfill
+    \begin{minipage}[t]{0.32\linewidth}
+        \vspace{0pt}
+        \centering
+        \begin{tcolorbox}[
+            colback=gray!4,
+            colframe=black!85,
+            boxrule=0.6pt,
+            arc=0.8mm,
+            top=1.6mm,
+            bottom=1.6mm,
+            left=2.5mm,
+            right=2mm,
+            title={\footnotesize\textbf{\textsf{Code Python}}},
+            coltitle=black,
+            colbacktitle=gray!20
+        ]
+            \ttfamily\small
+            \renewcommand{\arraystretch}{1.18}
+            \begin{tabular}{r@{\hspace{0.45em}}|@{\hspace{0.45em}}l}
+                1 & def seuil(eps): \\
+                2 & \quad n = 0 \\
+                3 & \quad u = 2 \\
+                4 & \quad while abs(u - 1) >= eps: \makebox[1.4cm]{\dotfill} \\
+                5 & \qquad u = (3*u + 2) / (u + 4) \\
+                6 & \qquad n = n + 1 \makebox[1.4cm]{\dotfill} \\
+                7 & \quad return n
+            \end{tabular}
+        \end{tcolorbox}
+    \end{minipage}
+\end{enumerate}
+\newpage
+\exercice[5]{4}{Thème : Géométrie dans l'espace}
+L'espace est muni d'un repère orthonormé $(O; \vec{i}, \vec{j}, \vec{k})$.
+On considère les points $A(1; 0; 2)$, $B(0; 2; 1)$, $C(2; 1; 0)$ et $D(3; 3; 3)$.
+\vspace{0.45cm}
+\noindent\textbf{\large Partie A --- Nature du tétraèdre et plans}
+\vspace{0.25cm}
+\begin{enumerate}
+    \item Démontrer que les points $A$, $B$ et $C$ ne sont pas alignés, et définir ainsi un plan $\mathcal{P}$.
+    \item Démontrer qu'une équation cartésienne du plan $\mathcal{P}$ est $x + y + z - 3 = 0$.
+    \item Vérifier si le point $D$ appartient au plan $\mathcal{P}$.
+    \item Calculer le volume du tétraèdre $ABCD$.
+\end{enumerate}
+\vspace{0.55cm}
+\noindent\textbf{\large Partie B --- Droites et orthogonalité}
+\vspace{0.25cm}
+\begin{enumerate}
+    \item Déterminer une représentation paramétrique de la droite $\Delta$ passant par $D$ et orthogonale au plan $\mathcal{P}$.
+    \item Déterminer les coordonnées du projeté orthogonal $H$ du point $D$ sur le plan $\mathcal{P}$.
+    \item Calculer la distance du point $D$ au plan $\mathcal{P}$.
+    \item Soit $\mathcal{S}$ la sphère de centre $D$ et de rayon $R = 3$. Déterminer la nature de l'intersection de la sphère $\mathcal{S}$ et du plan $\mathcal{P}$.
+    \item 
+    \begin{enumerate}[topsep=0.15cm, itemsep=0.3em]
+        \item Justifier l'existence d'une intersection non vide.
+        \item Calculer le rayon du cercle intersection.
+    \end{enumerate}
+\end{enumerate}\end{document}

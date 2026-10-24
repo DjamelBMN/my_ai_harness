@@ -1,0 +1,5 @@
+name: memory
+display_name: Memory
+description: Gestion séparée des mémoires de session et de projet.
+tools:
+  - write_file

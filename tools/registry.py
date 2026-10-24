@@ -14,6 +14,7 @@ from core.permissions import PermissionPolicy, RiskLevel
 from tools.documents import read_document
 from tools.filesystem import WorkspaceFilesystem
 from tools.git import GitWorkspace
+from tools.search import web_search
 from tools.terminal import run_python_script, run_test_suite
 
 
@@ -148,6 +149,21 @@ class ToolRegistry:
                 elapsed_seconds=monotonic() - started,
                 risk_level="READ_ONLY",
             )
+
+        if (
+            self.permissions.mode == "EDIT"
+            and tool.name in {"write_file", "patch_file"}
+            and self.permissions.edit_preview is not None
+        ):
+            try:
+                self.permissions.edit_preview(tool.name, call.arguments)
+            except Exception as error:
+                return ToolExecution(
+                    tool=tool.name,
+                    status="denied",
+                    summary=f"Aperçu EDIT impossible : {type(error).__name__}.",
+                    risk_level=tool.risk_level.name,
+                )
 
         allowed, reason = self.permissions.authorize(
             tool.name, tool.risk_level, tool.mutates
@@ -411,5 +427,15 @@ class ToolRegistry:
             risk=RiskLevel.DESTRUCTIVE,
             mutates=True,
             timeout=60.0,
+        )
+        add(
+            "web_search",
+            "Exécute une recherche Internet réelle et retourne les résultats (titres, URLs, extraits, dates).",
+            {"query": string, "max_results": {"type": "integer"}},
+            ["query"],
+            lambda query, max_results=5: web_search(query, max_results=max_results),
+            risk=RiskLevel.READ_ONLY,
+            mutates=False,
+            timeout=25.0,
         )
 

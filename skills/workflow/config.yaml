@@ -1,0 +1,16 @@
+name: workflow
+display_name: Workflow
+description: Exécute une mission composée avec AgentLoop et ses délégations.
+auto_route: true
+task_instructions: |
+  Utilise le workflow adapté. Pour le code : inspection, modification autorisée, tests et vérification.
+tools:
+  - list_files
+  - find_file
+  - search_files
+  - read_file
+  - read_document
+  - write_file
+  - patch_file
+  - run_tests
+  - run_python

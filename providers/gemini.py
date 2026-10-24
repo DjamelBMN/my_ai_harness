@@ -31,6 +31,7 @@ class GeminiProvider(BaseProvider):
         self._available_models: dict[str, str] = {}
         self.max_output_tokens: int | None = None
         self.max_retries = 2
+        self.stream_callback: Any = None
 
     def _get_client(self):
         api_key = os.environ.get("GEMINI_API_KEY", "").strip()
@@ -224,7 +225,7 @@ class GeminiProvider(BaseProvider):
                 return self._client.models.generate_content(**options)
             except Exception as error:
                 mapped = self._api_error(error, phase)
-                if mapped.category not in {"unavailable", "quota"} or attempt >= self.max_retries:
+                if mapped.category != "unavailable" or attempt >= self.max_retries:
                     raise mapped from None
                 time.sleep(min(0.5 * (2 ** attempt), 2.0))
 
@@ -360,11 +361,72 @@ class GeminiProvider(BaseProvider):
         if configured_tools:
             config["tools"] = configured_tools
 
-        response = self._generate_content(
-            contents,
-            config=types.GenerateContentConfig(**config),
-            phase="la génération avec outils",
-        )
+        if (
+            not configured_tools
+            and callable(getattr(self, "stream_callback", None))
+            and hasattr(self._client, "models")
+            and hasattr(self._client.models, "generate_content_stream")
+        ):
+            try:
+                stream = self._client.models.generate_content_stream(
+                    model=self.model,
+                    contents=contents,
+                    config=types.GenerateContentConfig(**config),
+                )
+                streamed_parts: list[str] = []
+                last_candidate = None
+                for chunk in stream:
+                    cands = getattr(chunk, "candidates", None) or []
+                    if cands:
+                        last_candidate = cands[0]
+                    chunk_text = ""
+                    rc = getattr(last_candidate, "content", None) if cands else None
+                    for part in getattr(rc, "parts", None) or []:
+                        if getattr(part, "text", None) and not getattr(part, "thought", False):
+                            chunk_text += part.text
+                    if not chunk_text:
+                        t_attr = getattr(chunk, "text", "")
+                        if isinstance(t_attr, str) and t_attr:
+                            chunk_text = t_attr
+                    if chunk_text:
+                        streamed_parts.append(chunk_text)
+                        try:
+                            self.stream_callback(chunk_text, "".join(streamed_parts))
+                        except Exception:
+                            pass
+                full_text = "".join(streamed_parts).strip()
+                if full_text:
+                    contents.append(
+                        types.Content(role="model", parts=[types.Part(text=full_text)])
+                    )
+                    finish_reason = str(getattr(last_candidate, "finish_reason", ""))
+                    return AgentTurn(
+                        text=full_text,
+                        tool_calls=[],
+                        continuation={"contents": contents},
+                        partial="MAX_TOKENS" in finish_reason.upper(),
+                        sources=[],
+                    )
+            except Exception:
+                pass
+
+        try:
+            response = self._generate_content(
+                contents,
+                config=types.GenerateContentConfig(**config),
+                phase="la génération avec outils",
+            )
+        except GeminiProviderError as error:
+            if builtin_google_search and declarations and error.category in {"quota", "configuration"}:
+                fallback_config = dict(config)
+                fallback_config["tools"] = [types.Tool(function_declarations=declarations)]
+                response = self._generate_content(
+                    contents,
+                    config=types.GenerateContentConfig(**fallback_config),
+                    phase="la génération avec outils",
+                )
+            else:
+                raise
 
         candidates = getattr(response, "candidates", None) or []
         candidate = candidates[0] if candidates else None

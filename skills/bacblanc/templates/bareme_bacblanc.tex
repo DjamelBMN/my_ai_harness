@@ -1,0 +1,581 @@
+\documentclass[a4paper,11pt]{article}
+
+\usepackage{fontspec}
+\usepackage{libertinus-otf}
+\usepackage[french]{babel}
+
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{geometry}
+\usepackage{multirow}
+\usepackage[table]{xcolor}
+\usepackage{colortbl}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{enumitem}
+\usepackage{eurosym}
+\usepackage{tikz}
+\usepackage[most]{tcolorbox}
+
+% --- Géométrie calibrée pour exactement 4 pages ---
+\geometry{
+    a4paper,
+    left=1.1cm,
+    right=1.1cm,
+    top=1.6cm,
+    bottom=1.5cm,
+    headheight=20pt,
+    headsep=10pt,
+    footskip=20pt
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\tabcolsep}{4.5pt}
+\renewcommand{\arraystretch}{1.18}
+\setlength{\aboverulesep}{1.5pt}
+\setlength{\belowrulesep}{1.5pt}
+
+% --- Palette institutionnelle harmonisée ---
+\definecolor{bleuprimaire}{RGB}{20, 52, 98}
+\definecolor{bleusecondaire}{RGB}{31, 95, 168}
+\definecolor{bleufond}{RGB}{238, 244, 251}
+\definecolor{grisaccent}{RGB}{100, 116, 139}
+\definecolor{vertvrai}{RGB}{16, 120, 60}
+\definecolor{rougefaux}{RGB}{195, 20, 20}
+\definecolor{filetgris}{RGB}{220, 226, 235}
+
+% --- Configuration TikZ pour des tableaux parfaits et compacts ---
+\tikzset{
+    tabcadre/.style={draw=bleuprimaire, line width=0.8pt},
+    tabligne/.style={draw=bleuprimaire!45, line width=0.6pt},
+    tabrep/.style={
+        draw=rougefaux!90,
+        fill=rougefaux!8,
+        text=rougefaux,
+        font=\bfseries\footnotesize,
+        rounded corners=2.5pt,
+        inner sep=1.8pt,
+        line width=0.6pt
+    },
+    tabfleche/.style={
+        ->,
+        >=stealth,
+        thick,
+        draw=bleusecondaire,
+        shorten <= 3pt,
+        shorten >= 3pt
+    }
+}
+
+% --- Pilules de points de barème ---
+\newcommand{\pts}[1]{%
+    \tcbox[on line, size=small, colback=bleufond, colframe=bleusecondaire!50,
+           arc=2.5mm, boxrule=0.6pt, top=1.2pt, bottom=1.2pt, left=4pt, right=4pt]{%
+        \small\bfseries\textcolor{bleuprimaire}{#1}%
+    }%
+}
+
+% --- Cadre de réponse cible pour le texte hors-tableau ---
+\newcommand{\repbox}[1]{%
+    \tcbox[on line, size=small, colback=rougefaux!6, colframe=rougefaux!90,
+           arc=1.2mm, boxrule=0.7pt, top=1pt, bottom=1pt, left=3.5pt, right=3.5pt]{%
+        \bfseries\textcolor{rougefaux}{#1}%
+    }%
+}
+
+\newcommand{\vrai}{\textcolor{vertvrai}{\textbf{[VRAI]}}}
+\newcommand{\faux}{\textcolor{rougefaux}{\textbf{[FAUX]}}}
+\newcommand{\subpt}[1]{\textcolor{bleusecondaire}{\bfseries [#1]}}
+\newcommand{\tol}[1]{\textcolor{grisaccent}{\footnotesize\textit{(#1)}}}
+
+% --- En-têtes et pieds de page ---
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small\bfseries\textcolor{bleuprimaire}{BAC BLANC} \textcolor{grisaccent}{-- Terminale Spécialité Mathématiques}}
+\rhead{\small\bfseries\textcolor{bleusecondaire}{Barème de correction -- Sujet 1}}
+\cfoot{\small\textcolor{grisaccent}{Page \thepage\ sur \pageref{LastPage}}}
+
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{bleusecondaire!60}\leaders\hrule height \headrulewidth\hfill}}
+\renewcommand{\footrulewidth}{0.3pt}
+\renewcommand{\footrule}{\hbox to\headwidth{\color{filetgris}\leaders\hrule height \footrulewidth\hfill}}
+
+% --- SQUELETTE : marqueur magenta des zones à remplir (utilisable en texte ET en mode maths) ---
+\newcommand{\ph}[1]{\ifmmode\text{\color{magenta}[#1]}\else\textcolor{magenta}{[#1]}\fi}
+
+
+% =========================================================================
+\begin{document}
+
+% -------------------------------------------------------------------------
+% EN-TÊTE DU BARÈME
+% -------------------------------------------------------------------------
+\begin{tcolorbox}[
+    enhanced,
+    colback=bleufond,
+    colframe=bleuprimaire,
+    arc=1.6mm,
+    boxrule=0.8pt,
+    top=4pt, bottom=4pt, left=8pt, right=8pt
+]
+    \textbf{\Large\textcolor{bleuprimaire}{Grille d'évaluation chiffrée}} \hfill \textbf{\Large\textcolor{bleuprimaire}{Total : 20 points}} \\[0.15em]
+    \textbf{\textcolor{bleusecondaire}{Sujet 1 (Jour 1)}} \hspace{0.2cm}\textcolor{grisaccent}{\textbullet}\hspace{0.2cm} \textcolor{grisaccent}{Bac Blanc Mathématiques} \hfill \small\textcolor{grisaccent}{Durée : 4 heures \textbullet\ Calculatrice autorisée}
+\end{tcolorbox}
+
+\vspace{0.10cm}
+
+% -------------------------------------------------------------------------
+% TABLEAU DE NOTATION EN CONTINU
+% -------------------------------------------------------------------------
+\begin{longtable}{
+    >{\centering\arraybackslash\bfseries}p{1.1cm}
+    >{\raggedright\arraybackslash\bfseries}p{4.1cm}
+    !{\color{filetgris}\vrule width 0.7pt}
+    >{\raggedright\arraybackslash}p{11.1cm}
+    >{\centering\arraybackslash}p{1.2cm}
+}
+
+\toprule[1.2pt]
+\rowcolor{bleuprimaire}
+\textcolor{white}{\bfseries Réf.} &
+\textcolor{white}{\bfseries Compétence / Question} &
+\textcolor{white}{\bfseries Critères d'évaluation \& visuels attendus} &
+\textcolor{white}{\bfseries Barème} \\
+\midrule[1pt]
+\endfirsthead
+
+\toprule[1.2pt]
+\rowcolor{bleuprimaire}
+\textcolor{white}{\bfseries Réf.} &
+\textcolor{white}{\bfseries Compétence / Question} &
+\textcolor{white}{\bfseries Critères d'évaluation \& visuels attendus} &
+\textcolor{white}{\bfseries Barème} \\
+\midrule[1pt]
+\endhead
+
+% ==================== EXERCICE 1 ====================
+\rowcolor{bleusecondaire!15}
+\multicolumn{4}{l}{
+    \bfseries\textcolor{bleuprimaire}{\large Exercice 1 \hspace{0.2cm}\textbullet\hspace{0.2cm} \ph{Titre de l'exercice 1}} \hfill \bfseries 4 points
+} \\* \midrule[0.6pt]
+
+\textbf{Q.1} &
+\ph{Compétence Q.1} &
+\ph{VRAI ou FAUX}\newline
+\textbullet\ \subpt{0,50} \ph{Critère 1}.\newline
+\textbullet\ \subpt{0,25} \ph{Critère 2}.\newline
+\textbullet\ \subpt{0,25} \ph{Critère 3} : \repbox{\ph{réponse attendue}}. &
+\pts{1,00} \\
+\cmidrule(lr){2-4}
+\textbf{Q.2} &
+\ph{Compétence Q.2} &
+\ph{VRAI ou FAUX}\newline
+\textbullet\ \subpt{0,25} \ph{Critère 1}.\newline
+\textbullet\ \subpt{0,25} \ph{Critère 2}.\newline
+\textbullet\ \subpt{0,50} \ph{Critère 3} : \repbox{\ph{réponse attendue}}.\newline
+\tol{\ph{Tolérance / méthode alternative acceptée}}. &
+\pts{1,00} \\
+\cmidrule(lr){2-4}
+\textbf{Q.3} &
+\ph{Compétence Q.3} &
+\ph{VRAI ou FAUX}\newline
+\textbullet\ \subpt{0,50} \ph{Critère 1}.\newline
+\textbullet\ \subpt{0,50} \ph{Critère 2} : \repbox{\ph{réponse attendue}}. &
+\pts{1,00} \\
+\cmidrule(lr){2-4}
+\textbf{Q.4} &
+\ph{Compétence Q.4} &
+\ph{VRAI ou FAUX}\newline
+\textbullet\ \subpt{0,50} \ph{Critère 1}.\newline
+\textbullet\ \subpt{0,50} \ph{Critère 2} : \repbox{\ph{réponse attendue}}.\newline
+\tol{\ph{Tolérance / méthode alternative acceptée}}. &
+\pts{1,00} \\
+
+
+\midrule[1pt]
+
+% ==================== EXERCICE 2 ====================
+\rowcolor{bleusecondaire!15}
+\multicolumn{4}{l}{
+    \bfseries\textcolor{bleuprimaire}{\large Exercice 2 \hspace{0.2cm}\textbullet\hspace{0.2cm} \ph{Titre de l'exercice 2}} \hfill \bfseries 5 points
+} \\* \midrule[0.6pt]
+
+% --- PARTIE A ---
+\rowcolor{bleusecondaire!10}
+\multicolumn{4}{l}{%
+    \bfseries\textcolor{bleuprimaire}{\textsc{Partie A}} \;\textcolor{grisaccent}{\textbullet}\; \textcolor{bleuprimaire}{\ph{Titre de la partie A}} \hfill \textcolor{bleusecondaire}{\bfseries 2,50 points}%
+} \\* \midrule[0.5pt]
+
+\textbf{A.1} &
+\ph{Compétence A.1} &
+\vspace{-0.20cm}
+\begin{center}
+\begin{tikzpicture}[xscale=1.75, yscale=0.50, font=\small, baseline=(current bounding box.center)]
+    \node (R) at (0,0) {};
+    \node (A) at (1.5,1.2) {$\dots$};
+    \node (B) at (1.5,-1.2) {$\dots$};
+    \node (AD) at (3.2,1.8) {$\dots$};
+    \node (ADb) at (3.2,0.6) {$\dots$};
+    \node (BD) at (3.2,-0.6) {$\dots$};
+    \node (BDb) at (3.2,-1.8) {$\dots$};
+
+    \draw[thick, draw=bleuprimaire!80] (R) -- (A) node[midway, above left=-1.5pt] {\footnotesize$\dots$};
+    \draw[thick, draw=bleuprimaire!80] (R) -- (B) node[midway, below left=-1.5pt] {\footnotesize$\dots$};
+    \draw[thick, draw=bleuprimaire!80] (A) -- (AD) node[midway, above] {\footnotesize$\dots$};
+    \draw[thick, draw=bleuprimaire!80] (A) -- (ADb) node[midway, below] {\footnotesize$\dots$};
+    \draw[thick, draw=bleuprimaire!80] (B) -- (BD) node[midway, above] {\footnotesize$\dots$};
+    \draw[thick, draw=bleuprimaire!80] (B) -- (BDb) node[midway, below] {\footnotesize$\dots$};
+\end{tikzpicture}
+\end{center}
+\vspace{-0.20cm}
+\ph{Description de la figure attendue}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{A.2} &
+\ph{Compétence A.2} &
+\textbullet\ \subpt{0,25} \ph{Critère 1}.\newline
+\textbullet\ \subpt{0,50} \ph{Critère 2} : \repbox{\ph{réponse attendue}}. &
+\pts{0,75} \\
+\cmidrule(lr){2-4}
+\textbf{A.3} &
+\ph{Compétence A.3} &
+\ph{Critère} : \repbox{\ph{réponse attendue}}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{A.4} &
+\ph{Compétence A.4} &
+\textbullet\ \subpt{0,25} \ph{Critère 1}.\newline
+\textbullet\ \subpt{0,50} \ph{Critère 2} : \repbox{\ph{réponse attendue}}. &
+\pts{0,75} \\
+
+
+\midrule[0.6pt]
+
+% --- PARTIE B ---
+\rowcolor{bleusecondaire!10}
+\multicolumn{4}{l}{%
+    \bfseries\textcolor{bleuprimaire}{\textsc{Partie B}} \;\textcolor{grisaccent}{\textbullet}\; \textcolor{bleuprimaire}{\ph{Titre de la partie B}} \hfill \textcolor{bleusecondaire}{\bfseries 2,50 points}%
+} \\* \midrule[0.5pt]
+
+\textbf{B.1.a} &
+\ph{Compétence B.1.a} &
+\ph{Critère} : \repbox{\ph{réponse attendue}}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{B.1.b} &
+\ph{Compétence B.1.b} &
+\textbullet\ \subpt{0,25} \ph{Critère 1}.\newline
+\textbullet\ \subpt{0,25} \ph{Critère 2} : \repbox{\ph{réponse attendue}}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{B.1.c} &
+\ph{Compétence B.1.c} &
+\ph{Critère} : \repbox{\ph{réponse attendue}}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{B.2.a} &
+\ph{Compétence B.2.a} &
+\ph{Critère} : \repbox{\ph{réponse attendue}}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{B.2.b} &
+\ph{Compétence B.2.b} &
+\textbullet\ \subpt{0,25} \ph{Critère 1}.\newline
+\textbullet\ \subpt{0,25} \ph{Critère 2} : \repbox{\ph{réponse attendue}}.\newline
+\tol{\ph{Tolérance / méthode alternative acceptée}}. &
+\pts{0,50} \\
+
+
+\midrule[1pt]
+
+% ==================== EXERCICE 3 ====================
+\rowcolor{bleusecondaire!15}
+\multicolumn{4}{l}{
+    \bfseries\textcolor{bleuprimaire}{\large Exercice 3 \hspace{0.2cm}\textbullet\hspace{0.2cm} \ph{Titre de l'exercice 3}} \hfill \bfseries 6 points
+} \\* \midrule[0.6pt]
+
+% --- PARTIE A ---
+\rowcolor{bleusecondaire!10}
+\multicolumn{4}{l}{%
+    \bfseries\textcolor{bleuprimaire}{\textsc{Partie A}} \;\textcolor{grisaccent}{\textbullet}\; \textcolor{bleuprimaire}{\ph{Titre de la partie A}} \hfill \textcolor{bleusecondaire}{\bfseries 2,50 points}%
+} \\* \midrule[0.5pt]
+
+\textbf{A.1} &
+\ph{Compétence A.1} &
+\textbullet\ \subpt{0,25} \ph{Critère 1}.\newline
+\textbullet\ \subpt{0,25} \ph{Critère 2} : \repbox{\ph{réponse attendue}}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{A.2} &
+\ph{Compétence A.2} &
+\textbullet\ \subpt{0,25} \ph{Critère 1}.\newline
+\textbullet\ \subpt{0,50} \ph{Critère 2} :\newline
+-- \ph{Étape 1}.\newline
+-- \ph{Étape 2}.\newline
+-- Conclusion : \repbox{\ph{réponse attendue}}. &
+\pts{0,75} \\
+\cmidrule(lr){2-4}
+\textbf{A.3.a} &
+\ph{Compétence A.3.a} &
+\ph{Critère} : \repbox{\ph{réponse attendue}}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{A.3.b} &
+\ph{Compétence A.3.b} &
+\ph{Critère} : \repbox{\ph{réponse attendue}}. &
+\pts{0,25} \\
+\cmidrule(lr){2-4}
+\textbf{A.4} &
+\ph{Compétence A.4} &
+\ph{Critère} : \repbox{\ph{réponse attendue}}. &
+\pts{0,50} \\
+
+
+\midrule[0.6pt]
+
+% --- PARTIE B ---
+\rowcolor{bleusecondaire!10}
+\multicolumn{4}{l}{%
+    \bfseries\textcolor{bleuprimaire}{\textsc{Partie B}} \;\textcolor{grisaccent}{\textbullet}\; \textcolor{bleuprimaire}{\ph{Titre de la partie B}} \hfill \textcolor{bleusecondaire}{\bfseries 3,50 points}%
+} \\* \midrule[0.5pt]
+
+\textbf{B.1} &
+\ph{Compétence B.1} &
+\ph{Critère 1}.\newline
+\ph{Critère 2} : \repbox{\ph{réponse attendue}}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{B.2} &
+\ph{Compétence B.2} &
+\ph{Critère} : \repbox{\ph{réponse attendue}}. &
+\pts{0,25} \\
+\cmidrule(lr){2-4}
+\textbf{B.3.a} &
+\ph{Compétence B.3.a} &
+\ph{Critère} : \repbox{\ph{réponse attendue}}. &
+\pts{0,25} \\
+\cmidrule(lr){2-4}
+\textbf{B.3.b} &
+\ph{Compétence B.3.b} &
+\ph{Critère} : \repbox{\ph{réponse attendue}}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{B.3.c} &
+\ph{Compétence B.3.c} &
+\ph{Critère} : \repbox{\ph{réponse attendue}}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{B.4} &
+\ph{Compétence B.4} &
+\textbullet\ \subpt{0,25} \ph{Critère 1}.\newline
+\textbullet\ \subpt{0,25} \ph{Critère 2} : \repbox{\ph{réponse attendue}}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{B.5.a} &
+\ph{Compétence B.5.a} &
+\textbullet\ \subpt{0,25} \ph{Critère 1}.\newline
+\textbullet\ \subpt{0,25} \ph{Critère 2} : \repbox{\ph{réponse attendue}}.\newline
+\tol{\ph{Tolérance / méthode alternative acceptée}}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{B.5.b} &
+\ph{Compétence B.5.b} &
+\textbullet\ \subpt{0,25} \ph{Critère 1}.\newline
+\textbullet\ \subpt{0,25} \ph{Critère 2} : \repbox{\ph{réponse attendue}}. &
+\pts{0,50} \\
+
+
+\midrule[1pt]
+
+% ==================== EXERCICE 4 ====================
+\rowcolor{bleusecondaire!15}
+\multicolumn{4}{l}{
+    \bfseries\textcolor{bleuprimaire}{\large Exercice 4 \hspace{0.2cm}\textbullet\hspace{0.2cm} \ph{Titre de l'exercice 4}} \hfill \bfseries 5 points
+} \\* \midrule[0.6pt]
+
+% --- PARTIE A ---
+\rowcolor{bleusecondaire!10}
+\multicolumn{4}{l}{%
+    \bfseries\textcolor{bleuprimaire}{\textsc{Partie A}} \;\textcolor{grisaccent}{\textbullet}\; \textcolor{bleuprimaire}{\ph{Titre de la partie A}} \hfill \textcolor{bleusecondaire}{\bfseries 2,00 points}%
+} \\* \midrule[0.5pt]
+
+\textbf{A.1} &
+\ph{Compétence A.1} &
+\textbullet\ \subpt{0,25} \ph{Critère 1}.\newline
+\textbullet\ \subpt{0,25} \ph{Critère 2} : \repbox{\ph{réponse attendue}}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{A.2} &
+\ph{Compétence A.2} &
+\vspace{-0.18cm}
+\begin{center}
+\begin{tikzpicture}[xscale=1.0, yscale=0.56, font=\footnotesize, baseline=(current bounding box.center)]
+    \draw[tabcadre] (0,0) rectangle (5.8, -3.1);
+    \draw[tabligne] (0,-0.75) -- (5.8,-0.75);
+    \draw[tabligne] (0,-1.45) -- (5.8,-1.45);
+    \draw[tabcadre] (1.3,0) -- (1.3,-3.1);
+
+    \node at (0.65, -0.37) {\bfseries $x$};
+    \node at (0.65, -1.10) {\bfseries $g'(x)$};
+    \node at (0.65, -2.25) {\bfseries $g(x)$};
+
+    \node at (1.8, -0.37) {$\dots$};
+    \node at (5.2, -0.37) {$\dots$};
+
+    \node at (3.5, -1.10) {$\dots$};
+
+    \node[tabrep] (v1) at (1.8, -2.75) {$\dots$};
+    \node (v2) at (5.2, -1.85) {$\dots$};
+
+    \draw[tabfleche] (v1.north east) -- (v2.south west);
+\end{tikzpicture}
+\end{center}
+\vspace{-0.18cm}
+\ph{Critère} : \repbox{\ph{réponse attendue}}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{A.3} &
+\ph{Compétence A.3} &
+\ph{Critère} : \repbox{\ph{réponse attendue}}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{A.4} &
+\ph{Compétence A.4} &
+\vspace{-0.18cm}
+\begin{center}
+\begin{tikzpicture}[xscale=1.0, yscale=0.52, font=\footnotesize, baseline=(current bounding box.center)]
+    \draw[tabcadre] (0,0) rectangle (5.8, -1.6);
+    \draw[tabligne] (0,-0.8) -- (5.8,-0.8);
+    \draw[tabcadre] (1.4,0) -- (1.4,-1.6);
+
+    \node at (0.7, -0.4) {\bfseries $x$};
+    \node at (0.7, -1.2) {\bfseries $g(x)$};
+
+    \node at (2.2, -0.4) {$\dots$};
+    \node at (3.8, -0.4) {$\dots$};
+    \node at (5.3, -0.4) {$\dots$};
+
+    \node[tabrep] at (3.0, -1.2) {$\dots$};
+    \node at (3.8, -1.2) {$\dots$};
+    \node[tabrep] at (4.6, -1.2) {$\dots$};
+\end{tikzpicture}
+\end{center}
+\vspace{-0.18cm}
+\ph{Critère}. &
+\pts{0,50} \\
+
+
+\midrule[0.6pt]
+
+% --- PARTIE B ---
+\rowcolor{bleusecondaire!10}
+\multicolumn{4}{l}{%
+    \bfseries\textcolor{bleuprimaire}{\textsc{Partie B}} \;\textcolor{grisaccent}{\textbullet}\; \textcolor{bleuprimaire}{\ph{Titre de la partie B}} \hfill \textcolor{bleusecondaire}{\bfseries 3,00 points}%
+} \\* \midrule[0.5pt]
+
+\textbf{B.1} &
+\ph{Compétence B.1} &
+\textbullet\ \subpt{0,50} \ph{Critère 1}.\newline
+\textbullet\ \subpt{0,25} \ph{Critère 2} : \repbox{\ph{réponse attendue}}. &
+\pts{0,75} \\
+\cmidrule(lr){2-4}
+\textbf{B.2} &
+\ph{Compétence B.2} &
+\textbullet\ \subpt{0,25} \ph{Critère 1}.\newline
+\textbullet\ \subpt{0,25} \ph{Critère 2} : \repbox{\ph{réponse attendue}}.\newline
+\tol{\ph{Tolérance / méthode alternative acceptée}}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{B.3} &
+\ph{Compétence B.3} &
+\vspace{-0.18cm}
+\begin{center}
+\begin{tikzpicture}[xscale=1.0, yscale=0.56, font=\footnotesize, baseline=(current bounding box.center)]
+    \draw[tabcadre] (0,0) rectangle (6.8, -3.1);
+    \draw[tabligne] (0,-0.75) -- (6.8,-0.75);
+    \draw[tabligne] (0,-1.45) -- (6.8,-1.45);
+    \draw[tabcadre] (1.3,0) -- (1.3,-3.1);
+
+    \node at (0.65, -0.37) {\bfseries $x$};
+    \node at (0.65, -1.10) {\bfseries $f'(x)$};
+    \node at (0.65, -2.25) {\bfseries $f(x)$};
+
+    \node at (1.8, -0.37) {$\dots$};
+    \node at (4.0, -0.37) {$\dots$};
+    \node at (6.2, -0.37) {$\dots$};
+
+    \node[tabrep] at (2.9, -1.10) {$\dots$};
+    \node at (4.0, -1.10) {$\dots$};
+    \node[tabrep] at (5.1, -1.10) {$\dots$};
+
+    \node[tabrep] (botL) at (1.8, -2.75) {$\dots$};
+    \node[tabrep] (topM) at (4.0, -1.85) {$\dots$};
+    \node[tabrep] (botR) at (6.2, -2.75) {$\dots$};
+
+    \draw[tabfleche] (botL.north east) -- (topM.south west);
+    \draw[tabfleche] (topM.south east) -- (botR.north west);
+\end{tikzpicture}
+\end{center}
+\vspace{-0.18cm}
+\textbullet\ \subpt{0,25} \ph{Critère 1}.\newline
+\textbullet\ \subpt{0,25} \ph{Critère 2}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{B.4} &
+\ph{Compétence B.4} &
+\textbullet\ \subpt{0,25} \ph{Critère 1}.\newline
+\textbullet\ \subpt{0,25} \ph{Critère 2} : \repbox{\ph{réponse attendue}}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{B.5.a} &
+\ph{Compétence B.5.a} &
+\ph{Critère} : \repbox{\ph{réponse attendue}}. &
+\pts{0,25} \\
+\cmidrule(lr){2-4}
+\textbf{B.5.b} &
+\ph{Compétence B.5.b} &
+\ph{Critère} : \repbox{\ph{réponse attendue}}. &
+\pts{0,50} \\*
+
+
+\midrule[1.2pt]
+\rowcolor{bleuprimaire}
+\multicolumn{3}{r}{\textcolor{white}{\bfseries\large TOTAL GÉNÉRAL}} &
+\textcolor{white}{\bfseries\large 20 pts} \\
+\bottomrule[1.2pt]
+
+\end{longtable}
+
+\vspace{0.08cm}
+
+% -------------------------------------------------------------------------
+% CONSIGNES COMMUNES DE CORRECTION (PAGE 4)
+% -------------------------------------------------------------------------
+\begin{tcolorbox}[
+    enhanced,
+    colback=white,
+    colframe=bleuprimaire,
+    boxrule=0.7pt,
+    leftrule=3.5pt,
+    arc=1.5mm,
+    title={\bfseries Consignes communes d'harmonisation (Règles d'or)},
+    coltitle=bleuprimaire,
+    colbacktitle=bleufond,
+    titlerule=0.3pt,
+    top=4pt, bottom=4pt, left=8pt, right=8pt
+]
+\small
+\begin{itemize}[leftmargin=*, label=\textcolor{bleusecondaire}{\small\textbullet}, itemsep=8pt, topsep=1pt, parsep=0pt]
+    \item \textbf{\ph{Intitulé de la règle 1}} : \ph{Texte de la règle 1}.
+    \item \textbf{\ph{Intitulé de la règle 2}} : \ph{Texte de la règle 2}.
+    \item \textbf{\ph{Intitulé de la règle 3}} : \ph{Texte de la règle 3}.
+    \item \textbf{\ph{Intitulé de la règle 4}} : \ph{Texte de la règle 4}.
+    \item \textbf{\ph{Intitulé de la règle 5}} : \ph{Texte de la règle 5}.
+    \item \textbf{\ph{Intitulé de la règle 6}} : \ph{Texte de la règle 6}.
+    \item \textbf{\ph{Intitulé de la règle 7}} : \ph{Texte de la règle 7}.
+\end{itemize}
+\end{tcolorbox}
+
+\end{document}

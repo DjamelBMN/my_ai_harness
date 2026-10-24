@@ -1,0 +1,11 @@
+name: research
+display_name: Research
+description: Recherche et synthèse avec ResearchAgent.
+agent: researcher
+tools:
+  - list_files
+  - find_file
+  - search_files
+  - read_file
+  - read_document
+  - web_search
