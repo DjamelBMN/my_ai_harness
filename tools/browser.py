@@ -6,18 +6,15 @@
 from __future__ import annotations
 
 import hashlib
-import html
-from html.parser import HTMLParser
-import io
-import os
-from pathlib import Path
 import re
 import time
-from typing import Any
 import urllib.error
 import urllib.parse
 import urllib.request
 import urllib.robotparser
+from html.parser import HTMLParser
+from pathlib import Path
+from typing import Any
 
 from tools.search import verify_downloaded_file
 
@@ -277,7 +274,7 @@ class DynamicBrowser:
             self._element_maps[session_id] = {el["id"]: el for el in parser.elements}
 
             # Titre
-            title_match = re.search(r"<title>(.*?)</title>", raw_html, re.I | re.S)
+            title_match = re.search(r"<title>(.*?)</title>", raw_html, re.IGNORECASE | re.DOTALL)
             title = title_match.group(1).strip() if title_match else "Sans titre"
 
             dom_lines = [f"[PAGE STATIQUE] {title} ({url}) - HTTP {status_code}"]

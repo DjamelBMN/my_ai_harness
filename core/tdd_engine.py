@@ -1,17 +1,15 @@
 from __future__ import annotations
 
 import hashlib
-import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from tools.filesystem import WorkspaceFilesystem
 
 
 class TestTamperingError(RuntimeError):
     """Levée lorsqu'un agent tente de modifier un fichier de test pour faire passer une suite frauduleusement."""
-    pass
 
 
 @dataclass

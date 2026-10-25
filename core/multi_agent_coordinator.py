@@ -5,9 +5,10 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
 import time
-from typing import Any, Callable
+from collections.abc import Callable
+from dataclasses import asdict, dataclass, field
+from typing import Any
 from uuid import uuid4
 
 from core.task_state import TaskState

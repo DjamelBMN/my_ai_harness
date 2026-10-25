@@ -9,12 +9,10 @@ from tools.filesystem import WorkspaceFilesystem
 
 class EditAmbiguityError(ValueError):
     """Levée quand la chaîne cible apparaît plusieurs fois sans contexte suffisant."""
-    pass
 
 
 class EditSyntaxError(ValueError):
     """Levée quand la modification introduit une erreur de syntaxe."""
-    pass
 
 
 def edit_file(

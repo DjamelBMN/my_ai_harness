@@ -66,6 +66,7 @@ class TaskState:
     )
     mode: str = "ACCEPT"
     skill_name: str | None = None
+    relevant_lessons: list[dict] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         normalized_plan: list[PlanStep] = []
