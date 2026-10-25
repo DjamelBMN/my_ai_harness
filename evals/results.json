@@ -1,0 +1,321 @@
+{
+  "timestamp": "2026-10-25 16:33:47",
+  "total_tasks": 25,
+  "passed_tasks": 18,
+  "success_rate_percent": 72.0,
+  "avg_duration_seconds": 0.009,
+  "by_category": {
+    "code_simple": {
+      "total": 5,
+      "passed": 0,
+      "duration": 0.015,
+      "success_rate": 0.0,
+      "avg_duration": 0.003
+    },
+    "bug_fix_with_test": {
+      "total": 5,
+      "passed": 4,
+      "duration": 0.11,
+      "success_rate": 80.0,
+      "avg_duration": 0.022
+    },
+    "factual_rag_web": {
+      "total": 5,
+      "passed": 4,
+      "duration": 0.046,
+      "success_rate": 80.0,
+      "avg_duration": 0.009
+    },
+    "exam_creation": {
+      "total": 5,
+      "passed": 5,
+      "duration": 0.016,
+      "success_rate": 100.0,
+      "avg_duration": 0.003
+    },
+    "multi_agent_delegation": {
+      "total": 5,
+      "passed": 5,
+      "duration": 0.031,
+      "success_rate": 100.0,
+      "avg_duration": 0.006
+    }
+  },
+  "tasks_results": [
+    {
+      "id": "code-01-calc",
+      "category": "code_simple",
+      "description": "Fonctions arithmétiques basiques",
+      "prompt": "Écris dans calc.py une fonction add(a, b) et une fonction sub(a, b).",
+      "success": false,
+      "failure_reason": "Fichiers attendus absents ou vides : calc.py",
+      "duration_seconds": 0.0,
+      "tools_count": 1,
+      "verification_passed": false
+    },
+    {
+      "id": "code-02-fibonacci",
+      "category": "code_simple",
+      "description": "Génération de Fibonacci",
+      "prompt": "Écris dans fib.py une fonction fib(n) retournant les n premiers termes de Fibonacci.",
+      "success": false,
+      "failure_reason": "Fichiers attendus absents ou vides : fib.py",
+      "duration_seconds": 0.015,
+      "tools_count": 1,
+      "verification_passed": false
+    },
+    {
+      "id": "code-03-merge-sort",
+      "category": "code_simple",
+      "description": "Tri fusion",
+      "prompt": "Implémente le tri fusion dans merge_sort.py avec une fonction merge_sort(arr).",
+      "success": false,
+      "failure_reason": "Fichiers attendus absents ou vides : merge_sort.py",
+      "duration_seconds": 0.0,
+      "tools_count": 1,
+      "verification_passed": false
+    },
+    {
+      "id": "code-04-solow",
+      "category": "code_simple",
+      "description": "Modèle de croissance de Solow",
+      "prompt": "Écris dans solow.py un script calculant le capital stationnaire k* pour alpha=0.33, s=0.3, n=0.02.",
+      "success": false,
+      "failure_reason": "Fichiers attendus absents ou vides : solow.py",
+      "duration_seconds": 0.0,
+      "tools_count": 1,
+      "verification_passed": false
+    },
+    {
+      "id": "code-05-json-parser",
+      "category": "code_simple",
+      "description": "Parseur JSON résistant",
+      "prompt": "Écris un parseur JSON sécurisé avec gestion des erreurs dans parser.py.",
+      "success": false,
+      "failure_reason": "Fichiers attendus absents ou vides : parser.py",
+      "duration_seconds": 0.0,
+      "tools_count": 1,
+      "verification_passed": false
+    },
+    {
+      "id": "fix-01-divzero",
+      "category": "bug_fix_with_test",
+      "description": "Division par zéro dans bank.py",
+      "prompt": "Corrige le bug de division dans bank.py et vérifie avec test_bank.py.",
+      "success": false,
+      "failure_reason": "Échec oracle : Division par zéro non gérée",
+      "duration_seconds": 0.047,
+      "tools_count": 2,
+      "verification_passed": false
+    },
+    {
+      "id": "fix-02-off-by-one",
+      "category": "bug_fix_with_test",
+      "description": "Off-by-one binary search",
+      "prompt": "Corrige le off-by-one dans search.py pour que binary_search trouve le dernier élément.",
+      "success": true,
+      "failure_reason": "",
+      "duration_seconds": 0.016,
+      "tools_count": 1,
+      "verification_passed": false
+    },
+    {
+      "id": "fix-03-empty-list-stats",
+      "category": "bug_fix_with_test",
+      "description": "Médiane sur liste vide",
+      "prompt": "Dans stats.py, gère proprement les listes vides dans calculate_median(arr).",
+      "success": true,
+      "failure_reason": "",
+      "duration_seconds": 0.015,
+      "tools_count": 1,
+      "verification_passed": false
+    },
+    {
+      "id": "fix-04-utf8-encoding",
+      "category": "bug_fix_with_test",
+      "description": "Lecture avec encodage UTF-8 explicite",
+      "prompt": "Assure que read_text_file(path) dans io_helper.py lit avec encoding='utf-8'.",
+      "success": true,
+      "failure_reason": "",
+      "duration_seconds": 0.016,
+      "tools_count": 1,
+      "verification_passed": false
+    },
+    {
+      "id": "fix-05-regex-validator",
+      "category": "bug_fix_with_test",
+      "description": "Validation email sous-domaine",
+      "prompt": "Corrige la regex dans email_val.py pour accepter les adresses avec sous-domaines.",
+      "success": true,
+      "failure_reason": "",
+      "duration_seconds": 0.016,
+      "tools_count": 1,
+      "verification_passed": false
+    },
+    {
+      "id": "rag-01-distance",
+      "category": "factual_rag_web",
+      "description": "Extraction factuelle depuis fichier",
+      "prompt": "Lis distance.txt et indique la distance entre Lyon et Valence.",
+      "success": false,
+      "failure_reason": "Échec oracle : Donnée documentaire manquante dans la réponse",
+      "duration_seconds": 0.015,
+      "tools_count": 1,
+      "verification_passed": false
+    },
+    {
+      "id": "rag-02-csv-stats",
+      "category": "factual_rag_web",
+      "description": "Calcul de statistique sur CSV",
+      "prompt": "Analyse data.csv et donne la moyenne de la colonne 'note'.",
+      "success": true,
+      "failure_reason": "",
+      "duration_seconds": 0.016,
+      "tools_count": 1,
+      "verification_passed": false
+    },
+    {
+      "id": "rag-03-honest-unknown",
+      "category": "factual_rag_web",
+      "description": "Détection d'inconnue sans hallucination",
+      "prompt": "Quel est le numéro de série exact du premier satellite artificiel lancé en 2038 ?",
+      "success": true,
+      "failure_reason": "",
+      "duration_seconds": 0.0,
+      "tools_count": 0,
+      "verification_passed": false
+    },
+    {
+      "id": "rag-04-c-constant",
+      "category": "factual_rag_web",
+      "description": "Constante physique fondamentale",
+      "prompt": "Rappelle la valeur exacte de la vitesse de la lumière dans le vide en m/s.",
+      "success": true,
+      "failure_reason": "",
+      "duration_seconds": 0.015,
+      "tools_count": 0,
+      "verification_passed": false
+    },
+    {
+      "id": "rag-05-summary-doc",
+      "category": "factual_rag_web",
+      "description": "Synthèse de document local",
+      "prompt": "Résume en 3 points les directives présentes dans policy.txt.",
+      "success": true,
+      "failure_reason": "",
+      "duration_seconds": 0.0,
+      "tools_count": 1,
+      "verification_passed": false
+    },
+    {
+      "id": "exam-01-bac-maths",
+      "category": "exam_creation",
+      "description": "Exercice de suites avec barème",
+      "prompt": "Rédige un exercice de baccalauréat sur les suites géométriques avec barème sur 5 points.",
+      "success": true,
+      "failure_reason": "",
+      "duration_seconds": 0.016,
+      "tools_count": 0,
+      "verification_passed": false
+    },
+    {
+      "id": "exam-02-algo-assertions",
+      "category": "exam_creation",
+      "description": "Problème algorithmique avec assertions",
+      "prompt": "Crée un problème d'algorithmique sur les piles avec assertions de test.",
+      "success": true,
+      "failure_reason": "",
+      "duration_seconds": 0.0,
+      "tools_count": 0,
+      "verification_passed": false
+    },
+    {
+      "id": "exam-03-mcq-physics",
+      "category": "exam_creation",
+      "description": "QCM de thermodynamique",
+      "prompt": "Génère un QCM de 4 questions sur la thermodynamique avec corrigé détaillé.",
+      "success": true,
+      "failure_reason": "",
+      "duration_seconds": 0.0,
+      "tools_count": 0,
+      "verification_passed": false
+    },
+    {
+      "id": "exam-04-probabilites",
+      "category": "exam_creation",
+      "description": "Exercice de probabilités conditionnelles",
+      "prompt": "Rédige un énoncé de probabilités conditionnelles avec arbre de décision pondéré.",
+      "success": true,
+      "failure_reason": "",
+      "duration_seconds": 0.0,
+      "tools_count": 0,
+      "verification_passed": false
+    },
+    {
+      "id": "exam-05-dm-devoir",
+      "category": "exam_creation",
+      "description": "Devoir maison de géométrie sur 20",
+      "prompt": "Construis un devoir maison complet de géométrie analytique noté sur 20.",
+      "success": true,
+      "failure_reason": "",
+      "duration_seconds": 0.0,
+      "tools_count": 0,
+      "verification_passed": false
+    },
+    {
+      "id": "multi-01-coder-tester",
+      "category": "multi_agent_delegation",
+      "description": "Délégation Coder vers Tester",
+      "prompt": "Code une fonction de factorielle dans math_lib.py et teste-la via delegate_to_agent.",
+      "success": true,
+      "failure_reason": "",
+      "duration_seconds": 0.0,
+      "tools_count": 1,
+      "verification_passed": false
+    },
+    {
+      "id": "multi-02-review",
+      "category": "multi_agent_delegation",
+      "description": "Délégation au Reviewer",
+      "prompt": "Inspecte complex_code.py et délègue une revue au reviewer.",
+      "success": true,
+      "failure_reason": "",
+      "duration_seconds": 0.016,
+      "tools_count": 1,
+      "verification_passed": false
+    },
+    {
+      "id": "multi-03-full-workflow",
+      "category": "multi_agent_delegation",
+      "description": "Chaîne multi-agents complète",
+      "prompt": "Orchestre la création, le test et la revue de validation d'un module de chiffrement César.",
+      "success": true,
+      "failure_reason": "",
+      "duration_seconds": 0.0,
+      "tools_count": 0,
+      "verification_passed": false
+    },
+    {
+      "id": "multi-04-subtasks",
+      "category": "multi_agent_delegation",
+      "description": "Décomposition et synthèse distribuée",
+      "prompt": "Décompose en sous-missions l'audit de sécurité des fichiers de configuration.",
+      "success": true,
+      "failure_reason": "",
+      "duration_seconds": 0.015,
+      "tools_count": 1,
+      "verification_passed": false
+    },
+    {
+      "id": "multi-05-critical-audit",
+      "category": "multi_agent_delegation",
+      "description": "Audit contradictoire par critique",
+      "prompt": "Effectue un examen contradictoire sur la robustesse du gestionnaire de mots de passe.",
+      "success": true,
+      "failure_reason": "",
+      "duration_seconds": 0.0,
+      "tools_count": 0,
+      "verification_passed": false
+    }
+  ]
+}
