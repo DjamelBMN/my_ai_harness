@@ -181,3 +181,58 @@ def run_python_script(
         "figures": figures,
     }
 
+
+
+def truncate_output(text: str, head_lines: int = 50, tail_lines: int = 50) -> str:
+    """Tronque intelligemment une sortie volumineuse : tête (50) + marqueur + queue (50)."""
+    if not text:
+        return ""
+    lines = text.splitlines()
+    total = len(lines)
+    if total <= head_lines + tail_lines:
+        return text
+    truncated_count = total - (head_lines + tail_lines)
+    head_part = "\n".join(lines[:head_lines])
+    tail_part = "\n".join(lines[-tail_lines:])
+    return f"{head_part}\n\n... [{truncated_count} lignes tronquées pour préserver le contexte] ...\n\n{tail_part}"
+
+
+def execute_bounded_command(
+    command_str: str,
+    cwd: str | Path | None = None,
+    timeout_seconds: int = 30,
+) -> dict[str, Any]:
+    """Exécuteur de commande borné avec timeout strict (30s) et tronquage intelligent tête+queue."""
+    timeout = max(1, min(int(timeout_seconds), 120))
+    try:
+        res = subprocess.run(
+            command_str,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+            shell=True,
+            check=False,
+        )
+        return {
+            "status": "success" if res.returncode == 0 else "failed",
+            "exit_code": res.returncode,
+            "stdout": truncate_output(res.stdout),
+            "stderr": truncate_output(res.stderr),
+        }
+    except subprocess.TimeoutExpired as error:
+        stdout = error.stdout or ""
+        stderr = error.stderr or ""
+        if isinstance(stdout, bytes):
+            stdout = stdout.decode("utf-8", errors="replace")
+        if isinstance(stderr, bytes):
+            stderr = stderr.decode("utf-8", errors="replace")
+        return {
+            "status": "timeout",
+            "exit_code": -1,
+            "stdout": truncate_output(stdout),
+            "stderr": truncate_output(stderr),
+            "error": f"Commande interrompue après {timeout}s (timeout strict dépassé).",
+        }
