@@ -15,6 +15,14 @@ def load_config(path: str | Path) -> dict:
         "providers": {},
         "agents": {},
         "routing": {},
+        "features": {
+            "closed_loop_tdd": False,
+            "independent_critic": False,
+            "backtracking": False,
+            "reflective_memory": False,
+            "dynamic_browser": False,
+            "multi_agent_hierarchy": False,
+        },
     }
     section = None
     current_name = None
@@ -44,7 +52,7 @@ def load_config(path: str | Path) -> dict:
                 if section == "openai":
                     settings["providers"]["openai"] = {}
                     current_name = "openai"
-                elif section not in {"providers", "agents", "routing"}:
+                elif section not in {"providers", "agents", "routing", "features"}:
                     raise ValueError(f"Section de configuration inconnue : {section}")
             continue
 
@@ -84,6 +92,8 @@ def load_config(path: str | Path) -> dict:
             settings["agents"][current_name][key] = value.strip().lower()
         elif section == "routing" and indent == 2 and value.strip():
             settings["routing"][key.lower()] = value.strip().lower()
+        elif section == "features" and indent == 2 and value.strip():
+            settings["features"][key.lower()] = (value.strip().lower() == "true")
         else:
             raise ValueError(f"Indentation ou option invalide : {raw_line}")
 

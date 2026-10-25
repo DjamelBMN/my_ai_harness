@@ -38,3 +38,12 @@ routing:
   coding:complex: openai
   testing:complex: gemini
   review:complex: openai
+
+# Feature flags pour les 5 briques agentiques industrielles
+features:
+  closed_loop_tdd: true
+  independent_critic: true
+  backtracking: false
+  reflective_memory: false
+  dynamic_browser: false
+  multi_agent_hierarchy: false
