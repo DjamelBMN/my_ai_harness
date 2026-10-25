@@ -2387,16 +2387,6 @@ body.is-resizing canvas {
   box-shadow: var(--shadow-sm);
 }
 
-#btn-doc-view-word.active {
-  color: #185ABD;
-  font-weight: 600;
-}
-
-#btn-doc-view-pdf.active {
-  color: #C5221F;
-  font-weight: 600;
-}
-
 .doc-zoom-controls {
   display: inline-flex;
   align-items: center;
@@ -3448,3 +3438,4 @@ body.is-resizing canvas {
   .inspector { right: 0; }
   .resizer { display: none; }
 }
+

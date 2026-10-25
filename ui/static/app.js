@@ -2376,6 +2376,14 @@ function switchRightPanelMode(mode) {
         const fileData = await apiGet(`/api/files/content?path=${encodeURIComponent(cleanPath)}`);
         docObj.size_bytes = fileData.size_bytes;
       } catch (_) {}
+    } else if (type === "docx") {
+      const stem = cleanPath.replace(/\.docx$/i, "");
+      docObj.companionPdf = `${stem}.pdf`;
+      docObj.companionDocx = cleanPath;
+      try {
+        const fileData = await apiGet(`/api/files/content?path=${encodeURIComponent(cleanPath)}`);
+        docObj.size_bytes = fileData.size_bytes;
+      } catch (_) {}
     } else if (type === "image") {
       try {
         const fileData = await apiGet(`/api/files/content?path=${encodeURIComponent(cleanPath)}`);
@@ -3308,7 +3316,7 @@ function switchRightPanelMode(mode) {
           errorBox.innerHTML = `<strong style="display:inline-flex; align-items:center; gap:6px;">${ICONS.alert} Aperçu PDF impossible</strong><pre class="mono" style="margin-top:8px;white-space:pre-wrap;font-size:11.5px;">${esc(err.message)}</pre>`;
         }
       });
-    } else if (doc.type === "html" && htmlFrame) {
+    } else if ((doc.type === "docx" || doc.type === "html") && htmlFrame) {
       htmlFrame.style.display = "block";
       htmlFrame.src = `/api/preview/workspace/${doc.path.split("/").map(encodeURIComponent).join("/")}?t=${Date.now()}`;
     } else if (doc.type === "svg" && svgViewer) {
@@ -4642,6 +4650,9 @@ function switchRightPanelMode(mode) {
     state.liveStartedAt = Date.now();
     state.activeSubAgent = "";
     state.liveCollapsedOnce = false;
+    state.activeDocument = null;
+    state.pdfDocCache = null;
+    switchRightPanelMode("inspector");
     if (state.liveTimerInterval) clearInterval(state.liveTimerInterval);
     state.liveTimerInterval = setInterval(() => {
       if (state.isExecuting && state.liveSteps.length > 0 && !state.liveCollapsedOnce) {
@@ -4709,12 +4720,12 @@ function switchRightPanelMode(mode) {
         assistantMsg.preview_artifacts ||
         assistantMsg.artifacts ||
         [];
-      const previewArt = artifacts.find((a) => a && a.path);
+      const previewArt = [...artifacts].reverse().find((a) => a && a.path);
       if (previewArt) {
         await openDocumentPreview(previewArt);
       } else if (assistantMsg.content) {
         const exportMatch = String(assistantMsg.content).match(
-          /\[EXPORT OK\]\s+([^\s|]+\.(?:pdf|html|py|svg|mmd|mermaid|json|csv|md|png|jpg))/i
+          /\[EXPORT OK\]\s+([^\s|]+\.(?:pdf|docx|html|py|svg|mmd|mermaid|json|csv|md|png|jpg))/i
         );
         if (exportMatch) {
           await openDocumentPreview({ path: exportMatch[1].trim() });
@@ -5078,11 +5089,17 @@ openDocumentPreview({
     }
 
     document.getElementById("btn-new-task").addEventListener("click", async () => {
+      state.activeDocument = null;
+      state.pdfDocCache = null;
+      switchRightPanelMode("inspector");
       await apiPost("/api/conversations/create", { title: "Nouvelle tâche" });
       await refreshFullState();
       document.getElementById("composer-input").focus();
     });
     document.getElementById("btn-brand-home").addEventListener("click", async () => {
+      state.activeDocument = null;
+      state.pdfDocCache = null;
+      switchRightPanelMode("inspector");
       await apiPost("/api/conversations/create", { title: "Nouvelle tâche" });
       await refreshFullState();
     });
@@ -5592,6 +5609,22 @@ openDocumentPreview({
           await apiPost("/api/conversations/select", { id: target.getAttribute("data-select-conv") });
         } catch (_) {}
         await refreshFullState();
+        const activeConv = state.appState && state.appState.active_conversation;
+        const convMsgs = (activeConv && activeConv.messages) || [];
+        let convArt = null;
+        for (let i = convMsgs.length - 1; i >= 0; i--) {
+          const m = convMsgs[i];
+          const arts = m.preview_artifacts || m.artifacts || [];
+          convArt = [...arts].reverse().find((a) => a && a.path);
+          if (convArt) break;
+        }
+        if (convArt) {
+          await openDocumentPreview(convArt);
+        } else {
+          state.activeDocument = null;
+          state.pdfDocCache = null;
+          switchRightPanelMode("inspector");
+        }
         return;
       }
       if (target.hasAttribute("data-pin-conv")) {

@@ -2601,7 +2601,7 @@ class NeoHarnessRuntimeBridge:
                 title_prov = self.orchestrator.router.get_provider("planner", intent="planning")
             except Exception:
                 pass
-            conv["title"] = generate_task_title(clean_prompt, skill_hint=conv.get("last_skill", ""), llm_provider=title_prov)
+            conv["title"] = generate_task_title(clean_prompt, skill_hint=conv.get("last_skill", ""))
             self._save_conversations()
 
         # Snapshot des fichiers du workspace avant exécution pour calcul de diff réel
@@ -3675,7 +3675,7 @@ def create_http_server(
                     if pandoc_bin:
                         try:
                             cmd = [pandoc_bin, str(target), "-s", "--mathjax", "-t", "html5"]
-                            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                            proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10)
                             if proc.returncode == 0 and proc.stdout:
                                 html_text = proc.stdout
                                 filename = target.name
@@ -3689,54 +3689,58 @@ def create_http_server(
                                 except Exception:
                                     pass
                                 pdf_btn_html = (
-                                    f'<a href="/api/files/raw?path={quote(rel_pdf)}&download=1" download class="word-btn secondary" title="Télécharger la version PDF">'
-                                    f'📑 Télécharger PDF</a>'
+                                    f'<a href="/api/files/raw?path={quote(rel_pdf)}&download=1" download class="word-action-btn secondary" title="Télécharger la version PDF">'
+                                    f'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>'
+                                    f'<span>Télécharger PDF</span></a>'
                                     if has_companion_pdf
-                                    else f'<a href="/api/files/raw?path={quote(rel_docx)}&download=1" download class="word-btn secondary" title="Télécharger en Word">'
-                                    f'📑 Version PDF disponible</a>'
+                                    else f'<a href="/api/files/raw?path={quote(rel_docx)}&download=1" download class="word-action-btn secondary" title="Version PDF générée sur demande">'
+                                    f'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
+                                    f'<span>Version PDF</span></a>'
                                 )
                                 word_style = f"""
 <style id="__neoharness_word_preview_styles__">
   :root {{
-    --word-primary: #185ABD;
-    --word-dark: #103F91;
-    --word-bg: #EAEAEA;
+    --word-primary: #0F6CBD;
+    --word-primary-dark: #115EA3;
+    --word-accent: #2B88D8;
+    --word-bg: #F0F2F5;
     --page-bg: #FFFFFF;
     --text-main: #242424;
+    --text-muted: #616161;
+    --border-light: #E0E0E0;
   }}
   * {{ box-sizing: border-box; }}
   html, body {{
     margin: 0;
     padding: 0;
     background-color: var(--word-bg);
-    font-family: 'Aptos', 'Calibri', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-family: 'Segoe UI', 'Aptos', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
     color: var(--text-main);
-    line-height: 1.5;
+    line-height: 1.6;
     -webkit-font-smoothing: antialiased;
   }}
   .word-top-ribbon {{
     position: sticky;
     top: 0;
     z-index: 999;
-    background: linear-gradient(135deg, #185ABD 0%, #103F91 100%);
+    background: linear-gradient(90deg, #0F6CBD 0%, #115EA3 100%);
     color: #FFFFFF;
-    padding: 9px 20px;
+    padding: 0 16px;
+    height: 42px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
-    font-size: 13px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08);
   }}
-  .word-ribbon-title {{
+  .word-ribbon-left {{
     display: flex;
     align-items: center;
     gap: 10px;
-    font-weight: 600;
-    letter-spacing: -0.2px;
+    min-width: 0;
   }}
-  .word-logo-badge {{
+  .word-app-badge {{
     background: #FFFFFF;
-    color: #185ABD;
+    color: #0F6CBD;
     font-weight: 800;
     font-size: 13px;
     width: 24px;
@@ -3745,67 +3749,104 @@ def create_http_server(
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+    flex-shrink: 0;
+  }}
+  .word-doc-title {{
+    font-weight: 600;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 280px;
+    letter-spacing: -0.1px;
+  }}
+  .word-status-badge {{
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.15);
+    color: #EBF3FC;
+    white-space: nowrap;
+  }}
+  .word-status-badge::before {{
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #4ADE80;
   }}
   .word-ribbon-actions {{
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0;
   }}
-  .word-btn {{
+  .word-action-btn {{
     display: inline-flex;
     align-items: center;
     gap: 6px;
     background: #FFFFFF;
-    color: #185ABD;
-    padding: 5px 13px;
+    color: #0F6CBD;
+    padding: 5px 12px;
     border-radius: 4px;
     text-decoration: none;
     font-size: 12px;
     font-weight: 600;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    white-space: nowrap;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
     transition: all 0.15s ease;
+    border: 1px solid transparent;
   }}
-  .word-btn:hover {{
-    background: #F0F4FA;
+  .word-action-btn:hover {{
+    background: #F8FAFD;
+    color: #115EA3;
     transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
   }}
-  .word-btn.secondary {{
-    background: rgba(255,255,255,0.18);
+  .word-action-btn.secondary {{
+    background: rgba(255,255,255,0.16);
     color: #FFFFFF;
-    border: 1px solid rgba(255,255,255,0.3);
+    border: 1px solid rgba(255,255,255,0.28);
+    box-shadow: none;
   }}
-  .word-btn.secondary:hover {{
-    background: rgba(255,255,255,0.28);
+  .word-action-btn.secondary:hover {{
+    background: rgba(255,255,255,0.26);
+    color: #FFFFFF;
+    border-color: rgba(255,255,255,0.4);
   }}
   .word-canvas {{
-    padding: 28px 16px 64px;
+    padding: 24px 16px 48px;
     display: flex;
     justify-content: center;
   }}
   .word-document-page {{
     background: var(--page-bg);
     width: 100%;
-    max-width: 820px;
-    min-height: 1080px;
-    padding: 56px 68px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06);
-    border: 1px solid #D8D8D8;
-    border-radius: 2px;
+    max-width: 840px;
+    min-height: 1100px;
+    padding: 60px 72px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
+    border: 1px solid var(--border-light);
+    border-radius: 3px;
   }}
   h1, h2, h3, h4 {{
-    color: var(--word-dark);
-    font-family: 'Aptos Display', 'Calibri', 'Segoe UI', sans-serif;
+    color: #1A365D;
     font-weight: 600;
   }}
   h1 {{
-    font-size: 21pt;
+    font-size: 20pt;
     margin-top: 0;
     margin-bottom: 0.6em;
-    border-bottom: 2px solid #E1DFDD;
+    border-bottom: 2px solid #E2E8F0;
     padding-bottom: 8px;
+    color: #0F6CBD;
   }}
-  h2 {{ font-size: 15pt; margin-top: 1.4em; margin-bottom: 0.5em; }}
+  h2 {{ font-size: 15pt; margin-top: 1.4em; margin-bottom: 0.5em; border-bottom: 1px solid #EDF2F7; padding-bottom: 4px; }}
   h3 {{ font-size: 12.5pt; margin-top: 1.2em; margin-bottom: 0.4em; }}
   p {{ margin: 0.7em 0; font-size: 11pt; }}
   ul, ol {{ margin: 0.6em 0; padding-left: 28px; font-size: 11pt; }}
@@ -3822,31 +3863,31 @@ def create_http_server(
     text-align: left;
   }}
   th {{
-    background-color: #F3F6FA;
-    color: var(--word-dark);
+    background-color: #F0F4FA;
+    color: #0F6CBD;
     font-weight: 600;
   }}
   tr:nth-child(even) td {{
     background-color: #FAFAFA;
   }}
   blockquote {{
-    border-left: 3.5px solid var(--word-primary);
+    border-left: 3.5px solid #0F6CBD;
     margin: 14px 0;
     padding: 8px 18px;
-    background: #F7F9FC;
-    color: #444;
+    background: #F4F8FD;
+    color: #333333;
     border-radius: 0 4px 4px 0;
   }}
   code {{
     background: #F3F3F3;
     padding: 2px 6px;
     border-radius: 3px;
-    font-family: 'Consolas', 'Courier New', monospace;
+    font-family: 'Consolas', monospace;
     font-size: 10pt;
-    color: #A31515;
+    color: #9C1C1C;
   }}
   .mjx-chtml {{
-    font-size: 115% !important;
+    font-size: 112% !important;
   }}
 </style>
 <script>
@@ -3868,13 +3909,15 @@ window.MathJax = {{
                                 wrapped_body = f"""
 <body>
   <div class="word-top-ribbon">
-    <div class="word-ribbon-title">
-      <span class="word-logo-badge">W</span>
-      <span>Microsoft Word · {filename}</span>
+    <div class="word-ribbon-left">
+      <span class="word-app-badge">W</span>
+      <span class="word-doc-title" title="{filename}">{filename}</span>
+      <span class="word-status-badge">Document vérifié</span>
     </div>
     <div class="word-ribbon-actions">
-      <a href="/api/files/raw?path={quote(rel_docx)}&download=1" download class="word-btn" title="Télécharger le document Word">
-        📄 Télécharger Word (.docx)
+      <a href="/api/files/raw?path={quote(rel_docx)}&download=1" download class="word-action-btn" title="Télécharger le fichier Word .docx">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span>Télécharger Word (.docx)</span>
       </a>
       {pdf_btn_html}
     </div>

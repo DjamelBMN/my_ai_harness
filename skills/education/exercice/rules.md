@@ -5,4 +5,4 @@
 - Si une source officielle ou une annale récente est mentionnée, utiliser l'outil `web_search` pour vérifier la conformité.
 - Si un format Word (.docx) est demandé : utiliser obligatoirement `generate_docx` pour créer directement le fichier Word dans le workspace sans créer de fichier `.tex` de substitution.
 - Par défaut (ou si PDF demandé) : écrire le livrable dans `workspace/exercice_<theme>.tex` et fournir le corrigé complet.
-
+- Ne jamais ajouter de méta-commentaire dans la réponse au chat concernant les fichiers sauvegardés ou générés : répondre uniquement au contenu de l'exercice.

@@ -176,7 +176,7 @@ def generate_docx(
                 "-t", "docx",
                 "-o", str(target_abs),
             ]
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
             if proc.returncode != 0:
                 raise RuntimeError(
                     f"Échec Pandoc (code {proc.returncode}) : {proc.stderr or proc.stdout}"

@@ -45,6 +45,42 @@ def _contains_any_word(text: str, keywords: tuple[str, ...] | list[str]) -> bool
     return False
 
 
+def _clean_chat_response(text: str) -> str:
+    """Nettoie la réponse destinée au chat pour qu'elle ne contienne aucun méta-bavardage
+    sur les fichiers générés, les chemins workspace, la compilation ou les outils.
+    L'utilisateur ne doit voir que la réponse directe et pure à sa question.
+    """
+    if not text:
+        return text
+    lines = text.splitlines()
+    clean_lines = []
+    meta_keywords = [
+        "enregistré dans le workspace",
+        "enregistree dans le workspace",
+        "généré dans le workspace",
+        "genere dans le workspace",
+        "généré et enregistré",
+        "genere et enregistre",
+        "écrit et vérifié dans le workspace",
+        "ecrit et verifie dans le workspace",
+        "le fichier source latex a été",
+        "le fichier source a été",
+        "le document word a été",
+        "compilé avec succès via",
+        "fichier de vérification dans le workspace",
+        "sous le nom de workspace/",
+        "sous le nom de `workspace/",
+        "sous le nom `workspace/",
+    ]
+    for line in lines:
+        lower = line.strip().lower()
+        if any(kw in lower for kw in meta_keywords):
+            continue
+        clean_lines.append(line)
+    result = "\n".join(clean_lines).strip()
+    return result or text
+
+
 def wrap_untrusted_data(content: str) -> str:
     """Encapsule tout contenu issu d'un outil pour neutraliser l'injection de prompt."""
     if not content:
@@ -168,6 +204,12 @@ class AgentLoop:
                 ),
                 "ÉVIDENCE INITIALE ISSUE DES OUTILS:\n"
                 + json.dumps(evidence, ensure_ascii=False),
+                (
+                    "DIRECTIVE STRICTE SUR LA RÉPONSE AU CHAT :\n"
+                    "- Réponds UNIQUEMENT et DIRECTEMENT au sujet de la demande de l'utilisateur (l'exercice mathématique complet avec questions et corrigé, ou l'explication demandée).\n"
+                    "- NE PARLE JAMAIS de fichiers générés, de noms ou chemins ('workspace/...', '.docx', '.tex', '.pdf'), de compilateur, d'outils appelés (generate_docx, tectonic, pandoc...) ni de vérifications ou d'erreurs.\n"
+                    "- L'interface graphique s'occupe déjà d'afficher et de télécharger les fichiers automatiquement. Ta réponse textuelle doit être 100% propre, humaine et pédagogique."
+                ),
                 (
                     "Tu peux appeler les outils déclarés. L'appel d'un outil ne prouve "
                     "pas sa réussite : attends son résultat, observe-le, corrige si "
@@ -831,6 +873,7 @@ class AgentLoop:
                 continue
 
             final_answer = "".join([*response_fragments, turn.text]).strip()
+            final_answer = _clean_chat_response(final_answer)
             response_fragments.clear()
             if final_answer and len(final_answer) >= len(best_available_result):
                 best_available_result = final_answer
