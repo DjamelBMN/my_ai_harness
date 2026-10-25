@@ -35,7 +35,7 @@ class ContextManager:
                 immutable_facts.append(f"[CONTRAINTES IMMUABLES] : {', '.join(str(c) for c in constraints[-5:])}")
 
         # 2. Si l'historique dépasse la capacité, synthétiser les tours anciens
-        if len(context.history) > self.max_items:
+        if tc is not None and len(context.history) > self.max_items:
             older_items = context.history[:-self.max_items]
             recent_items = context.history[-self.max_items:]
 
@@ -43,7 +43,7 @@ class ContextManager:
             condensed_summary = self._summarize_older_turns(older_items)
             new_history = [condensed_summary, *recent_items]
         else:
-            new_history = list(context.history)
+            new_history = list(context.history[-self.max_items:])
 
         # 3. Contrôle du budget de caractères sans découpage sauvage de mots
         total_len = sum(len(x) for x in new_history)
