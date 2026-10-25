@@ -20,6 +20,7 @@ from tools.editor import edit_file
 from tools.viewer import view_file
 from tools.code_search import search_code
 from tools.browser import DynamicBrowser
+from tools.compiler import AutonomousCompiler
 
 
 @dataclass
@@ -578,5 +579,28 @@ class ToolRegistry:
             mutates=False,
             timeout=15.0,
         )
+        add(
+            "compile_document",
+            "Compile de façon autonome un document (LaTeX/TeX) en PDF avec boucle d'auto-correction, oracles physiques et inspection de mise en page.",
+            {
+                "path": string,
+                "output_pdf_path": optional_string,
+                "expected_pages": {"type": "integer"},
+                "auto_fix": boolean,
+            },
+            ["path"],
+            lambda path, output_pdf_path=None, expected_pages=None, auto_fix=True: (
+                AutonomousCompiler(workspace=fs.root).compile(
+                    tex_path=path,
+                    output_pdf_path=output_pdf_path,
+                    expected_pages=expected_pages,
+                    auto_fix=auto_fix,
+                )
+            ),
+            risk=RiskLevel.MODERATE,
+            mutates=True,
+            timeout=60.0,
+        )
+
 
 

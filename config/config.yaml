@@ -47,3 +47,6 @@ features:
   reflective_memory: true
   dynamic_browser: true
   multi_agent_hierarchy: true
+  compile_autofix: true
+  live_activity_panel: true
+  math_tikz_figures: true

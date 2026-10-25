@@ -1,4 +1,4 @@
-﻿# RÔLE DE CE FICHIER :
+# RÔLE DE CE FICHIER :
 # Lit la configuration et choisit le provider LLM adapté à un agent. Il ne crée ni
 # agent ni modèle : il retourne une instance de provider déjà enregistrée.
 
@@ -22,6 +22,9 @@ def load_config(path: str | Path) -> dict:
             "reflective_memory": False,
             "dynamic_browser": False,
             "multi_agent_hierarchy": False,
+            "compile_autofix": False,
+            "live_activity_panel": False,
+            "math_tikz_figures": False,
         },
     }
     section = None
