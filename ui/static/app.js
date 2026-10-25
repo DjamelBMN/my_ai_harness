@@ -53,6 +53,19 @@
     pdfRenderToken: 0,
     pdfWidth: 0,
     liveSteps: [],
+    livePlan: [],
+    liveBudget: {
+      tokens_used: 0,
+      tokens_limit: 100000,
+      time_elapsed: 0,
+      time_limit: 300,
+      tool_calls: 0,
+      tool_limit: 50,
+    },
+    liveCompile: null,
+    liveSearch: null,
+    lastEventSeq: 0,
+    activityAutoScroll: true,
     sse: null,
     slashPalette: {
       open: false,
@@ -150,14 +163,21 @@
       } catch (_) {}
     }
     try {
-      const es = new EventSource("/api/events/stream");
+      const lastSeq = state.lastEventSeq || 0;
+      const sseUrl = lastSeq > 0 ? `/api/events/stream?last_event_id=${lastSeq}` : "/api/events/stream";
+      const es = new EventSource(sseUrl);
       es.onmessage = (evt) => {
         try {
           const parsed = JSON.parse(evt.data);
+          if (evt.lastEventId) {
+            state.lastEventSeq = parseInt(evt.lastEventId, 10) || state.lastEventSeq;
+          } else if (parsed.seq) {
+            state.lastEventSeq = Math.max(state.lastEventSeq || 0, parsed.seq);
+          }
           if (!state.appState) return;
 
           if (parsed.event === "STREAM_DELTA") {
-            const d = parsed.details || {};
+            const d = parsed.details || parsed.data || {};
             const delta = d.delta || "";
             if (delta && state.isExecuting) {
               finishThinkingSteps();
@@ -169,19 +189,19 @@
             return;
           }
 
-          if (parsed.event === "ARTIFACT_READY" && parsed.details) {
-            const art = parsed.details;
+          if (parsed.event === "ARTIFACT_READY" && (parsed.details || parsed.data)) {
+            const art = parsed.details || parsed.data;
             if (art && art.path) {
               openDocumentPreview(art);
             }
           }
 
-          if (state.isExecuting) handleLiveEvent(parsed);
+          handleLiveEvent(parsed);
 
           state.appState.events = state.appState.events || [];
           state.appState.events.push(parsed);
-          if (state.appState.events.length > 250) {
-            state.appState.events = state.appState.events.slice(-250);
+          if (state.appState.events.length > 500) {
+            state.appState.events = state.appState.events.slice(-500);
           }
           if (parsed.event === "APPROVAL_REQUIRED") {
             refreshApprovals();
@@ -242,7 +262,63 @@
   }
 
   function handleLiveEvent(e) {
-    if (!e || LIVE_SKIP.has(e.event)) return;
+    if (!e) return;
+    const raw = e.raw_event || e.type || e.event || "";
+    const data = e.data || e.details || {};
+
+    if (raw === "plan.created" || e.event === "PLAN_CREATED") {
+      state.livePlan = (data.plan_steps || data.steps || []).map((s, idx) => ({
+        id: s.id || idx + 1,
+        description: s.description || "",
+        status: s.status || "pending",
+      }));
+    } else if (raw === "plan.step_started" || e.event === "PLAN_STEP") {
+      const idx = data.step_index;
+      if (idx && state.livePlan) {
+        state.livePlan.forEach((s) => {
+          if (s.id === idx) s.status = "in_progress";
+        });
+      }
+    } else if (raw === "plan.step_completed") {
+      const idx = data.step_index;
+      if (idx && state.livePlan) {
+        state.livePlan.forEach((s) => {
+          if (s.id === idx) s.status = data.status || "completed";
+        });
+      }
+    } else if (raw === "budget.update" || e.event === "BUDGET") {
+      state.liveBudget = Object.assign({}, state.liveBudget, data);
+    } else if (raw.startsWith("compile.") || e.event === "COMPILATION") {
+      state.liveCompile = {
+        event: raw,
+        attempt: data.attempt || data.attempts || 1,
+        max_attempts: data.max_attempts || 25,
+        file: data.file || "",
+        line: data.line,
+        message: data.message || "",
+        note: data.note || data.action || "",
+        status: raw === "compile.error" ? "error" : raw === "compile.completed" ? "completed" : "running",
+      };
+    } else if (raw.startsWith("search.") || e.event === "SEARCH" || raw === "download.verified" || e.event === "DOWNLOAD") {
+      state.liveSearch = state.liveSearch || { query: "", rejected: [], verified: null };
+      if (raw === "search.query") {
+        state.liveSearch.query = data.query || "";
+      } else if (raw === "search.candidate_rejected") {
+        state.liveSearch.rejected = state.liveSearch.rejected || [];
+        state.liveSearch.rejected.push({
+          url: data.url || "",
+          reason: data.reason || "",
+        });
+      } else if (raw === "download.verified" || e.event === "DOWNLOAD") {
+        state.liveSearch.verified = {
+          destination: data.destination || "",
+          size_bytes: data.size_bytes || 0,
+          sha256: data.sha256 || "",
+        };
+      }
+    }
+
+    if (LIVE_SKIP.has(e.event)) return;
     const steps = state.liveSteps;
     if (e.event === "TOOL_RESULT") {
       for (let i = steps.length - 1; i >= 0; i--) {
@@ -258,7 +334,7 @@
         kind: "tool",
         tool: e.tool,
         label: `Outil : ${e.tool}`,
-        detail: String((e.details && e.details.target) || "").slice(0, 90),
+        detail: String((data && data.target) || "").slice(0, 90),
         status: "running",
       });
     } else if (e.raw_event === "agent.thinking") {
@@ -3010,6 +3086,40 @@
       default:
         body.innerHTML = renderInspectorModelTab();
     }
+
+    if (state.inspectorTab === "activity") {
+      const stopBtn = document.getElementById("btn-activity-stop");
+      if (stopBtn) {
+        stopBtn.addEventListener("click", () => {
+          stopTaskExecution();
+        });
+      }
+      const scrollBody = document.getElementById("activity-scroll-body");
+      const resumeBtn = document.getElementById("btn-resume-scroll");
+      if (scrollBody && resumeBtn) {
+        scrollBody.addEventListener("scroll", () => {
+          const atBottom = scrollBody.scrollHeight - scrollBody.scrollTop - scrollBody.clientHeight < 30;
+          state.activityAutoScroll = atBottom;
+          resumeBtn.style.display = atBottom ? "none" : "flex";
+        });
+        resumeBtn.addEventListener("click", () => {
+          scrollBody.scrollTop = scrollBody.scrollHeight;
+          state.activityAutoScroll = true;
+          resumeBtn.style.display = "none";
+        });
+        if (state.activityAutoScroll) {
+          scrollBody.scrollTop = scrollBody.scrollHeight;
+        }
+      }
+      const devBtn = document.getElementById("btn-toggle-devmode");
+      if (devBtn) {
+        devBtn.addEventListener("click", async () => {
+          const current = Boolean(state.appState.preferences && state.appState.preferences.developer_mode);
+          await apiPost("/api/preferences", { developer_mode: !current });
+          await refreshFullState();
+        });
+      }
+    }
   }
 
   function renderInspectorModelTab() {
@@ -3160,80 +3270,170 @@
     `;
   }
 
+  function getEventIconSvg(eventType, rawEvent) {
+    const raw = (rawEvent || "").toLowerCase();
+    const ev = (eventType || "").toLowerCase();
+    if (raw.startsWith("search") || ev === "search") {
+      return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`;
+    }
+    if (raw.startsWith("compile") || ev === "compilation") {
+      return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>`;
+    }
+    if (raw.startsWith("verify") || ev === "verifier") {
+      return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`;
+    }
+    if (raw.startsWith("tool") || ev.startsWith("tool")) {
+      return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`;
+    }
+    if (raw.startsWith("plan") || ev.startsWith("plan")) {
+      return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>`;
+    }
+    if (raw.includes("rollback") || raw.includes("failover") || ev === "rollback" || ev === "failover") {
+      return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>`;
+    }
+    if (raw.startsWith("critic") || ev === "critic") {
+      return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M3 9l9-6 9 6M3 9v6l9 6 9-6V9"></path></svg>`;
+    }
+    return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>`;
+  }
+
   function renderInspectorActivityTab() {
     const s = state.appState;
-    const events = (s.events || []).slice().reverse();
+    const events = (s.events || []).slice();
     const isDev = Boolean(s.preferences && s.preferences.developer_mode);
+    const b = state.liveBudget || { tokens_used: 0, tokens_limit: 100000, time_elapsed: 0, time_limit: 300, tool_calls: 0, tool_limit: 50 };
+
+    const tUsed = b.tokens_used || 0;
+    const tMax = b.tokens_limit || 100000;
+    const tPct = Math.min(100, Math.round((tUsed / (tMax || 1)) * 100));
+    const tColor = tPct < 50 ? "green" : tPct <= 80 ? "orange" : "red";
+
+    const timeUsed = b.time_elapsed || 0;
+    const timeMax = b.time_limit || 300;
+    const timePct = Math.min(100, Math.round((timeUsed / (timeMax || 1)) * 100));
+    const timeColor = timePct < 50 ? "green" : timePct <= 80 ? "orange" : "red";
+
+    const callsUsed = b.tool_calls || 0;
+    const callsMax = b.tool_limit || 50;
+    const callsPct = Math.min(100, Math.round((callsUsed / (callsMax || 1)) * 100));
+    const callsColor = callsPct < 50 ? "green" : callsPct <= 80 ? "orange" : "red";
 
     return `
-      <div class="inspector-card">
-        <div class="inspector-card-title">
-          <span>Événements temps réel (${events.length})</span>
-          <button id="btn-toggle-devmode" class="skill-pill ${isDev ? "active" : ""}">
-            ${isDev ? "● Mode Dev actif" : "○ Mode Dev"}
-          </button>
-        </div>
-        <div style="font-size:11px; color:var(--text-secondary);">
-          Flux réel du <code>NormalizedEventBus</code>. Aucune étape n'est simulée.
-        </div>
-      </div>
-
-      ${
-        isDev
-          ? `
-          <div class="inspector-card" style="overflow-x:auto;">
-            <div class="inspector-card-title"><span>Télémétrie Developer Mode</span></div>
-            <table class="telemetry-table">
-              <thead>
-                <tr>
-                  <th>Event</th>
-                  <th>Agent</th>
-                  <th>Outil</th>
-                  <th>Durée</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${
-                  events.length === 0
-                    ? `<tr><td colspan="4">Aucun événement.</td></tr>`
-                    : events
-                        .map(
-                          (e) => `
-                        <tr>
-                          <td><span class="meta-chip accent">${esc(e.event)}</span></td>
-                          <td>${esc(e.agent || "—")}</td>
-                          <td>${esc(e.tool || "—")}</td>
-                          <td>${e.duration_ms ? `${e.duration_ms}ms` : "—"}</td>
-                        </tr>
-                      `
-                        )
-                        .join("")
-                }
-              </tbody>
-            </table>
+      <div class="activity-panel-wrap">
+        <div class="activity-panel-header">
+          <div class="activity-panel-title">
+            <span>Panneau d'activité (${events.length})</span>
+            ${state.isExecuting ? '<span class="step-badge in_progress"><span class="pulse-dot"></span>En direct</span>' : ''}
           </div>
-        `
-          : ""
-      }
+          <div style="display:flex; align-items:center; gap:6px;">
+            ${state.isExecuting ? `
+              <button id="btn-activity-stop" class="activity-stop-btn" title="Interrompre immédiatement la tâche en cours">
+                <span>Arrêter</span>
+              </button>
+            ` : ''}
+            <button id="btn-toggle-devmode" class="skill-pill ${isDev ? "active" : ""}">
+              ${isDev ? "● Mode Dev" : "○ Mode Dev"}
+            </button>
+          </div>
+        </div>
 
-      <div style="display:flex; flex-direction:column; gap:6px;">
-        ${
-          events.length === 0
-            ? `<div class="inspector-card">Aucune activité enregistrée.</div>`
-            : events
-                .map(
-                  (e) => `
-                  <div class="inspector-card">
-                    <div class="inspector-card-title">
-                      <span class="meta-chip accent">${esc(e.event)}</span>
-                      <span class="mono" style="font-size:10.5px; color:var(--text-muted);">${esc((e.timestamp || "").slice(11, 19))}</span>
-                    </div>
-                    <div style="font-size:11.5px;">${esc(e.summary)}</div>
+        <!-- 1. JAUGES DE BUDGET TEMPS RÉEL -->
+        <div class="budget-gauge-grid">
+          <div class="budget-gauge-card">
+            <div class="gauge-label-row"><span>Tokens</span><span>${tPct}%</span></div>
+            <div class="gauge-value-row">${tUsed} / ${tMax}</div>
+            <div class="gauge-bar"><div class="gauge-fill ${tColor}" style="width:${tPct}%;"></div></div>
+          </div>
+          <div class="budget-gauge-card">
+            <div class="gauge-label-row"><span>Temps</span><span>${timePct}%</span></div>
+            <div class="gauge-value-row">${timeUsed}s / ${timeMax}s</div>
+            <div class="gauge-bar"><div class="gauge-fill ${timeColor}" style="width:${timePct}%;"></div></div>
+          </div>
+          <div class="budget-gauge-card">
+            <div class="gauge-label-row"><span>Outils</span><span>${callsPct}%</span></div>
+            <div class="gauge-value-row">${callsUsed} / ${callsMax}</div>
+            <div class="gauge-bar"><div class="gauge-fill ${callsColor}" style="width:${callsPct}%;"></div></div>
+          </div>
+        </div>
+
+        <!-- 2. SUIVI DU PLAN EN DIRECT -->
+        ${state.livePlan && state.livePlan.length ? `
+          <div class="live-plan-card">
+            <div class="inspector-card-title"><span>Plan d'exécution en direct</span></div>
+            ${state.livePlan.map((s, idx) => `
+              <div class="plan-step-row">
+                <span class="step-badge ${esc(s.status || 'pending')}">
+                  ${s.status === 'in_progress' ? '<span class="pulse-dot"></span>En cours' : s.status === 'completed' ? '✓ Terminé' : s.status === 'error' ? '✕ Échoué' : 'À faire'}
+                </span>
+                <span><strong>${idx + 1}.</strong> ${esc(s.description)}</span>
+              </div>
+            `).join("")}
+          </div>
+        ` : ''}
+
+        <!-- 3. COMPILATION EN DIRECT -->
+        ${state.liveCompile ? `
+          <div class="live-banner-box compile">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong>Compilation ${esc(state.liveCompile.attempt)}/${esc(state.liveCompile.max_attempts)}</strong>
+              <span class="step-badge ${esc(state.liveCompile.status)}">${esc(state.liveCompile.status)}</span>
+            </div>
+            ${state.liveCompile.message ? `<div style="color:var(--error);">Erreur ligne ${esc(state.liveCompile.line || '?')} : ${esc(state.liveCompile.message)}</div>` : ''}
+            ${state.liveCompile.note ? `<div style="color:var(--text-secondary);">Action : ${esc(state.liveCompile.note)}</div>` : ''}
+          </div>
+        ` : ''}
+
+        <!-- 4. RECHERCHE WEB EN DIRECT -->
+        ${state.liveSearch ? `
+          <div class="live-banner-box search">
+            <strong>Recherche & Téléchargement Web</strong>
+            ${state.liveSearch.query ? `<div>Requête : <code>${esc(state.liveSearch.query)}</code></div>` : ''}
+            ${state.liveSearch.rejected && state.liveSearch.rejected.length ? `
+              <div style="font-size:10.5px; color:var(--text-muted);">
+                Candidats rejetés (${state.liveSearch.rejected.length}) :
+                ${state.liveSearch.rejected.map(r => `<div>- ${esc(r.url)} : ${esc(r.reason)}</div>`).join('')}
+              </div>
+            ` : ''}
+            ${state.liveSearch.verified ? `
+              <div style="color:#2b8a3e; font-weight:500;">
+                ✓ Validé : <code>${esc(state.liveSearch.verified.destination)}</code> (${state.liveSearch.verified.size_bytes} octets)
+              </div>
+            ` : ''}
+          </div>
+        ` : ''}
+
+        <!-- 5. TIMELINE DES ÉVÉNEMENTS TEMPS RÉEL -->
+        <div id="activity-scroll-body" style="overflow-y:auto; max-height:480px; display:flex; flex-direction:column; gap:6px;">
+          ${events.length === 0 ? `<div class="inspector-card">Aucune activité enregistrée.</div>` : events.map(e => {
+            const rawStatus = (e.status || "info").toLowerCase();
+            const badgeClass = rawStatus === "running" ? "in_progress" : rawStatus === "completed" || rawStatus === "success" || rawStatus === "ok" ? "completed" : rawStatus === "error" || rawStatus === "denied" ? "error" : "pending";
+            const dur = e.duration_ms ? (e.duration_ms >= 1000 ? (e.duration_ms / 1000).toFixed(1) + "s" : e.duration_ms + "ms") : "";
+            const detailsObj = e.data || e.details || {};
+            const hasDetails = Object.keys(detailsObj).length > 0;
+            return `
+              <div class="timeline-item">
+                <div class="timeline-head">
+                  <div class="timeline-title-wrap">
+                    <span class="timeline-icon-box">${getEventIconSvg(e.event, e.raw_event)}</span>
+                    <span class="step-badge ${badgeClass}">${rawStatus === 'running' ? '<span class="pulse-dot"></span>' : ''}${esc(e.event)}</span>
                   </div>
-                `
-                )
-                .join("")
-        }
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    ${dur ? `<span class="timeline-duration">${esc(dur)}</span>` : ''}
+                    <span class="mono" style="font-size:10px; color:var(--text-muted);">${esc((e.timestamp || "").slice(11, 19))}</span>
+                  </div>
+                </div>
+                <div class="timeline-summary">${esc(e.summary)}</div>
+                ${hasDetails ? `
+                  <details class="timeline-collapsible">
+                    <summary>Détails</summary>
+                    <pre>${esc(JSON.stringify(detailsObj, null, 2))}</pre>
+                  </details>
+                ` : ''}
+              </div>
+            `;
+          }).join("")}
+        </div>
+        <button id="btn-resume-scroll" class="scroll-resume-btn" style="display:none;">↓ Reprendre le défilement</button>
       </div>
     `;
   }
@@ -4381,6 +4581,14 @@
     document.getElementById("btn-open-model-picker").addEventListener("click", () => {
       openModal("modal-model-picker");
     });
+    const taskPill = document.getElementById("top-task-pill");
+    if (taskPill) {
+      taskPill.addEventListener("click", () => {
+        state.inspectorTab = "activity";
+        switchRightPanelMode("inspector");
+        renderInspector();
+      });
+    }
     document.getElementById("btn-open-search").addEventListener("click", () => {
       openModal("modal-global-search");
     });
@@ -5111,6 +5319,19 @@
     initTheme();
     setupEventListeners();
     await refreshFullState();
+    try {
+      const runState = await apiGet("/api/runs/current");
+      if (runState && runState.ok) {
+        if (runState.plan && runState.plan.length) state.livePlan = runState.plan;
+        if (runState.budget) state.liveBudget = Object.assign({}, state.liveBudget, runState.budget);
+        if (runState.compilation && Object.keys(runState.compilation).length) state.liveCompile = runState.compilation;
+        if (runState.search && Object.keys(runState.search).length) state.liveSearch = runState.search;
+        if (runState.last_seq) state.lastEventSeq = runState.last_seq;
+        if (runState.status === "Exécution…" || runState.status === "running") {
+          state.isExecuting = true;
+        }
+      }
+    } catch (_) {}
     connectSSE();
   }
 

@@ -20,6 +20,7 @@ NORMALIZED_EVENT_TYPES = (
     "TASK_STARTED",
     "PLANNER_STARTED",
     "PLAN_CREATED",
+    "PLAN_STEP",
     "SKILL_DISCOVERY",
     "SKILL_SELECTED",
     "CONTEXT_LOADING",
@@ -31,6 +32,14 @@ NORMALIZED_EVENT_TYPES = (
     "AGENT_STEP",
     "REVIEW",
     "VERIFIER",
+    "COMPILATION",
+    "SEARCH",
+    "DOWNLOAD",
+    "BUDGET",
+    "CHECKPOINT",
+    "ROLLBACK",
+    "CRITIC",
+    "FAILOVER",
     "ERROR",
     "RETRY",
     "REPLAN",
@@ -38,6 +47,7 @@ NORMALIZED_EVENT_TYPES = (
     "ARTIFACT_READY",
     "STREAM_DELTA",
     "TASK_COMPLETED",
+    "TASK_STOPPED",
     "MODE_CHANGED",
 )
 
@@ -50,6 +60,9 @@ class NormalizedEvent:
     raw_event: str
     timestamp: str
     summary: str
+    run_id: str = ""
+    seq: int = 0
+    type: str = ""
     agent: str = ""
     skill: str = ""
     tool: str = ""
@@ -60,9 +73,15 @@ class NormalizedEvent:
     retry: int = 0
     error: str = ""
     details: dict[str, Any] = field(default_factory=dict)
+    data: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        d = asdict(self)
+        d["run_id"] = self.run_id or self.task_id
+        d["seq"] = self.seq
+        d["type"] = self.type or self.raw_event or self.event
+        d["data"] = self.data if self.data else self.details
+        return d
 
 
 class NormalizedEventBus:
@@ -80,6 +99,7 @@ class NormalizedEventBus:
         self._lock = threading.Lock()
         self._history: list[NormalizedEvent] = []
         self._subscribers: list[queue.Queue[dict[str, Any]]] = []
+        self._seq_counter: int = 0
         self._active_task_id: str = ""
         self._active_agent: str = ""
         self._active_skill: str = ""
@@ -103,13 +123,13 @@ class NormalizedEventBus:
             if isinstance(value, (str, int, float, bool)) or value is None:
                 cleaned[key] = value
             elif isinstance(value, (list, tuple)):
-                cleaned[key] = [str(item)[:300] for item in value[:20]]
+                cleaned[key] = [
+                    NormalizedEventBus._sanitize_details(item) if isinstance(item, dict)
+                    else (str(item)[:300] if not isinstance(item, (int, float, bool)) else item)
+                    for item in value[:50]
+                ]
             elif isinstance(value, dict):
-                cleaned[key] = {
-                    str(k): str(v)[:300]
-                    for k, v in value.items()
-                    if str(k).casefold() not in forbidden
-                }
+                cleaned[key] = NormalizedEventBus._sanitize_details(value)
             else:
                 cleaned[key] = str(value)[:300]
         return cleaned
@@ -193,6 +213,15 @@ class NormalizedEventBus:
         if name == "mode.changed":
             norm_type = "MODE_CHANGED"
             status = "completed"
+        elif name == "plan.created":
+            norm_type = "PLAN_CREATED"
+            status = "completed"
+        elif name == "plan.step_started":
+            norm_type = "PLAN_STEP"
+            status = "running"
+        elif name == "plan.step_completed":
+            norm_type = "PLAN_STEP"
+            status = str(data.get("status", "completed"))
         elif name == "skill.loaded":
             norm_type = "SKILL_SELECTED"
             status = "completed"
@@ -212,6 +241,9 @@ class NormalizedEventBus:
             status = "error"
             error_text = str(data.get("category") or data.get("reason") or "provider_error")
             duration_ms = int((now_mono - self._step_started_at) * 1000)
+        elif name == "provider.failover":
+            norm_type = "FAILOVER"
+            status = "warning"
         elif name == "tool.started":
             norm_type = "TOOL_CALL"
             status = "running"
@@ -225,6 +257,43 @@ class NormalizedEventBus:
                 error_text = raw_status
             started = self._tool_started_at.pop(tool_name, self._step_started_at)
             duration_ms = int((now_mono - started) * 1000)
+        elif name.startswith("compile."):
+            norm_type = "COMPILATION"
+            if name == "compile.error":
+                status = "error"
+                error_text = str(data.get("message", "compiler_error"))
+            elif name in {"compile.rollback"}:
+                status = "warning"
+            elif name == "compile.completed":
+                status = "completed"
+            elif name == "compile.fixed":
+                status = "completed"
+            else:
+                status = "running"
+        elif name.startswith("search."):
+            norm_type = "SEARCH"
+            status = "running" if name == "search.query" else "info"
+        elif name == "download.verified":
+            norm_type = "DOWNLOAD"
+            status = "completed"
+        elif name == "budget.update":
+            norm_type = "BUDGET"
+            status = "info"
+        elif name in {"checkpoint.created"}:
+            norm_type = "CHECKPOINT"
+            status = "completed"
+        elif name in {"rollback", "checkpoint.rollback"}:
+            norm_type = "ROLLBACK"
+            status = "warning"
+        elif name == "critic.started":
+            norm_type = "CRITIC"
+            status = "running"
+        elif name == "critic.verdict":
+            norm_type = "CRITIC"
+            status = "completed" if data.get("approved") else "warning"
+        elif name == "task.stopped":
+            norm_type = "TASK_STOPPED"
+            status = "cancelled"
         elif name == "delegation.started":
             target = str(data.get("agent", ""))
             norm_type = "REVIEW" if "review" in target.casefold() else "AGENT_STEP"
@@ -299,10 +368,16 @@ class NormalizedEventBus:
         details: dict[str, Any] | None = None,
     ) -> NormalizedEvent:
         with self._lock:
+            self._seq_counter += 1
+            seq = self._seq_counter
             task_id = self._active_task_id or "session"
+            sanitized = self._sanitize_details(details or {})
             item = NormalizedEvent(
                 id=f"evt-{uuid.uuid4().hex[:10]}",
                 task_id=task_id,
+                run_id=task_id,
+                seq=seq,
+                type=raw_event or event.lower(),
                 event=event if event in NORMALIZED_EVENT_TYPES else "AGENT_STEP",
                 raw_event=raw_event or event.lower(),
                 timestamp=self._now_iso(),
@@ -316,7 +391,8 @@ class NormalizedEventBus:
                 duration_ms=max(0, int(duration_ms)),
                 retry=max(0, int(retry)),
                 error=error,
-                details=self._sanitize_details(details or {}),
+                details=sanitized,
+                data=sanitized,
             )
             self._history.append(item)
             if len(self._history) > self.max_history:
@@ -341,10 +417,16 @@ class NormalizedEventBus:
     ) -> NormalizedEvent:
         """Diffuse un fragment de texte réel en temps réel aux abonnés SSE sans saturer l'historique."""
         with self._lock:
+            self._seq_counter += 1
+            seq = self._seq_counter
             task_id = self._active_task_id or "session"
+            delta_data = {"delta": delta, "accumulated": accumulated[:16000]}
             item = NormalizedEvent(
                 id=f"evt-{uuid.uuid4().hex[:10]}",
                 task_id=task_id,
+                run_id=task_id,
+                seq=seq,
+                type="provider.stream_delta",
                 event="STREAM_DELTA",
                 raw_event="provider.stream_delta",
                 timestamp=self._now_iso(),
@@ -354,7 +436,8 @@ class NormalizedEventBus:
                 provider=provider or self._active_provider,
                 model=model or self._active_model,
                 status="streaming",
-                details={"delta": delta, "accumulated": accumulated[:16000]},
+                details=delta_data,
+                data=delta_data,
             )
             subscribers = list(self._subscribers)
         payload = item.to_dict()
@@ -364,6 +447,13 @@ class NormalizedEventBus:
             except queue.Full:
                 pass
         return item
+
+    def get_events_after(self, last_seq: int, run_id: str | None = None) -> list[dict[str, Any]]:
+        with self._lock:
+            events = [e.to_dict() for e in self._history if e.seq > last_seq]
+            if run_id:
+                events = [e for e in events if e.get("run_id") == run_id or e.get("task_id") == run_id]
+            return events
 
     def list_events(self, *, task_id: str | None = None, limit: int = 200) -> list[dict[str, Any]]:
         with self._lock:

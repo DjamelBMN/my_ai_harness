@@ -17,6 +17,7 @@ import time
 from typing import Any, Callable
 
 from core.checkpoint import CheckpointManager
+from core.events import HarnessEvent
 from tools.filesystem import WorkspaceFilesystem
 from tools.rasterizer import PDFRasterizer
 from tools.search import verify_downloaded_file
@@ -287,6 +288,11 @@ class AutonomousCompiler:
         if self.event_sink is not None:
             try:
                 self.event_sink(event_name, kwargs)
+            except TypeError:
+                try:
+                    self.event_sink(HarnessEvent(name=event_name, data=kwargs))
+                except Exception:
+                    pass
             except Exception:
                 pass
 

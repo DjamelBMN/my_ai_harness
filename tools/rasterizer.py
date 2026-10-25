@@ -149,3 +149,4 @@ class PDFRasterizer:
             }
         finally:
             doc.close()
+

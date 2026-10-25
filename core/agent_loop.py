@@ -97,6 +97,7 @@ class AgentLoop:
         self.delegation_engine = None
         self.router = None
         self._stop_requested = False
+        self.budget: MissionBudget | None = None
         self.consecutive_tool_failures: dict[str, int] = {}
 
     def _emit(self, message: str) -> None:
@@ -312,9 +313,25 @@ class AgentLoop:
             self._emit(f"  {index}. {step.description}")
         self._emit(f"[MODEL] {provider.get_name()} / {provider.get_model_name()}")
 
+        if state.plan:
+            self._event(
+                "plan.created",
+                plan_steps=[
+                    {"id": idx, "description": s.description, "status": s.status}
+                    for idx, s in enumerate(state.plan, start=1)
+                ],
+                total_steps=len(state.plan),
+            )
+
         state.status = TaskStatus.PLANNING
         if state.plan:
             state.plan[0].status = "in_progress"
+            self._event(
+                "plan.step_started",
+                step_index=1,
+                description=state.plan[0].description,
+            )
+        self.budget = MissionBudget()
         initial_results = self._run_initial_observations(state, provider=provider)
         prompt: str | None = self._initial_prompt(agent, task, state, initial_results)
         continuation: Any = None
@@ -394,9 +411,29 @@ class AgentLoop:
             state.current_step = iteration
             state.status = TaskStatus.EXECUTING
             self._emit(f"[AGENT LOOP] iteration {iteration}/{iteration_limit}")
+            if self.budget is not None:
+                budget_err = self.budget.check_limit()
+                if budget_err:
+                    self._emit(f"[BUDGET EXCEEDED] {budget_err}")
+                    state.status = TaskStatus.FAILED
+                    return self._failure_result(state, budget_err)
+                elapsed = time.monotonic() - self.budget.start_time
+                self._event(
+                    "budget.update",
+                    tokens_used=self.budget.tokens_consumed,
+                    tokens_limit=self.budget.max_tokens,
+                    time_elapsed=round(elapsed, 1),
+                    time_limit=round(self.budget.max_seconds, 1),
+                    tool_calls=self.budget.tool_calls_count,
+                    tool_limit=self.budget.max_tool_calls,
+                )
             attempt = 0
             failed_providers_in_turn: set[str] = set()
             while True:
+                if getattr(self, "_stop_requested", False):
+                    self._emit("[AGENT LOOP] Arrêt demandé par l'utilisateur.")
+                    state.status = TaskStatus.FAILED
+                    return self._failure_result(state, "Exécution arrêtée par l'utilisateur.")
                 try:
                     active_schemas = schemas
                     if state.sources:
@@ -549,6 +586,9 @@ class AgentLoop:
 
             continuation = turn.continuation
             tool_names = [item.name for item in turn.tool_calls]
+            if self.budget is not None:
+                approx_tokens = max(1, int(len(turn.text.split()) * 1.3)) if turn.text else 0
+                self.budget.tokens_consumed += approx_tokens
 
             last_turn_summary = (
                 f"text={len(turn.text)} caractère(s), "
@@ -607,6 +647,12 @@ class AgentLoop:
                             "target": target.strip(),
                         }
                     )
+                if getattr(self, "_stop_requested", False):
+                    self._emit("[AGENT LOOP] Arrêt demandé par l'utilisateur.")
+                    state.status = TaskStatus.FAILED
+                    return self._failure_result(state, "Exécution arrêtée par l'utilisateur.")
+                if self.budget is not None:
+                    self.budget.tool_calls_count += len(calls)
                 if all(call.name != "delegate_to_agent" for call in calls):
                     executions = []
                     for call in calls:
@@ -708,6 +754,15 @@ class AgentLoop:
                         )
                     )
                     self._emit("[REPLAN] un outil a échoué; le modèle reçoit l'erreur observée.")
+                    self._event(
+                        "plan.created",
+                        plan_steps=[
+                            {"id": idx, "description": s.description, "status": s.status}
+                            for idx, s in enumerate(state.plan, start=1)
+                        ],
+                        total_steps=len(state.plan),
+                        replan=True,
+                    )
                 continue
 
             if turn.partial:
@@ -917,12 +972,14 @@ class AgentLoop:
             state.completed = True
             self._event("delivery.started", agent=agent.name)            # Validation honnête du statut des étapes du plan :
             # Seules les étapes disposant d'une preuve d'exécution ou de vérification passent à 'completed'
-            for step in state.plan:
+            for idx, step in enumerate(state.plan, start=1):
                 if step.status == "in_progress":
                     if verification.get("status") in {"passed", "not_required"}:
                         step.status = "completed"
+                        self._event("plan.step_completed", step_index=idx, description=step.description, status="completed")
                 elif step.status in {"ready", "pending"}:
                     step.status = "skipped" if verification.get("status") in {"passed", "not_required"} else "pending" 
+                    self._event("plan.step_completed", step_index=idx, description=step.description, status=step.status) 
             state.observations.append(
                 {"kind": "delivery", "status": "delivered", "agent": agent.name}
             )

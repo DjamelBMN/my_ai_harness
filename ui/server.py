@@ -2673,6 +2673,10 @@ class NeoHarnessRuntimeBridge:
         is_artifact_error = any(e.get("compiler") in {"tectonic", "template_validator", "html_compiler", "python", "svg", "mermaid", "json", "csv"} for e in compilation_errors)
         if error_text and (result_obj is None or result_obj.status == "failed"):
             final_status = "Erreur"
+        elif result_obj is not None and result_obj.status == "failed":
+            final_status = "Erreur"
+            if not error_text and getattr(result_obj, "error", None):
+                error_text = str(result_obj.error)
         elif compilation_errors and (is_education_skill or is_html_error or is_artifact_error):
             final_status = "Erreur"
             if not error_text:
@@ -2772,6 +2776,89 @@ class NeoHarnessRuntimeBridge:
             status="cancelled",
         )
         return {"ok": True, "task_id": self.current_task_id, "status": "Arrêté"}
+
+    def get_run_state(self, run_id: str = "current") -> dict[str, Any]:
+        """Récupère l'état complet d'une mission (plan, budget, compilation, recherche, événements) pour reprise."""
+        tid = self.current_task_id if (run_id in {"current", "", "null"} or not run_id) else run_id
+        events = self.event_bus.list_events(task_id=tid if tid and tid != "current" else None, limit=500)
+
+        plan_steps: list[dict[str, Any]] = []
+        budget_info: dict[str, Any] = {
+            "tokens_used": 0,
+            "tokens_limit": 100_000,
+            "time_elapsed": 0.0,
+            "time_limit": 300.0,
+            "tool_calls": 0,
+            "tool_limit": 50,
+        }
+        if self.agent_loop.budget is not None:
+            b = self.agent_loop.budget
+            budget_info = {
+                "tokens_used": b.tokens_consumed,
+                "tokens_limit": b.max_tokens,
+                "time_elapsed": round(monotonic() - b.start_time, 1),
+                "time_limit": round(b.max_seconds, 1),
+                "tool_calls": b.tool_calls_count,
+                "tool_limit": b.max_tool_calls,
+            }
+
+        compile_info: dict[str, Any] = {}
+        search_info: dict[str, Any] = {}
+
+        for ev in events:
+            raw = ev.get("raw_event") or ev.get("type") or ev.get("event") or ""
+            data = ev.get("data") or ev.get("details") or {}
+            if raw == "plan.created":
+                plan_steps = list(data.get("plan_steps") or data.get("steps") or [])
+            elif raw == "plan.step_started":
+                s_idx = data.get("step_index")
+                for s in plan_steps:
+                    if s.get("id") == s_idx:
+                        s["status"] = "in_progress"
+            elif raw == "plan.step_completed":
+                s_idx = data.get("step_index")
+                for s in plan_steps:
+                    if s.get("id") == s_idx:
+                        s["status"] = data.get("status", "completed")
+            elif raw == "budget.update":
+                budget_info.update(data)
+            elif raw.startswith("compile."):
+                compile_info = {
+                    "event": raw,
+                    "attempt": data.get("attempt") or data.get("attempts", 1),
+                    "max_attempts": data.get("max_attempts", 25),
+                    "file": data.get("file", ""),
+                    "line": data.get("line"),
+                    "message": data.get("message", ""),
+                    "note": data.get("note", ""),
+                    "status": "error" if raw == "compile.error" else ("success" if raw == "compile.completed" else "running"),
+                }
+            elif raw.startswith("search.") or raw == "download.verified":
+                if raw == "search.query":
+                    search_info["query"] = data.get("query", "")
+                    search_info.setdefault("candidates", [])
+                elif raw == "search.candidate_rejected":
+                    search_info.setdefault("rejected", []).append({
+                        "url": data.get("url", ""),
+                        "reason": data.get("reason", ""),
+                    })
+                elif raw == "download.verified":
+                    search_info["verified_file"] = data.get("destination", "")
+                    search_info["size_bytes"] = data.get("size_bytes", 0)
+                    search_info["sha256"] = data.get("sha256", "")
+
+        return {
+            "ok": True,
+            "run_id": tid or "session",
+            "task_id": tid or "session",
+            "status": self.current_task_status,
+            "plan": plan_steps,
+            "budget": budget_info,
+            "compilation": compile_info,
+            "search": search_info,
+            "events": events,
+            "last_seq": events[-1].get("seq", 0) if events else 0,
+        }
 
     def _dispatch_mission(self, prompt: str, task_context: Any | None = None) -> tuple[AgentResult | None, str, str]:
         """Exécute la mission en respectant exactement la logique de main._executer_mission."""
@@ -3118,6 +3205,13 @@ class NeoHarnessUIApp:
 
         if path == "/api/credentials":
             return HTTPStatus.OK, {"credentials": self.bridge.get_credentials_status()}
+
+        if path.startswith("/api/runs/"):
+            run_id = path[len("/api/runs/") :]
+            return HTTPStatus.OK, self.bridge.get_run_state(run_id)
+
+        if path == "/api/runs":
+            return HTTPStatus.OK, self.bridge.get_run_state("current")
 
         return HTTPStatus.NOT_FOUND, {"error": f"Route GET inconnue : {path}"}
 
@@ -3486,13 +3580,41 @@ def create_http_server(
                 self.send_header("Content-Type", "text/event-stream; charset=utf-8")
                 self.send_header("Cache-Control", "no-cache")
                 self.send_header("Connection", "keep-alive")
+                self.send_header("Access-Control-Allow-Origin", "*")
                 self.end_headers()
+
+                last_event_id_header = self.headers.get("Last-Event-ID")
+                params = parse_qs(parsed.query)
+                last_seq_param = (params.get("last_event_id") or [""])[0]
+                last_seq = 0
+                if last_event_id_header:
+                    try:
+                        last_seq = int(last_event_id_header.strip())
+                    except ValueError:
+                        pass
+                elif last_seq_param:
+                    try:
+                        last_seq = int(last_seq_param.strip())
+                    except ValueError:
+                        pass
+
                 sub = ui_app.bridge.event_bus.subscribe()
                 try:
+                    if last_seq > 0:
+                        missed = ui_app.bridge.event_bus.get_events_after(last_seq)
+                        for evt in missed:
+                            seq = evt.get("seq", 0)
+                            chunk = f"id: {seq}\ndata: {json.dumps(evt, ensure_ascii=False, default=str)}\n\n"
+                            self.wfile.write(chunk.encode("utf-8"))
+                        self.wfile.flush()
+
                     while True:
                         try:
                             evt = sub.get(timeout=15.0)
-                            chunk = f"data: {json.dumps(evt, ensure_ascii=False, default=str)}\n\n"
+                            seq = evt.get("seq", 0)
+                            if last_seq > 0 and seq <= last_seq:
+                                continue
+                            chunk = f"id: {seq}\ndata: {json.dumps(evt, ensure_ascii=False, default=str)}\n\n"
                             self.wfile.write(chunk.encode("utf-8"))
                             self.wfile.flush()
                         except queue.Empty:

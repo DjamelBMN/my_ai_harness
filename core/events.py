@@ -77,4 +77,39 @@ class EventTranslator:
             return "La livraison complète n’a pas pu être vérifiée."
         if name == "skill.loaded":
             return f"Skill {data.get('skill', 'chargé')} chargé."
+        if name == "plan.created":
+            steps = data.get("plan_steps") or data.get("steps") or []
+            return f"Plan d'action créé ({len(steps)} étapes)."
+        if name == "plan.step_started":
+            return f"Étape {data.get('step_index', '')} en cours : {data.get('description', '')}"
+        if name == "plan.step_completed":
+            return f"Étape {data.get('step_index', '')} terminée ({data.get('status', 'validée')})."
+        if name == "compile.attempt":
+            return f"Compilation {data.get('attempt', 1)}/{data.get('max_attempts', 25)}…"
+        if name == "compile.error":
+            return f"Erreur de compilation ligne {data.get('line', '?')} : {data.get('message', '')}."
+        if name == "compile.fixed":
+            return f"Correction appliquée : {data.get('note', data.get('action', 'modifié'))}."
+        if name == "compile.completed":
+            return "Compilation réussie sans aucune erreur."
+        if name in {"compile.rollback", "rollback"}:
+            return f"Rollback vers checkpoint : {data.get('reason', 'reprise')}"
+        if name == "search.query":
+            return f"Recherche web : {data.get('query', '')}"
+        if name == "search.candidate_rejected":
+            return f"Candidat rejeté : {data.get('reason', '')}"
+        if name == "download.verified":
+            return f"Téléchargement vérifié sur disque : {data.get('destination', '')}"
+        if name == "budget.update":
+            return f"Budget actualisé : {data.get('tokens_used', 0)} tokens utilisés."
+        if name == "provider.failover":
+            return f"Repli fournisseur vers {data.get('to_provider', 'modèle alternatif')}."
+        if name == "checkpoint.created":
+            return f"Point de reprise shadow git créé."
+        if name == "critic.started":
+            return "Revue critique TDD en cours…"
+        if name == "critic.verdict":
+            return f"Verdict critique : {'Approuvé' if data.get('approved') else 'Refusé'}."
+        if name == "task.stopped":
+            return "Mission arrêtée à la demande de l'utilisateur."
         return name

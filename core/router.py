@@ -148,6 +148,10 @@ class ModelRouter:
         """Trouve un autre provider disponible différent du provider en échec, sans boucle ni ping-pong."""
         import os
 
+        # Si l'utilisateur a explicitement épinglé un modèle précis (mode manuel), aucun repli silencieux
+        if not getattr(self, "automatic_routing", True):
+            return None
+
         excluded = {str(x).lower().strip() for x in (exclude or set())}
         curr_name = ""
         if isinstance(current_provider, str):
