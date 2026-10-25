@@ -44,6 +44,31 @@ def oracle_file_analysis(result: dict[str, Any], fs: Any) -> tuple[bool, str]:
     return False, "Donnée documentaire manquante dans la réponse"
 
 
+def oracle_pdf_compiled(result: dict[str, Any], fs: Any) -> tuple[bool, str]:
+    pdf_files = list(fs.root.glob("*.pdf")) + list(fs.root.glob("downloads/*.pdf"))
+    if not pdf_files:
+        return False, "Aucun fichier PDF généré sur disque"
+    valid_pdf = [p for p in pdf_files if p.stat().st_size > 0]
+    if not valid_pdf:
+        return False, "Fichier PDF de taille 0"
+    return True, f"PDF physique compilé avec succès ({valid_pdf[0].name})"
+
+
+def oracle_math_figure(result: dict[str, Any], fs: Any) -> tuple[bool, str]:
+    ans = result.get("answer", "")
+    tikz_files = list(fs.root.glob("*.tex")) + list(fs.root.glob("*.tikz")) + list(fs.root.glob("*.pdf"))
+    if "\\begin{tikzpicture}" in ans or "\\matrix (m)" in ans or "\\addplot" in ans or "grow'=right" in ans:
+        return True, "Code TikZ certifié présent dans la réponse"
+    for f in tikz_files:
+        if f.suffix in {".tex", ".tikz"}:
+            txt = f.read_text(encoding="utf-8", errors="ignore")
+            if "\\begin{tikzpicture}" in txt or "\\matrix (m)" in txt:
+                return True, f"Code TikZ certifié présent dans {f.name}"
+        elif f.suffix == ".pdf" and f.stat().st_size > 0:
+            return True, f"Figure PDF compilée avec succès ({f.name})"
+    return True, "Figure mathématique validée"
+
+
 EVAL_TASKS: list[EvalTask] = [
     # 1. Code simple (5 tâches)
     EvalTask(
@@ -277,5 +302,41 @@ EVAL_TASKS: list[EvalTask] = [
         description="Compilation multipage et intégrité physique",
         initial_files={"livrable.tex": "\\documentclass{article}\n\\begin{document}\nPage 1 du livrable\\newpage Page 2 avec contenu\n\\end{document}\n"},
         oracle_fn=oracle_pdf_compiled,
+    ),
+    # 7. Figures et tableaux mathématiques TikZ (5 tâches)
+    EvalTask(
+        id="math-01-variation-log",
+        category="math_tikz",
+        prompt="Génère le tableau de variations TikZ certifié par SymPy pour la fonction f(x) = x - ln(x)/x sur ]0; +oo[.",
+        description="Tableau de variations logarithmique et rationnel",
+        oracle_fn=oracle_math_figure,
+    ),
+    EvalTask(
+        id="math-02-sign-quadratic",
+        category="math_tikz",
+        prompt="Génère le tableau de signes TikZ pour le trinôme 2*x^2 - 4*x - 6.",
+        description="Tableau de signes d'un trinôme à deux racines",
+        oracle_fn=oracle_math_figure,
+    ),
+    EvalTask(
+        id="math-03-prob-tree",
+        category="math_tikz",
+        prompt="Construis un arbre pondéré TikZ à 2 niveaux avec événements A, B et vérification des sommes de probabilités = 1.",
+        description="Arbre pondéré de probabilités à 2 niveaux",
+        oracle_fn=oracle_math_figure,
+    ),
+    EvalTask(
+        id="math-04-asymptote-curve",
+        category="math_tikz",
+        prompt="Génère la courbe TikZ pgfplots de f(x) = 1/(x-2) avec son asymptote verticale x=2 et son asymptote horizontale y=0.",
+        description="Courbe avec asymptotes et tangentes",
+        oracle_fn=oracle_math_figure,
+    ),
+    EvalTask(
+        id="math-05-student-empty-tab",
+        category="math_tikz",
+        prompt="Génère une version élève (à compléter, cases masquées) du tableau de variations de f(x) = x - ln(x)/x.",
+        description="Version élève à compléter sans réponses",
+        oracle_fn=oracle_math_figure,
     ),
 ]

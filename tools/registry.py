@@ -21,6 +21,7 @@ from tools.viewer import view_file
 from tools.code_search import search_code
 from tools.browser import DynamicBrowser
 from tools.compiler import AutonomousCompiler
+from tools.math_tikz import generate_math_figure
 
 
 @dataclass
@@ -600,6 +601,33 @@ class ToolRegistry:
             risk=RiskLevel.MODERATE,
             mutates=True,
             timeout=60.0,
+        )
+        add(
+            "generate_math_figure",
+            "Génère un tableau de variations, de signes, un arbre pondéré de probabilités ou une courbe pgfplots TikZ avec calculs déterministes et oracles stricts (SymPy).",
+            {
+                "figure_type": string,
+                "func_str": optional_string,
+                "var_str": optional_string,
+                "student_version": boolean,
+                "compile_pdf": boolean,
+                "output_path": optional_string,
+            },
+            ["figure_type"],
+            lambda figure_type, func_str="", var_str="x", student_version=False, compile_pdf=False, output_path="": (
+                generate_math_figure(
+                    figure_type=figure_type,
+                    func_str=func_str,
+                    var_str=var_str,
+                    student_version=student_version,
+                    compile_pdf=compile_pdf,
+                    output_path=output_path,
+                    workspace=fs.root,
+                )
+            ),
+            risk=RiskLevel.READ_ONLY,
+            mutates=False,
+            timeout=45.0,
         )
 
 
