@@ -3,7 +3,7 @@
     "source_kind": "web_download",
     "origin_url": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
     "resolved_domain": "www.w3.org",
-    "download_timestamp": "2026-10-25T02:35:08.390190+00:00",
+    "download_timestamp": "2026-10-25T14:20:46.711424+00:00",
     "local_path": "downloads/dummy_w3c_test.pdf",
     "file_size": 13264,
     "sha256": "3df79d34abbca99308e79cb94461c1893582604d68329a41fd4bec1885e6adb4",
@@ -170,7 +170,7 @@
     "source_kind": "web_download",
     "origin_url": "https://eduscol.education.fr/bac2026.pdf",
     "resolved_domain": "eduscol.education.fr",
-    "download_timestamp": "2026-10-25T02:35:02.347749+00:00",
+    "download_timestamp": "2026-10-25T14:20:47.123473+00:00",
     "local_path": "downloads/bac_2026_maths_metropole_1.pdf",
     "file_size": 47,
     "sha256": "3ad0936d0e78731987bb581e307df5228163c41825bcdd66f54d3ef5f15c9dd1",
@@ -356,7 +356,7 @@
     "source_kind": "web_download",
     "origin_url": "https://eduscol.education.fr/sujet_bac.pdf",
     "resolved_domain": "eduscol.education.fr",
-    "download_timestamp": "2026-10-25T02:35:06.084552+00:00",
+    "download_timestamp": "2026-10-25T14:20:50.819517+00:00",
     "local_path": "downloads/bac_maths_test_mismatch.pdf",
     "file_size": 54,
     "sha256": "698cc7a78219d003651e34a73b5040eaf02f5cb6beecb75cb11ad6876d647ea2",
@@ -414,13 +414,13 @@
     "source_kind": "web_download",
     "origin_url": "https://www.formulaires.service-public.fr/gf/cerfa_15776.do",
     "resolved_domain": "www.formulaires.service-public.fr",
-    "download_timestamp": "2026-10-25T02:35:08.147194+00:00",
+    "download_timestamp": "2026-10-25T14:20:52.872839+00:00",
     "local_path": "downloads/cerfa_15776_02_officiel.pdf",
     "file_size": 651214,
     "sha256": "c28daa99c33ce605a93b50cdbc2cabfc52ee489b3ff236b27071d9dec4061ae7",
     "magic_bytes": "%PDF-1.4",
     "task_id": "task-cerfa-real-test",
-    "content_excerpt": " CERTIFICAT DE CESSION D’UN VÉHICULE D’OCCASION\n (à remplir par l’ancien propriétaire et le nouveau proprietaire)\nArticles R322-4 et R322-9 du code de la route\ncerfa\nN° 15776*02\n   \n(A) Numéro d’immatriculation du véhicule (E) Numéro d’identification du véhicule  (B) Date de 1re immatriculation du véhicule\n   \n(D.1 Marque)  (D.2 Type, variante, version)  (J.1 Genre national)  (D.3 Dénomination commerciale)\nKilométrage inscrit au compteur du véhicule :  \nPrésence du certificat d’immatriculation :\n OUI – numéro de formule \n (figure sur le 1er volet du certificat d’immatriculation de type AB-123-CD)\n ou (I) date du certificat d’immatriculation \n (si ancien format d’immatriculation de type 123 AB 45)\n2   0\n Personne physique ou entreprise individuelle   —   Sexe :   M     F \n Personne morale\nJe soussigné(e),  \n NOM, NOM D’USAGE le cas échéant et PRÉNOM ou RAISON SOCIALE N° SIRET, (le cas échéant)\nAdresse complète :                \n N° de la voie Extension (bis, ter, .) Type de voie (avenue, etc.) Nom de la voie\n     \n Code postal Commune\nCertifie (veuillez cocher la case correspondante) :   céder         céder pour destruction\nLe  à h le véhicule désigné ci-dessus.\nJe certifie en outre (veuillez cocher la case correspondante):\n  Avoir remis au nouveau propriétaire un certificat établi depuis moins de quinze jours par le ministre de l’Intérieur, attestant à sa date \nd’édition de la situation administrative du véhicule ;\n  Que ce véhicule n’a pas subi de transformation notable susceptible de modifier les indications du certificat de conformité ou de l’actuel \ncertificat d’immatriculation ;\n  Que ce véhicule est cédé pour destruction à un professionnel de la destruction des véhicules hors d’usage (VHU)  \nportant le n° d’agrément : __________________________. (Le numéro d’agrément VHU du professionnel acquéreur est obligatoire si le \nvéhicule est une voiture particulière, une camionnette ou un cyclomoteur à trois roues. La liste des professionnels agréés est disponible sur \nhttps://immatriculation.ants.gouv.fr).\nFait à _______________________, le_________________ Signature de l’ancien propriétaire,\n(Pour les sociétés : nom et qualité  \ndu signataire et cachet)\n Personne physique ou entreprise individuelle   —   Sexe :   M     F \n Personne morale\nJe soussigné(e),  \n NOM, NOM D’USAGE le cas échéant et PRÉNOM ou RAISON SOCIALE N° SIRET, (le cas échéant)\nNé (e) le    à  \nAdresse complète :                \n N° de la voie Extension (bis, ter, .) Type de voie (avenue, etc.) Nom de la voie\n     \n Code postal Commune\nCertifie (veuillez cocher la case correspondante) : \n Acquérir le véhicule désigné ci-dessus aux dates et heures indiquées par l’ancien propriétaire ;\n Avoir été informé de la situation administrative du véhicule.\nFait à _______________________, le_________________ Signature du nouveau propriétaire,\n(Pour les sociétés : nom et qualité  \ndu signataire et cachet)\nLE VÉHICULE (à remplir par l’ancien propriétaire)\nAncien propriétaire\nNouveau propriétaire\n NON – Motif d’absence de certificat d’immatriculation :\n_______________________________________________________\n_______________________________________________________\nExemplaire 1 destiné à l’ancien propriétaire\nJe m’oppose à la réutilisation de mes données personnelles à des fins de prospection commerciale  ",
+    "content_excerpt": " CERTIFICAT DE CESSION D’UN VÉHICULE D’OCCASION\n (à remplir par l’ancien propriétaire et le nouveau proprietaire)\nArticles R322-4 et R322-9 du code de la route\ncerfa\nN° 15776*02\n   \n(A) Numéro d’immatriculation du véhicule (E) Numéro d’identification du véhicule  (B) Date de 1re immatriculation du véhicule\n   \n(D.1 Marque)  (D.2 Type, variante, version)  (J.1 Genre national)  (D.3 Dénomination commerciale)\nKilométrage inscrit au compteur du véhicule :  \nPrésence du certificat d’immatriculation :\n OUI – numéro de formule \n (figure sur le 1er volet du certificat d’immatriculation de type AB-123-CD)\n ou (I) date du certificat d’immatriculation \n (si ancien format d’immatriculation de type 123 AB 45)\n2   0\n Personne physique ou entreprise individuelle   —   Sexe :   M     F \n Personne morale\nJe soussigné(e),  \n NOM, NOM D’USAGE le cas échéant et PRÉNOM ou RAISON SOCIALE N° SIRET, (le cas échéant)\nAdresse complète :                \n N° de la voie Extension (bis, ter, .) Type de voie (avenue, etc.) Nom de la voie\n     \n Code postal Commune\nCertifie (veuillez cocher la case correspondante) :   céder         céder pour destruction\nLe  à h le véhicule désigné ci-dessus.\nJe certifie en outre (veuillez cocher la case correspondante):\n  Avoir remis au nouveau propriétaire un certificat établi depuis moins de quinze jours par le ministre de l’Intérieur, attestant à sa date \nd’édition de la situation administrative du véhicule ;\n  Que ce véhicule n’a pas subi de transformation notable susceptible de modifier les indications du certificat de conformité ou de l’actuel \ncertificat d’immatriculation ;\n  Que ce véhicule est cédé pour destruction à un professionnel de la destruction des véhicules hors d’usage (VHU)  \nportant le n° d’agrément : __________________________. (Le numéro d’agrément VHU du professionnel acquéreur est obligatoire si le \nvéhicule est une voiture particulière, une camionnette ou un cyclomoteur à trois roues. La liste des professionnels agréés est disponible sur \nhttps://immatriculation.ants.gouv.fr).\nFait à _______________________, le_________________ Signature de l’ancien propriétaire,\n(Pour les sociétés : nom et qualité  \ndu signataire et cachet)\n Personne physique ou entreprise individuelle   —   Sexe :   M     F \n Personne morale\nJe soussigné(e),  \n NOM, NOM D’USAGE le cas échéant et PRÉNOM ou RAISON SOCIALE N° SIRET, (le cas échéant)\nNé (e) le    à  \nAdresse complète :                \n N° de la voie Extension (bis, ter, .) Type de voie (avenue, etc.) Nom de la voie\n     \n Code postal Commune\nCertifie (veuillez cocher la case correspondante) : \n Acquérir le véhicule désigné ci-dessus aux dates et heures indiquées par l’ancien propriétaire ;\n Avoir été informé de la situation administrative du véhicule.\nFait à _______________________, le_________________ Signature du nouveau propriétaire,\n(Pour les sociétés : nom et qualité  \ndu signataire et cachet)\nLE VÉHICULE (à remplir par l’ancien propriétaire)\nAncien propriétaire\nNouveau propriétaire\n NON – Motif d’absence de certificat d’immatriculation :\n_______________________________________________________\n_______________________________________________________\nExemplaire 1 destiné à l’ancien propriétaire\nJe m’oppose à la réutilisation de mes données personnelles à des fins de prospection commerciale  \n CERTIFICAT DE CESSION D’UN VÉHICULE D’OCCASION\n (à remplir par l’ancien propriétaire et le nouveau proprietaire)\nArticles R322-4 et R322-9 du code de la route\ncerfa\nN° 15776*02\n Personne physique ou entreprise individuelle   —   Sexe :   M     F \n Personne morale\nJe soussigné(e),  \n NOM, NOM D’USAGE le cas échéant et PRÉNOM ou RAISON SOCIALE N° SIRET, (le cas échéant)\nNé (e) le    à  \nAdresse complète :                \n N° de la voie Extension (bis, ter, .) Type de voie (avenue, etc.) Nom de la voie\n     \n Code postal Commune\nCertifie (veuillez cocher la case correspondante) : \n Acquérir le véhicule désigné ci-dessus aux dates et heures indiquées par l’a",
     "page_count": 2,
     "verification_status": "verified",
     "verification_checks": [
@@ -457,7 +457,7 @@
       {
         "step": "CONTENU",
         "status": "passed",
-        "detail": "Extrait observable (3331 car.)"
+        "detail": "Extrait observable (4000 car.)"
       },
       {
         "step": "VÉRIFICATION",
