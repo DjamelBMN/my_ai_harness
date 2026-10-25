@@ -35,6 +35,10 @@ class Planner:
         if not request:
             raise ClarificationRequired("Décris la mission que tu veux confier au harness.")
 
+        task_context = getattr(task, "task_context", None)
+        if task_context is None and task.context is not None:
+            task_context = getattr(task.context, "task_context", None)
+
         skill = task.skill
         if skill is not None and not bool(skill.config.get("auto_route")):
             config = skill.config
@@ -84,7 +88,7 @@ class Planner:
             )
         else:
             try:
-                decision = self.intent_engine.decide(request)
+                decision = self.intent_engine.decide(request, task_context=task_context)
             except ValueError as error:
                 raise ClarificationRequired(str(error)) from None
 
@@ -102,8 +106,11 @@ class Planner:
                 intent = builtin_intents[agent]
             else:
                 intent = decision.intent
-            if agent == "researcher" and self._mentions_local_files(request):
-                intent = "file_analysis"
+            if agent == "researcher":
+                if decision.intent == "research":
+                    intent = "research"
+                elif self._mentions_local_files(request):
+                    intent = "file_analysis"
         else:
             intent = decision.intent
             agent = self._suggested_agent(intent)
@@ -131,6 +138,14 @@ class Planner:
                 "Ne jamais prétendre avoir lu un fichier si l'extraction a échoué.",
             ],
         )
+        if task_context is not None:
+            for f in getattr(task_context, "files", []):
+                if f not in state.files:
+                    state.files.append(f)
+            get_unresolved = getattr(task_context, "get_unresolved_errors", None)
+            if callable(get_unresolved):
+                for err in get_unresolved():
+                    state.errors.append({"message": err.get("message"), "compiler": err.get("compiler")})
         if skill is not None:
             for relative_path, content in skill.template_contents.items():
                 state.observations.append(
@@ -169,6 +184,8 @@ class Planner:
     @classmethod
     def _mentions_local_files(cls, request: str) -> bool:
         normalized = request.casefold()
+        if any(w in normalized for w in ("sur internet", "sur le web", "télécharge", "telecharge", "download")):
+            return False
         return any(ext in normalized for ext in cls.FILE_EXTENSIONS) or any(
             phrase in normalized
             for phrase in (" fichier", " document", " projet", " dossier", "workspace")

@@ -193,7 +193,7 @@ class Verifier:
             verified_sources = [
                 source for source in state.sources
                 if isinstance(source.get("url"), str)
-                and source["url"].startswith("https://")
+                and source["url"].startswith(("https://", "http://"))
             ]
             checks.append(
                 {
@@ -206,6 +206,139 @@ class Verifier:
                     ),
                 }
             )
+
+        must_download = bool(decision.get("requires_download")) or any(
+            marker in request
+            for marker in (
+                "télécharge", "telecharge", "télécharger", "telecharger",
+                "télécharge-le", "télécharge le", "récupère", "recupere",
+                "téléchargement", "télécharge ce", "download",
+            )
+        )
+
+        if must_download:
+            # RÈGLE D'INTÉGRITÉ ABSOLUE DES ARTEFACTS :
+            # 1. Vérification contre toute tentative de substitution locale
+            change_tools = {"write_file", "patch_file", "compile_latex"}
+            agent_fabricated = [
+                item for item in successful
+                if item.get("tool") in change_tools
+            ]
+            has_forbidden_substitution = False
+            substitution_details = []
+            if agent_fabricated:
+                for item in agent_fabricated:
+                    t_name = item.get("tool")
+                    args = item.get("data", {}) or {}
+                    p = args.get("path") or args.get("tex_path") or args.get("output_path") or ""
+                    # Si l'agent écrit un document simulant le sujet/la ressource externe demandée
+                    if any(ext in str(p).lower() for ext in (".tex", ".pdf", ".html", ".md")):
+                        has_forbidden_substitution = True
+                        substitution_details.append(f"{t_name} sur {p}")
+
+            if has_forbidden_substitution:
+                checks.append({
+                    "check": "no_agent_substitution",
+                    "status": "failed",
+                    "evidence": (
+                        "VIOLATION D'INTÉGRITÉ REJETÉE : L'agent a généré ou compilé un fichier local ("
+                        + ", ".join(substitution_details)
+                        + ") en substitution du document externe demandé. La compilation d'un fichier de substitution ne constitue jamais une réussite."
+                    ),
+                })
+            else:
+                checks.append({
+                    "check": "no_agent_substitution",
+                    "status": "passed",
+                    "evidence": "Aucune fabrication locale de substitution détectée : l'agent n'a pas falsifié le résultat par génération artificielle.",
+                })
+
+            # 2. Vérification de la chaîne de provenance complète :
+            # SOURCE WEB → URL → TÉLÉCHARGEMENT → FICHIER PHYSIQUE → HASH → TYPE/MAGIC BYTES → CONTENU → VÉRIFICATION.
+            from core.artifacts.provenance import ProvenanceLedger
+            ledger = ProvenanceLedger(filesystem.root)
+
+            downloaded_files: list[str] = []
+            for item in successful:
+                data = item.get("data", {}) or {}
+                dl_file = data.get("downloaded_file") or {}
+                if isinstance(dl_file, dict) and dl_file.get("relative_path"):
+                    downloaded_files.append(dl_file["relative_path"])
+                elif data.get("saved_path"):
+                    downloaded_files.append(data["saved_path"])
+
+            for obs in state.observations:
+                if isinstance(obs, dict) and obs.get("kind") == "downloaded_file" and obs.get("path"):
+                    p_obs = obs["path"]
+                    downloaded_files.append(p_obs)
+                    if obs.get("url") and not ledger.get_provenance(p_obs):
+                        try:
+                            f_path = filesystem.resolve(p_obs)
+                            if f_path.is_file():
+                                ledger.record_download(
+                                    origin_url=obs["url"],
+                                    local_path=p_obs,
+                                    raw_bytes=f_path.read_bytes(),
+                                )
+                        except Exception:
+                            pass
+
+            provenance_verified: list[str] = []
+            provenance_errors: list[str] = []
+            semantic_errors: list[str] = []
+            for p in sorted(set(downloaded_files)):
+                res = ledger.verify_provenance_chain(p, filesystem)
+                if res.get("verified"):
+                    # Vérifier également la correspondance sémantique stricte
+                    sem = ledger.verify_semantic_match(p, state.user_request, filesystem)
+                    if sem.get("match", True):
+                        provenance_verified.append(
+                            f"{p} (Source: {res['resolved_domain']}, {res['size_bytes']} octets, SHA-256: {res['sha256'][:16]}..., Type: {res['magic_bytes']})"
+                        )
+                    else:
+                        semantic_errors.append(f"{p}: {sem.get('reason')}")
+                        provenance_errors.append(f"{p}: Incompatibilité sémantique ({sem.get('reason')})")
+                else:
+                    provenance_errors.append(f"{p}: {res.get('error', 'Échec de provenance')}")
+
+            provenance_passed = bool(provenance_verified) and not has_forbidden_substitution and not semantic_errors
+            checks.append({
+                "check": "chain_of_provenance",
+                "status": "passed" if provenance_passed else "failed",
+                "evidence": (
+                    "Chaîne de provenance validée : " + " ; ".join(provenance_verified)
+                    if provenance_verified
+                    else (
+                        "Échec de la chaîne de provenance : " + " ; ".join(provenance_errors)
+                        if provenance_errors
+                        else "Aucune chaîne de provenance (Source Web → URL → Téléchargement → Hash → Magic Bytes) n'a été établie."
+                    )
+                ),
+            })
+
+            checks.append({
+                "check": "semantic_correspondence",
+                "status": "passed" if (not semantic_errors and bool(provenance_verified)) else "failed",
+                "evidence": (
+                    "Correspondance sémantique confirmée avec la demande de l'utilisateur."
+                    if (not semantic_errors and bool(provenance_verified))
+                    else (
+                        "Incompatibilité sémantique détectée : " + " ; ".join(semantic_errors)
+                        if semantic_errors
+                        else "Aucun document correspondant à la demande n'a été validé."
+                    )
+                ),
+            })
+
+            checks.append({
+                "check": "document_retrieved_and_verified",
+                "status": "passed" if provenance_passed else "failed",
+                "evidence": (
+                    "Document authentique physiquement téléchargé et vérifié sur le disque : " + ", ".join(provenance_verified)
+                    if provenance_passed
+                    else "Aucun document authentique n'a été récupéré depuis la source demandée dans le workspace."
+                ),
+            })
 
         if not checks:
             report = {

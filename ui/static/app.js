@@ -171,7 +171,7 @@
 
           if (parsed.event === "ARTIFACT_READY" && parsed.details) {
             const art = parsed.details;
-            if (art.type === "pdf" || art.type === "html") {
+            if (art && art.path) {
               openDocumentPreview(art);
             }
           }
@@ -601,6 +601,26 @@
   // -------------------------------------------------------------------------
   // 3. CENTER WORKSPACE (WELCOME & CONVERSATION ÉDITORIALE + ARTEFACTS)
   // -------------------------------------------------------------------------
+  function detectArtifactType(path, explicitType) {
+    if (explicitType) {
+      const et = String(explicitType).toLowerCase();
+      if (et === "latex") return "tex";
+      return et;
+    }
+    const lower = String(path || "").toLowerCase();
+    if (lower.endsWith(".pdf")) return "pdf";
+    if (lower.endsWith(".html") || lower.endsWith(".htm")) return "html";
+    if (lower.endsWith(".tex")) return "tex";
+    if (lower.endsWith(".py")) return "python";
+    if (lower.endsWith(".svg")) return "svg";
+    if (lower.endsWith(".mmd") || lower.endsWith(".mermaid")) return "mermaid";
+    if (lower.endsWith(".json")) return "json";
+    if (lower.endsWith(".csv") || lower.endsWith(".tsv")) return "csv";
+    if (lower.endsWith(".md") || lower.endsWith(".markdown")) return "markdown";
+    if (/\.(png|jpe?g|webp|gif|bmp)$/i.test(lower)) return "image";
+    return "unknown";
+  }
+
   function extractMessageArtifacts(m) {
     const list = [];
     const seen = new Set();
@@ -610,7 +630,8 @@
       const norm = String(item.path).replace(/\\/g, "/");
       if (seen.has(norm)) return;
       seen.add(norm);
-      list.push({ ...item, path: norm });
+      const typ = detectArtifactType(norm, item.type);
+      list.push({ ...item, path: norm, type: typ });
     }
 
     if (Array.isArray(m.preview_artifacts)) {
@@ -625,22 +646,17 @@
       const rawPath = typeof f === "object" && f !== null ? f.path : f;
       if (!rawPath) return;
       const norm = String(rawPath).replace(/\\/g, "/");
-      const lower = norm.toLowerCase();
-      if (lower.endsWith(".pdf")) {
-        addArt({ type: "pdf", path: norm });
-      } else if (lower.endsWith(".html") || lower.endsWith(".htm")) {
-        addArt({ type: "html", path: norm });
-      } else if (lower.endsWith(".tex")) {
-        addArt({ type: "tex", path: norm });
+      const typ = detectArtifactType(norm);
+      if (typ !== "unknown") {
+        addArt({ type: typ, path: norm });
       }
     });
 
     const content = String(m.content || "");
-    const exportMatch = content.match(/\[EXPORT OK\]\s+([^\s|]+\.(?:pdf|md|html))/i);
+    const exportMatch = content.match(/\[EXPORT OK\]\s+([^\s|]+\.(?:pdf|md|html|py|svg|mmd|mermaid|json|csv|png|jpg))/i);
     if (exportMatch) {
       const p = exportMatch[1].trim();
-      if (p.toLowerCase().endsWith(".pdf")) addArt({ type: "pdf", path: p });
-      else if (p.toLowerCase().endsWith(".html")) addArt({ type: "html", path: p });
+      addArt({ path: p });
     }
 
     if (list.some((a) => a.type === "pdf")) return list.filter((a) => a.type !== "tex");
@@ -655,7 +671,8 @@
       <div class="message-artifacts-row">
         ${artifacts
           .map((art) => {
-            if (art.type === "pdf") {
+            const typ = art.type || detectArtifactType(art.path);
+            if (typ === "pdf") {
               const pagesTxt = art.page_count ? ` · ${art.page_count} page${art.page_count > 1 ? "s" : ""}` : "";
               return `
                 <div class="artifact-card">
@@ -665,14 +682,7 @@
                     <span class="meta-chip accent">PDF${esc(pagesTxt)}</span>
                   </div>
                   <div class="artifact-card-actions">
-                    <button
-                      type="button"
-                      class="artifact-btn primary"
-                      data-open-doc-preview="pdf"
-                      data-doc-path="${esc(art.path)}"
-                      data-doc-source="${esc(art.source_tex || "")}"
-                      data-doc-pages="${esc(art.page_count || "")}"
-                    >
+                    <button type="button" class="artifact-btn primary" data-open-doc-preview="pdf" data-doc-path="${esc(art.path)}" data-doc-source="${esc(art.source_tex || "")}" data-doc-pages="${esc(art.page_count || "")}">
                       Aperçu PDF
                     </button>
                     <a class="artifact-btn" href="/api/files/raw?path=${encodeURIComponent(art.path)}&download=1" download>
@@ -682,7 +692,7 @@
                 </div>
               `;
             }
-            if (art.type === "html") {
+            if (typ === "html") {
               return `
                 <div class="artifact-card">
                   <div class="artifact-card-title">
@@ -691,32 +701,18 @@
                     <span class="meta-chip accent">HTML</span>
                   </div>
                   <div class="artifact-card-actions">
-                    <button
-                      type="button"
-                      class="artifact-btn primary"
-                      data-open-doc-preview="html"
-                      data-doc-path="${esc(art.path)}"
-                      data-doc-view="render"
-                    >
+                    <button type="button" class="artifact-btn primary" data-open-doc-preview="html" data-doc-path="${esc(art.path)}" data-doc-view="render">
                       Aperçu HTML
                     </button>
-                    <button
-                      type="button"
-                      class="artifact-btn"
-                      data-open-doc-preview="html"
-                      data-doc-path="${esc(art.path)}"
-                      data-doc-view="source"
-                    >
+                    <button type="button" class="artifact-btn" data-open-doc-preview="html" data-doc-path="${esc(art.path)}" data-doc-view="source">
                       Code source
                     </button>
-                    <a class="artifact-btn" href="/api/files/raw?path=${encodeURIComponent(art.path)}&download=1" download>
-                      ⬇
-                    </a>
+                    <a class="artifact-btn" href="/api/files/raw?path=${encodeURIComponent(art.path)}&download=1" download>⬇</a>
                   </div>
                 </div>
               `;
             }
-            if (art.type === "tex") {
+            if (typ === "tex") {
               return `
                 <div class="artifact-card">
                   <div class="artifact-card-title">
@@ -725,27 +721,166 @@
                     <span class="meta-chip">LaTeX</span>
                   </div>
                   <div class="artifact-card-actions">
-                    <button
-                      type="button"
-                      class="artifact-btn primary"
-                      data-compile-tex-path="${esc(art.path)}"
-                    >
+                    <button type="button" class="artifact-btn primary" data-compile-tex-path="${esc(art.path)}">
                       ⚡ Compiler PDF (Tectonic)
                     </button>
-                    <button
-                      type="button"
-                      class="artifact-btn"
-                      data-open-doc-preview="tex"
-                      data-doc-path="${esc(art.path)}"
-                      data-doc-view="source"
-                    >
+                    <button type="button" class="artifact-btn" data-open-doc-preview="tex" data-doc-path="${esc(art.path)}" data-doc-view="source">
                       Source .tex
                     </button>
                   </div>
                 </div>
               `;
             }
-            return "";
+            if (typ === "python") {
+              return `
+                <div class="artifact-card">
+                  <div class="artifact-card-title">
+                    <span>🐍</span>
+                    <span class="mono">${esc(art.path)}</span>
+                    <span class="meta-chip accent">Python</span>
+                  </div>
+                  <div class="artifact-card-actions">
+                    <button type="button" class="artifact-btn primary" data-open-doc-preview="python" data-doc-path="${esc(art.path)}" data-doc-view="render">
+                      ⚡ Aperçu & Exécution
+                    </button>
+                    <button type="button" class="artifact-btn" data-open-doc-preview="python" data-doc-path="${esc(art.path)}" data-doc-view="source">
+                      Code source
+                    </button>
+                  </div>
+                </div>
+              `;
+            }
+            if (typ === "svg") {
+              return `
+                <div class="artifact-card">
+                  <div class="artifact-card-title">
+                    <span>🎨</span>
+                    <span class="mono">${esc(art.path)}</span>
+                    <span class="meta-chip accent">SVG</span>
+                  </div>
+                  <div class="artifact-card-actions">
+                    <button type="button" class="artifact-btn primary" data-open-doc-preview="svg" data-doc-path="${esc(art.path)}" data-doc-view="render">
+                      Aperçu SVG
+                    </button>
+                    <button type="button" class="artifact-btn" data-open-doc-preview="svg" data-doc-path="${esc(art.path)}" data-doc-view="source">
+                      Code XML
+                    </button>
+                    <a class="artifact-btn" href="/api/files/raw?path=${encodeURIComponent(art.path)}&download=1" download>⬇</a>
+                  </div>
+                </div>
+              `;
+            }
+            if (typ === "mermaid") {
+              return `
+                <div class="artifact-card">
+                  <div class="artifact-card-title">
+                    <span>📊</span>
+                    <span class="mono">${esc(art.path)}</span>
+                    <span class="meta-chip accent">Mermaid</span>
+                  </div>
+                  <div class="artifact-card-actions">
+                    <button type="button" class="artifact-btn primary" data-open-doc-preview="mermaid" data-doc-path="${esc(art.path)}" data-doc-view="render">
+                      Aperçu Diagramme
+                    </button>
+                    <button type="button" class="artifact-btn" data-open-doc-preview="mermaid" data-doc-path="${esc(art.path)}" data-doc-view="source">
+                      Source Mermaid
+                    </button>
+                  </div>
+                </div>
+              `;
+            }
+            if (typ === "json") {
+              return `
+                <div class="artifact-card">
+                  <div class="artifact-card-title">
+                    <span>🌳</span>
+                    <span class="mono">${esc(art.path)}</span>
+                    <span class="meta-chip accent">JSON</span>
+                  </div>
+                  <div class="artifact-card-actions">
+                    <button type="button" class="artifact-btn primary" data-open-doc-preview="json" data-doc-path="${esc(art.path)}" data-doc-view="render">
+                      Arborescence JSON
+                    </button>
+                    <button type="button" class="artifact-btn" data-open-doc-preview="json" data-doc-path="${esc(art.path)}" data-doc-view="source">
+                      Code source
+                    </button>
+                  </div>
+                </div>
+              `;
+            }
+            if (typ === "csv") {
+              return `
+                <div class="artifact-card">
+                  <div class="artifact-card-title">
+                    <span>📈</span>
+                    <span class="mono">${esc(art.path)}</span>
+                    <span class="meta-chip accent">Tableur CSV</span>
+                  </div>
+                  <div class="artifact-card-actions">
+                    <button type="button" class="artifact-btn primary" data-open-doc-preview="csv" data-doc-path="${esc(art.path)}" data-doc-view="render">
+                      Tableau Interactif
+                    </button>
+                    <button type="button" class="artifact-btn" data-open-doc-preview="csv" data-doc-path="${esc(art.path)}" data-doc-view="source">
+                      Données brutes
+                    </button>
+                    <a class="artifact-btn" href="/api/files/raw?path=${encodeURIComponent(art.path)}&download=1" download>⬇</a>
+                  </div>
+                </div>
+              `;
+            }
+            if (typ === "markdown") {
+              return `
+                <div class="artifact-card">
+                  <div class="artifact-card-title">
+                    <span>📝</span>
+                    <span class="mono">${esc(art.path)}</span>
+                    <span class="meta-chip accent">Markdown</span>
+                  </div>
+                  <div class="artifact-card-actions">
+                    <button type="button" class="artifact-btn primary" data-open-doc-preview="markdown" data-doc-path="${esc(art.path)}" data-doc-view="render">
+                      Aperçu Document
+                    </button>
+                    <button type="button" class="artifact-btn" data-open-doc-preview="markdown" data-doc-path="${esc(art.path)}" data-doc-view="source">
+                      Source .md
+                    </button>
+                  </div>
+                </div>
+              `;
+            }
+            if (typ === "image") {
+              return `
+                <div class="artifact-card">
+                  <div class="artifact-card-title">
+                    <span>🖼️</span>
+                    <span class="mono">${esc(art.path)}</span>
+                    <span class="meta-chip accent">Image HD</span>
+                  </div>
+                  <div class="artifact-card-actions">
+                    <button type="button" class="artifact-btn primary" data-open-doc-preview="image" data-doc-path="${esc(art.path)}" data-doc-view="render">
+                      Aperçu Image
+                    </button>
+                    <a class="artifact-btn" href="/api/files/raw?path=${encodeURIComponent(art.path)}&download=1" download>⬇ Télécharger</a>
+                  </div>
+                </div>
+              `;
+            }
+            return `
+              <div class="artifact-card">
+                <div class="artifact-card-title">
+                  <span>📦</span>
+                  <span class="mono">${esc(art.path)}</span>
+                  <span class="meta-chip">${esc((typ || "Fichier").toUpperCase())}</span>
+                </div>
+                <div class="artifact-card-actions">
+                  <button type="button" class="artifact-btn primary" data-open-doc-preview="${esc(typ)}" data-doc-path="${esc(art.path)}" data-doc-view="render">
+                    Aperçu
+                  </button>
+                  <button type="button" class="artifact-btn" data-open-doc-preview="${esc(typ)}" data-doc-path="${esc(art.path)}" data-doc-view="source">
+                    Source
+                  </button>
+                </div>
+              </div>
+            `;
           })
           .join("")}
       </div>
@@ -1444,6 +1579,11 @@
     }
   }
 
+    // Alias : corrige les appels existants à renderComposer()
+  function renderComposer() {
+    renderComposerControls();
+  }
+
   // =========================================================================
   // 6. DICTÉE AUDIO STYLE GPT (MICROPHONE + ONDE AUDIO RÉELLE + TRANSCRIPTION)
   // =========================================================================
@@ -1707,7 +1847,16 @@
       rightEl.style.display = "none";
       rightEl.classList.remove("doc-fullscreen");
     }
+    state.rightPanelMode = "inspector";
     restoreSidebarIfAutoCollapsed();
+  }
+
+  // Ferme le document ouvert (croix de l'aperçu) et l'oublie complètement
+  function closeDocumentPreview() {
+    state.activeDocument = null;
+    state.pdfDocCache = null;
+    state.pdfRenderToken++;
+    closeRightPanel();
   }
 
   function restoreSidebarIfAutoCollapsed() {
@@ -1725,13 +1874,12 @@
       rightEl.style.display === "none" ||
       rightEl.offsetWidth === 0;
     if (isClosed) {
-      if (state.activeDocument && state.rightPanelMode === "document") {
-        switchRightPanelMode("document");
-        renderDocumentPreviewPanel();
-      } else {
-        switchRightPanelMode("inspector");
-        renderInspector();
-      }
+      switchRightPanelMode("inspector");
+      renderInspector();
+    } else if (state.rightPanelMode === "document") {
+      rightEl.classList.remove("doc-fullscreen");
+      switchRightPanelMode("inspector");
+      renderInspector();
     } else {
       closeRightPanel();
     }
@@ -1775,23 +1923,25 @@
   async function openDocumentPreview(docSpec) {
     if (!docSpec || !docSpec.path) return;
     const cleanPath = String(docSpec.path).replace(/\\/g, "/");
-    const lower = cleanPath.toLowerCase();
-    const type =
-      docSpec.type ||
-      (lower.endsWith(".pdf") ? "pdf" : lower.endsWith(".html") || lower.endsWith(".htm") ? "html" : "tex");
+    const type = detectArtifactType(cleanPath, docSpec.type);
 
     const docObj = {
+      id: docSpec.id || null,
       type,
       path: cleanPath,
-      source_tex: docSpec.source_tex || (lower.endsWith(".tex") ? cleanPath : ""),
+      source_tex: docSpec.source_tex || (type === "tex" ? cleanPath : ""),
       page_count: docSpec.page_count || null,
       size_bytes: docSpec.size_bytes || null,
       viewMode: docSpec.viewMode || (type === "tex" ? "source" : "render"),
-      zoom: 100,
+      zoom: docSpec.zoom || 100,
       auto_repaired: Boolean(docSpec.auto_repaired),
       repair_notes: docSpec.repair_notes || [],
       error: docSpec.error || null,
-      sourceContent: "",
+      sourceContent: docSpec.sourceContent || "",
+      execution: docSpec.execution || null,
+      output_paths: docSpec.output_paths ? [...docSpec.output_paths] : [],
+      source_paths: docSpec.source_paths ? [...docSpec.source_paths] : [],
+      metadata: docSpec.metadata || {},
     };
 
     state.activeDocument = docObj;
@@ -1807,7 +1957,12 @@
       } catch (err) {
         docObj.error = `Impossible de charger le PDF (${cleanPath}) : ${err.message}`;
       }
-    } else if (type === "html" || type === "tex") {
+    } else if (type === "image") {
+      try {
+        const fileData = await apiGet(`/api/files/content?path=${encodeURIComponent(cleanPath)}`);
+        docObj.size_bytes = fileData.size_bytes;
+      } catch (_) {}
+    } else {
       try {
         const fileData = await apiGet(`/api/files/content?path=${encodeURIComponent(cleanPath)}`);
         docObj.sourceContent = fileData.content || "";
@@ -1817,10 +1972,27 @@
       }
     }
 
+    if (type === "python" && !docObj.execution && !docObj.error) {
+      try {
+        const execRes = await apiPost("/api/artifacts/execute", { path: cleanPath });
+        if (execRes.artifact) {
+          docObj.execution = execRes.artifact.execution;
+          docObj.output_paths = execRes.artifact.output_paths || [];
+          docObj.error = execRes.artifact.error || null;
+          docObj.metadata = execRes.artifact.metadata || docObj.metadata;
+          if (docObj.metadata && (docObj.metadata.visual_output || (docObj.metadata.figures && docObj.metadata.figures.length > 0))) {
+            docObj.viewMode = "render";
+          }
+        }
+      } catch (err) {
+        docObj.error = err.message;
+      }
+    }
+
     renderDocumentPreviewPanel();
   }
 
-    const PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  const PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
   async function renderPdfInViewer(doc) {
     const host = document.getElementById("doc-pdf-viewer");
@@ -1841,18 +2013,21 @@
     const avail = Math.max(200, host.clientWidth - 32);
     state.pdfWidth = host.clientWidth;
     const dpr = window.devicePixelRatio || 1;
+    const zoomUsed = doc.zoom || 100;
     const frag = document.createDocumentFragment();
     for (let n = 1; n <= pdf.numPages; n++) {
       const page = await pdf.getPage(n);
       if (token !== state.pdfRenderToken) return;
       const base = page.getViewport({ scale: 1 });
-      const vp = page.getViewport({ scale: (avail / base.width) * ((doc.zoom || 100) / 100) });
+      const vp = page.getViewport({ scale: (avail / base.width) * (zoomUsed / 100) });
       const canvas = document.createElement("canvas");
       canvas.className = "pdf-page";
       canvas.width = Math.floor(vp.width * dpr);
       canvas.height = Math.floor(vp.height * dpr);
       canvas.style.width = `${Math.floor(vp.width)}px`;
       canvas.style.height = `${Math.floor(vp.height)}px`;
+      canvas.dataset.w = String(Math.floor(vp.width));
+      canvas.dataset.h = String(Math.floor(vp.height));
       await page.render({
         canvasContext: canvas.getContext("2d"),
         viewport: vp,
@@ -1861,8 +2036,584 @@
       frag.appendChild(canvas);
     }
     if (token !== state.pdfRenderToken) return;
+    const keepTop = host.scrollTop;
+    const keepLeft = host.scrollLeft;
     host.innerHTML = "";
     host.appendChild(frag);
+    host.dataset.renderedZoom = String(zoomUsed);
+    host.scrollTop = keepTop;
+    host.scrollLeft = keepLeft;
+  }
+
+  function renderSvgInViewer(doc) {
+    const host = document.getElementById("doc-svg-viewer");
+    if (!host) return;
+    host.innerHTML = "";
+    if (!doc.sourceContent) {
+      host.innerHTML = `<div class="inspector-card">Aucun contenu SVG à afficher.</div>`;
+      return;
+    }
+    try {
+      const parser = new DOMParser();
+      const docParsed = parser.parseFromString(doc.sourceContent, "image/svg+xml");
+      const svgEl = docParsed.querySelector("svg");
+      if (svgEl) {
+        svgEl.style.maxWidth = "100%";
+        svgEl.style.maxHeight = "100%";
+        svgEl.style.display = "block";
+        svgEl.style.margin = "auto";
+        svgEl.style.filter = "drop-shadow(0 4px 12px rgba(0,0,0,0.08))";
+        host.appendChild(document.importNode(svgEl, true));
+      } else {
+        host.innerHTML = `<div class="doc-error-box" style="display:block;"><strong>Erreur SVG</strong> : Balise &lt;svg&gt; manquante ou XML invalide.</div>`;
+      }
+    } catch (err) {
+      host.innerHTML = `<div class="doc-error-box" style="display:block;"><strong>Erreur de rendu SVG</strong> : ${esc(err.message)}</div>`;
+    }
+  }
+
+  async function renderMermaidInViewer(doc) {
+    const host = document.getElementById("doc-mermaid-viewer");
+    if (!host) return;
+    host.innerHTML = "";
+    if (!doc.sourceContent) {
+      host.innerHTML = `<div class="inspector-card">Aucun code Mermaid à afficher.</div>`;
+      return;
+    }
+    if (!window.mermaid) {
+      host.innerHTML = `
+        <div class="inspector-card">
+          <strong>Mermaid.js</strong> est en cours de chargement ou indisponible hors-ligne.
+          <pre class="mono" style="margin-top:8px;">${esc(doc.sourceContent)}</pre>
+        </div>
+      `;
+      return;
+    }
+    try {
+      const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+      window.mermaid.initialize({
+        startOnLoad: false,
+        theme: isDark ? "dark" : "default",
+        securityLevel: "loose",
+      });
+      const id = "mermaid-svg-" + Math.random().toString(36).slice(2, 8);
+      const renderResult = await window.mermaid.render(id, doc.sourceContent);
+      host.innerHTML = renderResult.svg || "";
+    } catch (err) {
+      host.innerHTML = `
+        <div class="doc-error-box" style="display:block;">
+          <strong>⚠️ Erreur de syntaxe Mermaid</strong>
+          <pre class="mono" style="margin-top:8px; white-space:pre-wrap;">${esc(err.message)}</pre>
+        </div>
+      `;
+    }
+  }
+
+  function renderImageInViewer(doc) {
+    const host = document.getElementById("doc-image-viewer");
+    if (!host) return;
+    const url = `/api/files/raw?path=${encodeURIComponent(doc.path)}&t=${Date.now()}`;
+    host.innerHTML = `
+      <div style="display:flex; flex-direction:column; align-items:center; gap:12px; max-width:100%; padding:16px;">
+        <img src="${url}" alt="${esc(doc.path)}" style="max-width:100%; max-height:75vh; object-fit:contain; border-radius:8px; box-shadow:0 6px 20px rgba(0,0,0,0.12);" />
+        <div style="font-size:12px; color:var(--text-secondary); display:flex; gap:8px;">
+          <span>${esc(doc.path.split("/").pop())}</span>
+          ${doc.size_bytes ? `<span>· ${doc.size_bytes} octets</span>` : ""}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderFiguresGalleryInViewer(figures, doc) {
+    const host = document.getElementById("doc-image-viewer");
+    if (!host) return;
+    host.innerHTML = `
+      <div style="display:flex; flex-direction:column; align-items:center; gap:20px; max-width:100%; padding:16px;">
+        <div style="font-size:12.5px; font-weight:600; color:var(--text-secondary); display:flex; align-items:center; gap:6px;">
+          <span>📊</span>
+          <span>${figures.length} figures Matplotlib capturées :</span>
+        </div>
+        ${figures
+          .map((figPath, idx) => {
+            const url = `/api/files/raw?path=${encodeURIComponent(figPath)}&t=${Date.now()}`;
+            return `
+            <div style="display:flex; flex-direction:column; align-items:center; gap:8px; width:100%; max-width:720px; background:var(--bg-primary); border:1px solid var(--border-subtle); border-radius:10px; padding:12px; box-shadow:var(--shadow-sm);">
+              <img src="${url}" alt="${esc(figPath)}" style="max-width:100%; max-height:65vh; object-fit:contain; border-radius:6px;" />
+              <div style="display:flex; justify-content:space-between; width:100%; font-size:11.5px; color:var(--text-muted); padding:0 4px;">
+                <span><strong>Figure ${idx + 1}</strong> : ${esc(figPath.split("/").pop())}</span>
+                <a href="${url}" target="_blank" class="link-subtle" style="font-size:11px;">Ouvrir ↗</a>
+              </div>
+            </div>
+          `;
+          })
+          .join("")}
+      </div>
+    `;
+  }
+
+  function renderCsvInViewer(doc) {
+    const host = document.getElementById("doc-table-viewer");
+    if (!host) return;
+    host.innerHTML = "";
+    if (!doc.sourceContent) {
+      host.innerHTML = `<div class="inspector-card">Aucune donnée CSV à afficher.</div>`;
+      return;
+    }
+
+    const firstLine = doc.sourceContent.split("\n")[0] || "";
+    const commaCount = (firstLine.match(/,/g) || []).length;
+    const semiCount = (firstLine.match(/;/g) || []).length;
+    const tabCount = (firstLine.match(/\t/g) || []).length;
+    let delim = ",";
+    if (semiCount > commaCount && semiCount >= tabCount) delim = ";";
+    else if (tabCount > commaCount && tabCount > semiCount) delim = "\t";
+
+    function parseCSVLine(line, delimiter) {
+      const result = [];
+      let current = "";
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (c === '"') {
+          if (inQuotes && line[i + 1] === '"') {
+            current += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (c === delimiter && !inQuotes) {
+          result.push(current.trim());
+          current = "";
+        } else {
+          current += c;
+        }
+      }
+      result.push(current.trim());
+      return result;
+    }
+
+    const lines = doc.sourceContent.split(/\r?\n/).filter((l) => l.trim().length > 0);
+    if (lines.length === 0) {
+      host.innerHTML = `<div class="inspector-card">Fichier CSV vide.</div>`;
+      return;
+    }
+
+    const headers = parseCSVLine(lines[0], delim);
+    const rows = lines.slice(1).map((l) => parseCSVLine(l, delim));
+
+    host.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:8px;">
+        <input type="text" id="csv-search-input" class="sidebar-search" placeholder="Filtrer dans les données (${rows.length} lignes)..." style="max-width:320px;" />
+        <div style="font-size:12px; color:var(--text-secondary);">${rows.length} lignes · ${headers.length} colonnes</div>
+      </div>
+      <div style="overflow-x:auto; border:1px solid var(--border); border-radius:8px;">
+        <table class="doc-data-table" id="csv-table-element">
+          <thead>
+            <tr>${headers.map((h, idx) => `<th data-col-idx="${idx}" style="cursor:pointer;" title="Colonne ${idx + 1}">${esc(h)} ▾</th>`).join("")}</tr>
+          </thead>
+          <tbody>
+            ${rows
+              .map(
+                (row) => `
+              <tr>${headers.map((_, i) => `<td>${esc(row[i] !== undefined ? row[i] : "")}</td>`).join("")}</tr>
+            `
+              )
+              .join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    const searchInput = document.getElementById("csv-search-input");
+    const tbody = host.querySelector("tbody");
+    if (searchInput && tbody) {
+      searchInput.addEventListener("input", (e) => {
+        const q = String(e.target.value || "").toLowerCase();
+        const trs = tbody.querySelectorAll("tr");
+        trs.forEach((tr) => {
+          const txt = tr.textContent.toLowerCase();
+          tr.style.display = txt.includes(q) ? "" : "none";
+        });
+      });
+    }
+  }
+
+  function renderJsonInViewer(doc) {
+    const host = document.getElementById("doc-json-viewer");
+    if (!host) return;
+    host.innerHTML = "";
+    if (!doc.sourceContent) {
+      host.innerHTML = `<div class="inspector-card">Aucun contenu JSON à afficher.</div>`;
+      return;
+    }
+    let parsed = null;
+    try {
+      parsed = JSON.parse(doc.sourceContent);
+    } catch (err) {
+      host.innerHTML = `
+        <div class="doc-error-box" style="display:block;">
+          <strong>⚠️ Erreur de syntaxe JSON :</strong>
+          <pre class="mono" style="margin-top:8px;">${esc(err.message)}</pre>
+        </div>
+      `;
+      return;
+    }
+
+    function buildJsonTree(val, keyName = null) {
+      const type = Array.isArray(val) ? "array" : val === null ? "null" : typeof val;
+      const keyPrefix = keyName !== null ? `<span class="json-key">"${esc(keyName)}"</span>: ` : "";
+
+      if (type === "object" || type === "array") {
+        const isArr = type === "array";
+        const keys = Object.keys(val);
+        const count = keys.length;
+        const openChar = isArr ? "[" : "{";
+        const closeChar = isArr ? "]" : "}";
+        if (count === 0) {
+          return `<div class="json-line">${keyPrefix}<span class="json-bracket">${openChar}${closeChar}</span></div>`;
+        }
+        return `
+          <div class="json-node collapsed" style="margin-left: 12px;">
+            <div class="json-header" style="cursor:pointer; display:flex; align-items:center; gap:6px;">
+              <span class="json-toggle" style="user-select:none; font-family:monospace; font-size:10px;">▼</span>
+              ${keyPrefix}
+              <span class="json-bracket">${openChar}</span>
+              <span class="json-badge" style="font-size:11px; opacity:0.75;">${count} élément${count > 1 ? "s" : ""}</span>
+            </div>
+            <div class="json-children" style="margin-left: 14px; border-left: 1px dashed var(--border); padding-left: 8px;">
+              ${keys.map((k) => buildJsonTree(val[k], isArr ? null : k)).join("")}
+            </div>
+            <div class="json-bracket" style="margin-left: 16px;">${closeChar}</div>
+          </div>
+        `;
+      }
+      if (type === "string") {
+        return `<div class="json-line" style="margin-left:12px;">${keyPrefix}<span class="json-str" style="color:var(--accent);">"${esc(val)}"</span></div>`;
+      }
+      if (type === "number") {
+        return `<div class="json-line" style="margin-left:12px;">${keyPrefix}<span class="json-num" style="color:#d97706;">${esc(String(val))}</span></div>`;
+      }
+      if (type === "boolean") {
+        return `<div class="json-line" style="margin-left:12px;">${keyPrefix}<span class="json-bool" style="color:#2563eb; font-weight:600;">${val}</span></div>`;
+      }
+      return `<div class="json-line" style="margin-left:12px;">${keyPrefix}<span class="json-null" style="opacity:0.6;">null</span></div>`;
+    }
+
+    host.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <span class="meta-chip">JSON Valide</span>
+        <div style="display:flex; gap:6px;">
+          <button type="button" class="icon-btn-mini" id="btn-json-expand-all">Tout déplier</button>
+          <button type="button" class="icon-btn-mini" id="btn-json-collapse-all">Tout replier</button>
+        </div>
+      </div>
+      <div class="json-tree-container mono" style="font-size:12px; line-height:1.5;">
+        ${buildJsonTree(parsed)}
+      </div>
+    `;
+
+    host.querySelectorAll(".json-header").forEach((hdr) => {
+      hdr.addEventListener("click", () => {
+        const node = hdr.closest(".json-node");
+        if (node) {
+          const children = node.querySelector(".json-children");
+          const toggle = node.querySelector(".json-toggle");
+          if (children) {
+            const isHidden = children.style.display === "none";
+            children.style.display = isHidden ? "block" : "none";
+            if (toggle) toggle.textContent = isHidden ? "▼" : "▶";
+          }
+        }
+      });
+    });
+
+    const btnExp = host.querySelector("#btn-json-expand-all");
+    const btnCol = host.querySelector("#btn-json-collapse-all");
+    if (btnExp) {
+      btnExp.addEventListener("click", () => {
+        host.querySelectorAll(".json-children").forEach((c) => (c.style.display = "block"));
+        host.querySelectorAll(".json-toggle").forEach((t) => (t.textContent = "▼"));
+      });
+    }
+    if (btnCol) {
+      btnCol.addEventListener("click", () => {
+        host.querySelectorAll(".json-children").forEach((c) => (c.style.display = "none"));
+        host.querySelectorAll(".json-toggle").forEach((t) => (t.textContent = "▶"));
+      });
+    }
+  }
+
+  function renderMarkdownInViewer(doc) {
+    const host = document.getElementById("doc-markdown-viewer");
+    if (!host) return;
+    host.innerHTML = "";
+    if (!doc.sourceContent) {
+      host.innerHTML = `<div class="inspector-card">Aucun contenu Markdown à afficher.</div>`;
+      return;
+    }
+    host.innerHTML = `
+      <div class="rendered-markdown-content" style="padding: 16px; line-height: 1.65;">
+        ${renderMarkdownToHtml(doc.sourceContent)}
+      </div>
+    `;
+    renderKaTeXInElement(host);
+  }
+
+  function renderFilesListInViewer(doc) {
+    const host = document.getElementById("doc-files-viewer");
+    if (!host) return;
+    host.innerHTML = "";
+
+    const allFiles = new Set();
+    if (doc.path) allFiles.add(doc.path);
+    if (doc.source_tex) allFiles.add(doc.source_tex);
+    if (Array.isArray(doc.output_paths)) {
+      doc.output_paths.forEach((p) => allFiles.add(p));
+    }
+    if (Array.isArray(doc.source_paths)) {
+      doc.source_paths.forEach((p) => allFiles.add(p));
+    }
+
+    const list = Array.from(allFiles);
+    if (list.length === 0) {
+      host.innerHTML = `<div class="inspector-card">Aucun fichier associé à cet artefact.</div>`;
+      return;
+    }
+
+    host.innerHTML = `
+      <div style="font-size:12px; color:var(--text-secondary); margin-bottom:12px;">
+        ${list.length} fichier${list.length > 1 ? "s" : ""} généré${list.length > 1 ? "s" : ""} ou lié${list.length > 1 ? "s" : ""} :
+      </div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        ${list
+          .map((fpath) => {
+            const isPrimary = fpath === doc.path;
+            const typ = detectArtifactType(fpath);
+            return `
+            <div class="inspector-card" style="display:flex; justify-content:space-between; align-items:center; margin:0; padding:10px 14px;">
+              <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+                <span style="font-size:16px;">${typ === "image" ? "🖼️" : typ === "pdf" ? "📄" : typ === "python" ? "🐍" : "📄"}</span>
+                <span class="mono" style="font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(fpath)}</span>
+                ${isPrimary ? `<span class="meta-chip accent">Principal</span>` : `<span class="meta-chip">Généré</span>`}
+              </div>
+              <div style="display:flex; gap:6px; flex-shrink:0;">
+                <button type="button" class="icon-btn-mini" data-open-doc-preview="${esc(typ)}" data-doc-path="${esc(fpath)}">Ouvrir</button>
+                <a class="icon-btn-mini" href="/api/files/raw?path=${encodeURIComponent(fpath)}&download=1" download title="Télécharger">⬇</a>
+              </div>
+            </div>
+          `;
+          })
+          .join("")}
+      </div>
+    `;
+  }
+
+  function renderConsoleInViewer(doc) {
+    const host = document.getElementById("doc-console-viewer");
+    if (!host) return;
+    host.innerHTML = "";
+
+    const exec = doc.execution;
+    if (!exec) {
+      host.innerHTML = `
+        <div class="inspector-card">
+          <span>Aucune exécution enregistrée pour ce fichier.</span>
+          ${doc.type === "python" ? `<br/><button type="button" id="btn-run-python-now" class="composer-chip-btn" style="margin-top:8px;">⚡ Exécuter maintenant</button>` : ""}
+        </div>
+      `;
+      const btnRun = host.querySelector("#btn-run-python-now");
+      if (btnRun) {
+        btnRun.addEventListener("click", async () => {
+          try {
+            const res = await apiPost("/api/artifacts/execute", { path: doc.path });
+            if (res.artifact) {
+              doc.execution = res.artifact.execution;
+              doc.output_paths = res.artifact.output_paths || [];
+              doc.error = res.artifact.error || null;
+              renderDocumentPreviewPanel();
+            }
+          } catch (err) {
+            showStatusBanner(`Erreur d'exécution : ${err.message}`, "error");
+          }
+        });
+      }
+      return;
+    }
+
+    const isSuccess = Number(exec.exit_code) === 0;
+    const durTxt = exec.duration_ms ? `${Math.round(exec.duration_ms)} ms` : "0 ms";
+
+    host.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:8px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="meta-chip" style="${isSuccess ? "background:rgba(16,185,129,0.18); color:#10B981; border:1px solid rgba(16,185,129,0.35); font-weight:600;" : "background:rgba(239,68,68,0.18); color:#EF4444; border:1px solid rgba(239,68,68,0.35); font-weight:600;"}">
+            ${isSuccess ? "✓ Succès (Code 0)" : "⚠️ Code " + (exec.exit_code !== undefined ? exec.exit_code : "1")}
+          </span>
+          <span class="mono" style="font-size:11.5px; opacity:0.85; color:#94A3B8;">${durTxt}</span>
+        </div>
+        ${doc.type === "python" ? `<button type="button" id="btn-re-execute-console" class="icon-btn-mini">⚡ Relancer l'exécution</button>` : ""}
+      </div>
+      ${exec.command ? `<div style="font-size:11px; color:#94A3B8; margin-bottom:8px;"><span class="mono">Commande : ${esc(exec.command)}</span></div>` : ""}
+      ${
+        exec.stdout
+          ? `
+        <div style="margin-bottom:14px;">
+          <div style="font-size:11px; font-weight:600; color:#CBD5E1; margin-bottom:6px; letter-spacing:0.4px;">STDOUT :</div>
+          <pre class="doc-console-pre mono" style="background:#0F172A !important; color:#F8FAFC !important; border:1px solid #334155 !important; border-radius:6px; padding:12px; font-size:12px; line-height:1.6; max-height:360px; overflow:auto; white-space:pre-wrap;">${esc(exec.stdout)}</pre>
+        </div>
+      `
+          : ""
+      }
+      ${
+        exec.stderr
+          ? `
+        <div>
+          <div style="font-size:11px; font-weight:600; color:#F87171; margin-bottom:6px; letter-spacing:0.4px;">STDERR :</div>
+          <pre class="doc-console-pre mono" style="background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.4); color:#FCA5A5; border-radius:6px; padding:12px; font-size:12px; line-height:1.6; max-height:360px; overflow:auto; white-space:pre-wrap;">${esc(exec.stderr)}</pre>
+        </div>
+      `
+          : ""
+      }
+      ${!exec.stdout && !exec.stderr ? `<div class="inspector-card" style="color:#94A3B8;">Exécution terminée sans sortie console.</div>` : ""}
+    `;
+
+    const btnReExec = host.querySelector("#btn-re-execute-console");
+    if (btnReExec) {
+      btnReExec.addEventListener("click", async () => {
+        try {
+          const res = await apiPost("/api/artifacts/execute", { path: doc.path });
+          if (res.artifact) {
+            doc.execution = res.artifact.execution;
+            doc.output_paths = res.artifact.output_paths || [];
+            doc.error = res.artifact.error || null;
+            renderDocumentPreviewPanel();
+          }
+        } catch (err) {
+          showStatusBanner(`Erreur d'exécution : ${err.message}`, "error");
+        }
+      });
+    }
+  }
+
+  function renderPythonResultInViewer(doc) {
+    const host = document.getElementById("doc-result-viewer");
+    if (!host) return;
+    host.innerHTML = "";
+
+    const exec = doc.execution || {};
+    const isSuccess = Number(exec.exit_code) === 0;
+    const durTxt = exec.duration_ms ? `${Math.round(exec.duration_ms)} ms` : "0 ms";
+    const stdout = (exec.stdout || "").trim();
+    const stderr = (exec.stderr || "").trim();
+
+    // Extraire les métriques clés de stdout (e.g. "Le seuil est atteint au bout de : 9 ans.")
+    const lines = stdout ? stdout.split("\n") : [];
+    const metrics = [];
+    const metricRegex = /^(?:[-*•]\s*)?([^:=\n]+?)\s*[:=]\s*(.+)$/;
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      const match = trimmed.match(metricRegex);
+      if (match && match[1].length < 50 && match[2].length < 60) {
+        metrics.push({
+          label: match[1].trim().replace(/^[-*•]\s*/, ""),
+          value: match[2].trim().replace(/\.$/, "")
+        });
+      }
+    }
+
+    let metricsHtml = "";
+    if (metrics.length > 0) {
+      metricsHtml = `
+        <div style="margin-bottom:16px;">
+          <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.6px; color:var(--text-secondary); margin-bottom:8px;">Résultats & Métriques calculés</div>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px;">
+            ${metrics.map(m => `
+              <div style="background:var(--bg-secondary); border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:6px; padding:10px 14px;">
+                <div style="font-size:11px; color:var(--text-secondary); margin-bottom:4px; font-weight:500;">${esc(m.label)}</div>
+                <div style="font-size:16px; font-weight:700; color:var(--text-primary); font-family:var(--font-mono, monospace);">${esc(m.value)}</div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    host.innerHTML = `
+      <div style="padding:16px; max-width:850px; margin:0 auto; width:100%;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--border);">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="width:36px; height:36px; border-radius:8px; background:rgba(59,130,246,0.12); display:flex; align-items:center; justify-content:center; color:#3B82F6;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="4 17 10 11 4 5"></polyline>
+                <line x1="12" y1="19" x2="20" y2="19"></line>
+              </svg>
+            </div>
+            <div>
+              <div style="font-weight:600; font-size:14px; color:var(--text-primary);">${esc(doc.path.split("/").pop())}</div>
+              <div style="font-size:11.5px; color:var(--text-secondary); display:flex; align-items:center; gap:8px;">
+                <span style="display:inline-flex; align-items:center; gap:4px; color:${isSuccess ? "#10B981" : "#EF4444"}; font-weight:600;">
+                  ${isSuccess ? "✓ Exécution réussie" : "⚠️ Erreur (Code " + exec.exit_code + ")"}
+                </span>
+                <span>·</span>
+                <span class="mono">${durTxt}</span>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <button type="button" id="btn-result-switch-console" class="icon-btn-mini" title="Basculer vers la console brute">Console brute</button>
+            <button type="button" id="btn-result-reexecute" class="icon-btn-mini" title="Ré-exécuter le script">⚡ Relancer</button>
+          </div>
+        </div>
+
+        ${metricsHtml}
+
+        ${stdout ? `
+          <div style="margin-bottom:16px;">
+            <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.6px; color:var(--text-secondary); margin-bottom:8px;">Sortie du calcul</div>
+            <div style="background:#0F172A; border:1px solid #334155; border-radius:8px; padding:14px; color:#F8FAFC; font-family:var(--font-mono, monospace); font-size:12.5px; line-height:1.6; white-space:pre-wrap; overflow-x:auto;">${esc(stdout)}</div>
+          </div>
+        ` : ""}
+
+        ${stderr ? `
+          <div style="margin-bottom:16px;">
+            <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.6px; color:#EF4444; margin-bottom:8px;">Avertissements / Erreurs</div>
+            <div style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:8px; padding:12px; color:#FCA5A5; font-family:var(--font-mono, monospace); font-size:12px; line-height:1.5; white-space:pre-wrap;">${esc(stderr)}</div>
+          </div>
+        ` : ""}
+
+        ${!stdout && !stderr ? `
+          <div class="inspector-card" style="text-align:center; padding:24px; color:var(--text-secondary);">
+            Le script s'est exécuté avec succès (Code 0) mais n'a produit aucun affichage dans la console.
+          </div>
+        ` : ""}
+      </div>
+    `;
+
+    const btnSwitchConsole = host.querySelector("#btn-result-switch-console");
+    if (btnSwitchConsole) {
+      btnSwitchConsole.addEventListener("click", () => {
+        doc.viewMode = "console";
+        renderDocumentPreviewPanel();
+      });
+    }
+
+    const btnReExec = host.querySelector("#btn-result-reexecute");
+    if (btnReExec) {
+      btnReExec.addEventListener("click", async () => {
+        try {
+          const res = await apiPost("/api/artifacts/execute", { path: doc.path });
+          if (res.artifact) {
+            doc.execution = res.artifact.execution;
+            doc.output_paths = res.artifact.output_paths || [];
+            doc.error = res.artifact.error || null;
+            renderDocumentPreviewPanel();
+          }
+        } catch (err) {
+          showStatusBanner(`Erreur d'exécution : ${err.message}`, "error");
+        }
+      });
+    }
   }
 
   async function renderDocumentPreviewPanel() {
@@ -1877,17 +2628,41 @@
     const zoomLabel = document.getElementById("pdf-zoom-label");
     const btnRender = document.getElementById("btn-doc-view-render");
     const btnSource = document.getElementById("btn-doc-view-source");
+    const btnFiles = document.getElementById("btn-doc-view-files");
+    const btnConsole = document.getElementById("btn-doc-view-console");
     const btnRecompile = document.getElementById("btn-doc-recompile");
     const btnSaveSource = document.getElementById("btn-doc-save-source");
     const btnDownload = document.getElementById("btn-doc-download");
-    const pdfFrame = document.getElementById("doc-pdf-viewer");
+
+    const pdfViewer = document.getElementById("doc-pdf-viewer");
     const htmlFrame = document.getElementById("doc-html-frame");
+    const svgViewer = document.getElementById("doc-svg-viewer");
+    const mermaidViewer = document.getElementById("doc-mermaid-viewer");
+    const imageViewer = document.getElementById("doc-image-viewer");
+    const tableViewer = document.getElementById("doc-table-viewer");
+    const jsonViewer = document.getElementById("doc-json-viewer");
+    const markdownViewer = document.getElementById("doc-markdown-viewer");
+    const resultViewer = document.getElementById("doc-result-viewer");
+    const filesViewer = document.getElementById("doc-files-viewer");
+    const consoleViewer = document.getElementById("doc-console-viewer");
     const sourceWrap = document.getElementById("doc-source-wrap");
     const sourceEditor = document.getElementById("doc-source-editor");
     const errorBox = document.getElementById("doc-error-box");
 
+    const badgeMap = {
+      pdf: "PDF · Tectonic",
+      html: "HTML · Sandbox",
+      tex: "LaTeX · Source",
+      python: "Python · Exécution",
+      svg: "SVG · Vectoriel",
+      mermaid: "Mermaid · Diagramme",
+      json: "JSON · Arborescence",
+      csv: "CSV · Tableur",
+      markdown: "Markdown · Document",
+      image: "Image · HD",
+    };
     if (badgeEl) {
-      badgeEl.textContent = doc.type === "pdf" ? "PDF · Tectonic" : doc.type === "html" ? "HTML · Sandbox" : "LaTeX · Source";
+      badgeEl.textContent = badgeMap[doc.type] || `${(doc.type || "Fichier").toUpperCase()}`;
     }
     if (nameEl) {
       nameEl.textContent = doc.path;
@@ -1897,6 +2672,7 @@
     const metaParts = [];
     if (doc.page_count) metaParts.push(`${doc.page_count} page${doc.page_count > 1 ? "s" : ""}`);
     if (doc.size_bytes) metaParts.push(`${doc.size_bytes} octets`);
+    if (doc.execution && doc.execution.duration_ms) metaParts.push(`${Math.round(doc.execution.duration_ms)} ms`);
     if (metaEl) metaEl.textContent = metaParts.join(" · ");
 
     if (btnDownload) {
@@ -1907,7 +2683,7 @@
     if (noticeEl) {
       if (doc.auto_repaired) {
         noticeEl.style.display = "block";
-        noticeEl.textContent = `✓ Code LaTeX réparé automatiquement avant compilation Tectonic (${(doc.repair_notes || []).join(", ") || "préambule normalisé"}).`;
+        noticeEl.textContent = `✓ Artefact réparé automatiquement (${(doc.repair_notes || []).join(", ") || "syntaxe normalisée"}).`;
       } else {
         noticeEl.style.display = "none";
       }
@@ -1916,8 +2692,26 @@
     if (btnRender && btnSource) {
       btnRender.classList.toggle("active", doc.viewMode === "render");
       btnSource.classList.toggle("active", doc.viewMode === "source");
-      btnSource.textContent = doc.type === "pdf" || doc.type === "tex" ? "Source .tex" : "Code source";
-      btnSource.style.display = doc.type === "pdf" && !doc.source_tex ? "none" : "inline-block";
+      btnSource.textContent =
+        doc.type === "pdf" || doc.type === "tex"
+          ? "Source .tex"
+          : doc.type === "svg"
+          ? "Code XML"
+          : doc.type === "csv"
+          ? "Données brutes"
+          : "Code source";
+      btnSource.style.display = doc.type === "image" ? "none" : "inline-block";
+    }
+
+    if (btnFiles) {
+      btnFiles.classList.toggle("active", doc.viewMode === "files");
+      const hasFiles = (doc.output_paths && doc.output_paths.length > 0) || (doc.source_paths && doc.source_paths.length > 0);
+      btnFiles.style.display = hasFiles ? "inline-block" : "none";
+    }
+
+    if (btnConsole) {
+      btnConsole.classList.toggle("active", doc.viewMode === "console");
+      btnConsole.style.display = doc.execution || doc.type === "python" ? "inline-block" : "none";
     }
 
     if (zoomControls) {
@@ -1928,23 +2722,32 @@
     }
 
     if (btnRecompile) {
-      btnRecompile.style.display =
-        (doc.type === "pdf" && doc.source_tex) || doc.type === "tex" ? "inline-flex" : "none";
-    }
-    if (btnSaveSource) {
-      btnSaveSource.style.display = doc.type === "html" && doc.viewMode === "source" ? "inline-flex" : "none";
+      if ((doc.type === "pdf" && doc.source_tex) || doc.type === "tex") {
+        btnRecompile.style.display = "inline-flex";
+        const txt = btnRecompile.querySelector("span");
+        if (txt) txt.textContent = "Compiler";
+      } else if (doc.type === "python") {
+        btnRecompile.style.display = "inline-flex";
+        const txt = btnRecompile.querySelector("span");
+        if (txt) txt.textContent = "Exécuter";
+      } else {
+        btnRecompile.style.display = "none";
+      }
     }
 
-    if (pdfFrame) pdfFrame.style.display = "none";
-    if (htmlFrame) htmlFrame.style.display = "none";
-    if (sourceWrap) sourceWrap.style.display = "none";
-    if (errorBox) errorBox.style.display = "none";
+    if (btnSaveSource) {
+      btnSaveSource.style.display = doc.viewMode === "source" ? "inline-flex" : "none";
+    }
+
+    [pdfViewer, htmlFrame, svgViewer, mermaidViewer, imageViewer, tableViewer, jsonViewer, markdownViewer, resultViewer, filesViewer, consoleViewer, sourceWrap, errorBox].forEach((el) => {
+      if (el) el.style.display = "none";
+    });
 
     if (doc.error) {
       if (errorBox) {
         errorBox.style.display = "block";
         errorBox.innerHTML = `
-          <strong>⚠️ Erreur d'aperçu ou de compilation</strong>
+          <strong>⚠️ Erreur d'aperçu ou de validation</strong>
           <pre class="mono" style="margin-top: 8px; white-space: pre-wrap; font-size: 11.5px;">${esc(doc.error)}</pre>
         `;
       }
@@ -1972,8 +2775,25 @@
       return;
     }
 
-    if (doc.type === "pdf" && pdfFrame) {
-      pdfFrame.style.display = "flex";
+    if (doc.viewMode === "files") {
+      if (filesViewer) {
+        filesViewer.style.display = "block";
+        renderFilesListInViewer(doc);
+      }
+      return;
+    }
+
+    if (doc.viewMode === "console") {
+      if (consoleViewer) {
+        consoleViewer.style.display = "block";
+        renderConsoleInViewer(doc);
+      }
+      return;
+    }
+
+    // doc.viewMode === "render"
+    if (doc.type === "pdf" && pdfViewer) {
+      pdfViewer.style.display = "flex";
       renderPdfInViewer(doc).catch((err) => {
         if (errorBox) {
           errorBox.style.display = "block";
@@ -1983,19 +2803,91 @@
     } else if (doc.type === "html" && htmlFrame) {
       htmlFrame.style.display = "block";
       htmlFrame.src = `/api/preview/workspace/${doc.path.split("/").map(encodeURIComponent).join("/")}?t=${Date.now()}`;
+    } else if (doc.type === "svg" && svgViewer) {
+      svgViewer.style.display = "flex";
+      renderSvgInViewer(doc);
+    } else if (doc.type === "mermaid" && mermaidViewer) {
+      mermaidViewer.style.display = "flex";
+      renderMermaidInViewer(doc);
+    } else if (doc.type === "image" && imageViewer) {
+      imageViewer.style.display = "flex";
+      renderImageInViewer(doc);
+    } else if (doc.type === "csv" && tableViewer) {
+      tableViewer.style.display = "block";
+      renderCsvInViewer(doc);
+    } else if (doc.type === "json" && jsonViewer) {
+      jsonViewer.style.display = "block";
+      renderJsonInViewer(doc);
+    } else if (doc.type === "markdown" && markdownViewer) {
+      markdownViewer.style.display = "block";
+      renderMarkdownInViewer(doc);
+    } else if (doc.type === "python") {
+      const figures = (doc.metadata && doc.metadata.figures) || [];
+      const visualOut =
+        (doc.metadata && doc.metadata.visual_output) ||
+        figures[0] ||
+        (doc.output_paths || []).find((p) => /\.(png|jpe?g|webp|svg)$/i.test(p));
+      const csvOut = (doc.output_paths || []).find((p) => /\.csv$/i.test(p));
+      const jsonOut = (doc.output_paths || []).find((p) => /\.json$/i.test(p));
+
+      if (visualOut && imageViewer) {
+        imageViewer.style.display = "flex";
+        if (figures.length > 1) {
+          renderFiguresGalleryInViewer(figures, doc);
+        } else {
+          renderImageInViewer({ path: visualOut, size_bytes: null });
+        }
+      } else if (csvOut && tableViewer) {
+        tableViewer.style.display = "block";
+        renderCsvInViewer({ path: csvOut });
+      } else if (jsonOut && jsonViewer) {
+        jsonViewer.style.display = "block";
+        renderJsonInViewer({ path: jsonOut });
+      } else if (resultViewer) {
+        resultViewer.style.display = "block";
+        renderPythonResultInViewer(doc);
+      } else if (consoleViewer) {
+        consoleViewer.style.display = "block";
+        renderConsoleInViewer(doc);
+      }
     }
   }
 
-      function setPdfZoom(next) {
+    function setPdfZoom(next, clientX, clientY) {
       const d = state.activeDocument;
-      if (!d || d.type !== "pdf" || d.viewMode !== "render") return;
-      const z = Math.max(50, Math.min(300, Math.round(next / 5) * 5));
-      if (z === d.zoom) return;
+      const host = document.getElementById("doc-pdf-viewer");
+      if (!d || !host || d.type !== "pdf" || d.viewMode !== "render") return;
+      const oldZoom = d.zoom || 100;
+      const z = Math.max(50, Math.min(400, next));
+      if (Math.abs(z - oldZoom) < 0.05) return;
+
+      // Point fixe : sous le curseur (ou centre du panneau si clavier / boutons)
+      const rect = host.getBoundingClientRect();
+      const ax = clientX == null ? host.clientWidth / 2 : clientX - rect.left;
+      const ay = clientY == null ? host.clientHeight / 2 : clientY - rect.top;
+      const px = host.scrollLeft + ax;
+      const py = host.scrollTop + ay;
+      const ratio = z / oldZoom;
+
+      // Aperçu immédiat : on redimensionne les canvas existants (proportions conservées)
+      const rendered = Number(host.dataset.renderedZoom) || oldZoom;
+      const k = z / rendered;
+      host.querySelectorAll("canvas.pdf-page").forEach((c) => {
+        const w = Number(c.dataset.w) || c.clientWidth;
+        const h = Number(c.dataset.h) || c.clientHeight;
+        c.style.width = `${w * k}px`;
+        c.style.height = `${h * k}px`;
+      });
+      host.scrollLeft = px * ratio - ax;
+      host.scrollTop = py * ratio - ay;
+
       d.zoom = z;
       const lbl = document.getElementById("pdf-zoom-label");
-      if (lbl) lbl.textContent = `${z}%`;
+      if (lbl) lbl.textContent = `${Math.round(z)}%`;
+
+      // Re-rendu net une fois le geste terminé
       clearTimeout(setPdfZoom._t);
-      setPdfZoom._t = setTimeout(() => renderPdfInViewer(d).catch(() => {}), 120);
+      setPdfZoom._t = setTimeout(() => renderPdfInViewer(d).catch(() => {}), 220);
     }
 
     // Ctrl + molette (ou pincement du pavé tactile) sur le document
@@ -2007,7 +2899,10 @@
           if (!e.ctrlKey && !e.metaKey) return;
           e.preventDefault();
           const d = state.activeDocument;
-          if (d) setPdfZoom((d.zoom || 100) - Math.sign(e.deltaY) * 10);
+            if (d) {
+            const delta = Math.max(-40, Math.min(40, e.deltaY));
+            setPdfZoom((d.zoom || 100) * Math.exp(-delta * 0.004), e.clientX, e.clientY);
+          }
         },
         { passive: false }
       );
@@ -2380,7 +3275,9 @@
       <div class="inspector-card">
         <div class="inspector-card-title">
           <span>Fichiers du Workspace (${files.length})</span>
-          <span class="mono" style="font-size:10px; color:var(--text-muted);">workspace/</span>
+          <button type="button" class="sidebar-danger-btn" data-clear-workspace-files ${files.length === 0 ? "disabled" : ""} title="Supprimer tous les fichiers du workspace">
+            <span>🗑 Tout supprimer</span>
+          </button>
         </div>
         <div style="display:flex; flex-direction:column; gap:3px; max-height:240px; overflow-y:auto;">
           ${
@@ -2627,6 +3524,7 @@
     if (!el) return;
     if (id === "modal-model-picker") renderModelPickerModal();
     if (id === "modal-settings") renderSettingsModal();
+    if (id === "modal-library") renderLibraryModal();
     if (id === "modal-global-search") {
       runGlobalSearch("");
       setTimeout(() => {
@@ -2641,6 +3539,144 @@
     const el = document.getElementById(id);
     if (el) el.classList.remove("open");
   }
+
+    // Fenêtre modale de confirmation (remplace confirm()). Retourne true / false.
+  function confirmModal({ title = "Confirmer", message = "", confirmLabel = "Supprimer", danger = true } = {}) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById("modal-confirm");
+      const okBtn = document.getElementById("confirm-ok");
+      const cancelBtn = document.getElementById("confirm-cancel");
+      if (!modal || !okBtn || !cancelBtn) {
+        resolve(window.confirm(message)); // repli de sécurité
+        return;
+      }
+      document.getElementById("confirm-title").textContent = title;
+      document.getElementById("confirm-message").textContent = message;
+      okBtn.textContent = confirmLabel;
+      okBtn.classList.toggle("danger", danger);
+
+      const finish = (value) => {
+        modal.classList.remove("open");
+        okBtn.removeEventListener("click", onOk);
+        cancelBtn.removeEventListener("click", onCancel);
+        modal.removeEventListener("mousedown", onBackdrop);
+        document.removeEventListener("keydown", onKey, true);
+        resolve(value);
+      };
+      const onOk = () => finish(true);
+      const onCancel = () => finish(false);
+      const onBackdrop = (e) => { if (e.target === modal) finish(false); };
+      const onKey = (e) => {
+        if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); finish(false); }
+        else if (e.key === "Enter") {
+          // Entrée active le bouton qui a le focus (Annuler par défaut), jamais la suppression à l'aveugle
+          e.preventDefault();
+          e.stopPropagation();
+          finish(document.activeElement === okBtn);
+        }
+      };
+
+      okBtn.addEventListener("click", onOk);
+      cancelBtn.addEventListener("click", onCancel);
+      modal.addEventListener("mousedown", onBackdrop);
+      document.addEventListener("keydown", onKey, true);
+      modal.classList.add("open");
+      setTimeout(() => cancelBtn.focus(), 30); // focus sur Annuler par sécurité
+    });
+  }
+
+  async function renderLibraryModal() {
+    const body = document.getElementById("modal-library-body");
+    if (!body) return;
+    body.innerHTML = '<div style="text-align: center; padding: 24px; color: var(--text-muted);">Chargement de la bibliothèque du workspace…</div>';
+
+    try {
+      const res = await apiGet("/api/files");
+      const files = (res && res.files) || (state.appState && state.appState.workspace && state.appState.workspace.files) || [];
+      
+      body.innerHTML = `
+        <div class="library-search-box">
+          <input type="text" id="library-search-input" class="library-search-input" placeholder="Filtrer les fichiers, templates, scripts (.tex, .py, .html, .csv)..." />
+          <button type="button" class="btn-primary-mini" id="library-btn-upload-file">+ Importer</button>
+        </div>
+        <div class="library-file-list" id="library-file-list"></div>
+      `;
+
+      const listEl = document.getElementById("library-file-list");
+      const searchInput = document.getElementById("library-search-input");
+      const uploadBtn = document.getElementById("library-btn-upload-file");
+
+      if (uploadBtn) {
+        uploadBtn.addEventListener("click", () => {
+          closeModal("modal-library");
+          const fi = document.getElementById("composer-file-input");
+          if (fi) {
+            fi.accept = "";
+            fi.click();
+          }
+        });
+      }
+
+      const renderList = (filter = "") => {
+        const q = filter.trim().toLowerCase();
+        const filtered = files.filter(f => !q || (f.path || f.name).toLowerCase().includes(q) || (f.extension || "").toLowerCase().includes(q));
+        if (filtered.length === 0) {
+          listEl.innerHTML = `<div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px;">Aucun fichier trouvé pour "${esc(filter)}".</div>`;
+          return;
+        }
+        listEl.innerHTML = filtered.map(f => {
+          const isAttached = state.attachedFiles.includes(f.path);
+          const sizeKb = Math.round((f.size_bytes || 0) / 1024);
+          const ext = (f.extension || "").replace(".", "").toUpperCase() || "FILE";
+          return `
+            <div class="library-file-item">
+              <div class="library-file-info">
+                <div class="library-file-name">
+                  <span class="library-badge">${esc(ext)}</span>
+                  <span>${esc(f.name || f.path)}</span>
+                </div>
+                <div class="library-file-meta">${esc(f.path)} • ${sizeKb} Ko</div>
+              </div>
+              <button type="button" class="btn-ghost-mini" data-attach-lib-file="${esc(f.path)}" style="${isAttached ? "color: var(--success); font-weight: 600;" : ""}">
+                ${isAttached ? "✓ Attaché" : "+ Joindre"}
+              </button>
+            </div>
+          `;
+        }).join("");
+      };
+
+      if (searchInput) {
+        searchInput.addEventListener("input", (e) => {
+          renderList(e.target.value);
+        });
+      }
+
+      listEl.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-attach-lib-file]");
+        if (!btn) return;
+        const fpath = btn.getAttribute("data-attach-lib-file");
+        if (!fpath) return;
+        if (!state.attachedFiles.includes(fpath)) {
+          state.attachedFiles.push(fpath);
+          btn.innerHTML = "✓ Attaché";
+          btn.style.color = "var(--success)";
+          btn.style.fontWeight = "600";
+          renderComposer();
+        } else {
+          state.attachedFiles = state.attachedFiles.filter(p => p !== fpath);
+          btn.innerHTML = "+ Joindre";
+          btn.style.color = "";
+          btn.style.fontWeight = "";
+          renderComposer();
+        }
+      });
+
+      renderList("");
+    } catch (err) {
+      body.innerHTML = `<div style="color: var(--error); padding: 16px;">Erreur chargement bibliothèque : ${esc(String(err))}</div>`;
+    }
+  }
+
 
   function renderModelPickerModal() {
     const body = document.getElementById("modal-model-body");
@@ -2909,9 +3945,11 @@
       const attachments = [...state.attachedFiles];
       state.attachedFiles = [];
 
+      const activeCid = (state.appState && state.appState.active_conversation && state.appState.active_conversation.id) || "";
       const runData = await apiPost("/api/tasks/run", {
         prompt: promptText.trim(),
         attachments: attachments,
+        conversation_id: activeCid,
       });
       await drainTypewriter(1500);
       const scKeep = document.getElementById("workspace-scroll");
@@ -2926,13 +3964,13 @@
         assistantMsg.preview_artifacts ||
         assistantMsg.artifacts ||
         [];
-      const previewArt = artifacts.find((a) => a.type === "pdf" || a.type === "html");
+      const previewArt = artifacts.find((a) => a && a.path);
       if (previewArt) {
         await openDocumentPreview(previewArt);
       } else if (assistantMsg.content) {
-        const exportMatch = String(assistantMsg.content).match(/\[EXPORT OK\]\s+([^\s|]+\.pdf)/i);
+        const exportMatch = String(assistantMsg.content).match(/\[EXPORT OK\]\s+([^\s|]+\.(?:pdf|html|py|svg|mmd|mermaid|json|csv|md|png|jpg))/i);
         if (exportMatch) {
-          await openDocumentPreview({ type: "pdf", path: exportMatch[1].trim() });
+          await openDocumentPreview({ path: exportMatch[1].trim() });
         }
       }
 
@@ -2991,49 +4029,40 @@
 
   async function handleFilesUpload(fileList) {
     if (!fileList || fileList.length === 0) return;
-    for (let i = 0; i < fileList.length; i++) {
-      const file = fileList[i];
-      showStatusBanner(`Téléversement de ${file.name}…`, "info");
-      const reader = new FileReader();
-      const isText = file.type.startsWith("text/") || /\.(txt|md|py|js|ts|json|yaml|yml|csv|tex|html|css)$/i.test(file.name);
+    const files = Array.from(fileList);
+    let okCount = 0;
 
-      await new Promise((resolve) => {
+    for (const file of files) {
+      showStatusBanner(`Téléversement de ${file.name}…`, "info");
+      const isText =
+        (file.type || "").startsWith("text/") ||
+        /\.(txt|md|py|js|ts|json|yaml|yml|csv|tex|html|css)$/i.test(file.name);
+
+      try {
+        const payload = { filename: file.name };
         if (isText) {
-          reader.onload = async () => {
-            try {
-              const res = await apiPost("/api/files/upload", {
-                filename: file.name,
-                content_text: reader.result,
-              });
-              const p = res.path || `uploads/${file.name}`;
-              if (!state.attachedFiles.includes(p)) state.attachedFiles.push(p);
-            } catch (err) {
-              console.warn("Upload error:", err);
-            }
-            resolve();
-          };
-          reader.readAsText(file);
+          payload.content_text = await file.text();
         } else {
-          reader.onload = async () => {
-            try {
-              const b64 = String(reader.result).split(",")[1] || "";
-              const res = await apiPost("/api/files/upload", {
-                filename: file.name,
-                content_base64: b64,
-              });
-              const p = res.path || `uploads/${file.name}`;
-              if (!state.attachedFiles.includes(p)) state.attachedFiles.push(p);
-            } catch (err) {
-              console.warn("Upload error:", err);
-            }
-            resolve();
-          };
-          reader.readAsDataURL(file);
+          const dataUrl = await new Promise((resolve, reject) => {
+            const r = new FileReader();
+            r.onload = () => resolve(String(r.result));
+            r.onerror = () => reject(new Error("Lecture du fichier impossible"));
+            r.readAsDataURL(file);
+          });
+          payload.content_base64 = dataUrl.split(",")[1] || "";
         }
-      });
+        const res = await apiPost("/api/files/upload", payload);
+        const p = (res && res.path) || `uploads/${file.name}`;
+        if (!state.attachedFiles.includes(p)) state.attachedFiles.push(p);
+        okCount++;
+      } catch (err) {
+        showStatusBanner(`Échec du téléversement de ${file.name} : ${err.message}`, "error");
+        console.warn("Upload error:", err);
+      }
+      renderComposerControls(); // la pastille apparaît fichier par fichier
     }
-    showStatusBanner("", "info");
-    renderComposer();
+
+    if (okCount === files.length) showStatusBanner("", "info");
   }
 
   // =========================================================================
@@ -3058,7 +4087,7 @@
     // Boutons de la barre d'aperçu de document (PDF / HTML)
     const btnCloseDoc = document.getElementById("btn-close-doc-preview");
     if (btnCloseDoc) {
-      btnCloseDoc.addEventListener("click", closeRightPanel);
+      btnCloseDoc.addEventListener("click", closeDocumentPreview);
     }
     const btnSwitchToInsp = document.getElementById("btn-switch-to-inspector");
     if (btnSwitchToInsp) {
@@ -3094,12 +4123,29 @@
         }
       });
     }
+    const btnViewFiles = document.getElementById("btn-doc-view-files");
+    if (btnViewFiles) {
+      btnViewFiles.addEventListener("click", () => {
+        if (state.activeDocument) {
+          state.activeDocument.viewMode = "files";
+          renderDocumentPreviewPanel();
+        }
+      });
+    }
+    const btnViewConsole = document.getElementById("btn-doc-view-console");
+    if (btnViewConsole) {
+      btnViewConsole.addEventListener("click", () => {
+        if (state.activeDocument) {
+          state.activeDocument.viewMode = "console";
+          renderDocumentPreviewPanel();
+        }
+      });
+    }
     const btnZoomOut = document.getElementById("btn-pdf-zoom-out");
     if (btnZoomOut) {
       btnZoomOut.addEventListener("click", () => {
         if (state.activeDocument && state.activeDocument.type === "pdf") {
-          state.activeDocument.zoom = Math.max(50, (state.activeDocument.zoom || 100) - 25);
-          renderDocumentPreviewPanel();
+          setPdfZoom((state.activeDocument.zoom || 100) - 25);
         }
       });
     }
@@ -3107,8 +4153,7 @@
     if (btnZoomIn) {
       btnZoomIn.addEventListener("click", () => {
         if (state.activeDocument && state.activeDocument.type === "pdf") {
-          state.activeDocument.zoom = Math.min(250, (state.activeDocument.zoom || 100) + 25);
-          renderDocumentPreviewPanel();
+          setPdfZoom((state.activeDocument.zoom || 100) + 25);
         }
       });
     }
@@ -3143,6 +4188,23 @@
       btnDocRecompile.addEventListener("click", async () => {
         const doc = state.activeDocument;
         if (!doc) return;
+        if (doc.type === "python") {
+          try {
+            const res = await apiPost("/api/artifacts/execute", { path: doc.path });
+            if (res.artifact) {
+              doc.execution = res.artifact.execution;
+              doc.output_paths = res.artifact.output_paths || [];
+              doc.error = res.artifact.error || null;
+              doc.metadata = res.artifact.metadata || doc.metadata;
+              await refreshFullState();
+              renderDocumentPreviewPanel();
+              showStatusBanner("✓ Script Python exécuté", "success");
+            }
+          } catch (err) {
+            showStatusBanner(`Erreur d'exécution : ${err.message}`, "error");
+          }
+          return;
+        }
         const texPath = doc.source_tex || (doc.path.endsWith(".tex") ? doc.path : "");
         if (!texPath) return;
         const editor = document.getElementById("doc-source-editor");
@@ -3165,20 +4227,28 @@
             await refreshFullState();
             renderDocumentPreviewPanel();
             showStatusBanner(`✓ Page HTML validée et actualisée (${comp.size_bytes || editor.value.length} octets)`, "success");
-          } else {
-            await apiPost("/api/files/write", { path: doc.path, content: editor.value });
+          } else if (doc.type === "tex") {
             doc.sourceContent = editor.value;
+            await apiPost("/api/files/write", { path: doc.path, content: editor.value });
+            await compileLatexAndPreview(doc.path, editor.value);
+            showStatusBanner("✓ Source LaTeX enregistrée et compilée", "success");
+          } else {
+            const res = await apiPost("/api/artifacts/process", { path: doc.path, content: editor.value });
+            doc.sourceContent = editor.value;
+            if (res.artifact) {
+              doc.execution = res.artifact.execution;
+              doc.output_paths = res.artifact.output_paths || [];
+              doc.error = res.artifact.error || null;
+            }
             doc.viewMode = "render";
             await refreshFullState();
             renderDocumentPreviewPanel();
-            showStatusBanner("✓ Fichier enregistré", "success");
+            showStatusBanner("✓ Artefact mis à jour et validé", "success");
           }
         } catch (err) {
           showStatusBanner(`Erreur de validation/enregistrement : ${err.message}`, "error");
-          if (doc.type === "html") {
-            doc.error = err.message;
-            renderDocumentPreviewPanel();
-          }
+          doc.error = err.message;
+          renderDocumentPreviewPanel();
         }
       });
     }
@@ -3247,6 +4317,60 @@
     document.getElementById("btn-brand-home").addEventListener("click", async () => {
       await apiPost("/api/conversations/create", { title: "Nouvelle tâche" });
       await refreshFullState();
+    });
+        // --- Supprimer TOUTES les discussions ---
+    const btnDelAllConvs = document.getElementById("btn-delete-all-convs");
+    if (btnDelAllConvs) {
+      btnDelAllConvs.addEventListener("click", async () => {
+        const convs = (state.appState && state.appState.conversations) || [];
+        if (convs.length === 0) {
+          showStatusBanner("Aucune discussion à supprimer.", "info");
+          return;
+        }
+        if (!(await confirmModal({
+          title: "Supprimer toutes les discussions ?",
+          message: `${convs.length} discussion(s) seront supprimées définitivement. Cette action est irréversible.`,
+          confirmLabel: "Tout supprimer",
+        }))) return;
+        btnDelAllConvs.disabled = true;
+        try {
+          await apiPost("/api/conversations/clear", {});
+          await refreshFullState();
+          showStatusBanner("Toutes les discussions ont été supprimées.", "info");
+        } catch (err) {
+          showStatusBanner(`Suppression impossible : ${err.message}`, "error");
+        } finally {
+          btnDelAllConvs.disabled = false;
+        }
+      });
+    }
+
+    // --- Supprimer TOUS les fichiers du workspace (onglet Fichiers) ---
+    document.body.addEventListener("click", async (e) => {
+      const btn = e.target.closest("[data-clear-workspace-files]");
+      if (!btn || btn.disabled) return;
+      const count = ((state.appState && state.appState.workspace && state.appState.workspace.files) || []).length;
+      if (!(await confirmModal({
+        title: "Supprimer tous les fichiers ?",
+        message: `${count} fichier(s) du workspace (PDF, exports, uploads…) seront supprimés définitivement.`,
+        confirmLabel: "Tout supprimer",
+      }))) return;
+      btn.disabled = true;
+      try {
+        const res = await apiPost("/api/files/clear", {});
+        state.selectedFilePreview = null;
+        state.attachedFiles = [];
+        if (state.activeDocument) {
+          state.activeDocument = null;
+          state.pdfDocCache = null;
+          closeRightPanel();
+        }
+        await refreshFullState();
+        showStatusBanner(`${(res && res.deleted) || count} fichier(s) supprimé(s).`, "info");
+      } catch (err) {
+        btn.disabled = false;
+        showStatusBanner(`Suppression impossible : ${err.message}`, "error");
+      }
     });
 
     document.getElementById("sidebar-filter-input").addEventListener("input", (e) => {
@@ -3424,17 +4548,123 @@
       });
     }
 
-    // Téléversement de pièces jointes via le bouton + Fichier
+    // Menu + & Téléversement de pièces jointes
     const attachBtn = document.getElementById("btn-attach-file");
+    const plusMenu = document.getElementById("composer-plus-menu");
     const fileInput = document.getElementById("composer-file-input");
     if (attachBtn && fileInput) {
-      attachBtn.addEventListener("click", () => {
-        fileInput.click();
-      });
+      if (plusMenu) {
+        attachBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const isVis = plusMenu.style.display === "flex";
+          plusMenu.style.display = isVis ? "none" : "flex";
+        });
+        document.addEventListener("click", (e) => {
+          if (plusMenu.style.display !== "none" && !plusMenu.contains(e.target) && !attachBtn.contains(e.target)) {
+            plusMenu.style.display = "none";
+          }
+        });
+      } else {
+        attachBtn.addEventListener("click", () => {
+          fileInput.click();
+        });
+      }
       fileInput.addEventListener("change", async (e) => {
         if (e.target.files && e.target.files.length > 0) {
           await handleFilesUpload(e.target.files);
           e.target.value = "";
+          fileInput.accept = "";
+        }
+      });
+
+      const plusActions = {
+        "plus-action-upload": () => {
+          fileInput.accept = "";
+          fileInput.click();
+        },
+        "plus-action-library": () => {
+          openModal("modal-library");
+        },
+        "plus-action-image": () => {
+          fileInput.accept = "image/*";
+          fileInput.click();
+        },
+        "plus-action-web": () => {
+          const inp = document.getElementById("composer-input");
+          if (inp) {
+            inp.value = "Recherche sur le web : " + inp.value;
+            inp.focus();
+          }
+        },
+        "plus-action-deep-search": () => {
+          const inp = document.getElementById("composer-input");
+          if (inp) {
+            inp.value = "/analyze " + inp.value;
+            inp.focus();
+          }
+        },
+        "plus-action-thinking": async () => {
+          const sel = document.getElementById("composer-mode-select");
+          if (sel) sel.value = "PLAN";
+          await apiPost("/api/mode", { mode: "PLAN" });
+          await refreshFullState();
+          showStatusBanner("Mode Réflexion approfondie (PLAN) activé", "info");
+        },
+        "plus-action-pdf": () => {
+          const inp = document.getElementById("composer-input");
+          if (inp) {
+            inp.value = "/bacblanc " + inp.value;
+            inp.focus();
+          }
+        },
+        "plus-action-diagram": () => {
+          const inp = document.getElementById("composer-input");
+          if (inp) {
+            inp.value = "Génère un diagramme Mermaid détaillé pour : " + inp.value;
+            inp.focus();
+          }
+        },
+        "plus-action-docs": () => {
+          const inp = document.getElementById("composer-input");
+          if (inp) {
+            inp.value = "Rédige un document structuré et complet sur : " + inp.value;
+            inp.focus();
+          }
+        },
+        "plus-action-sheets": () => {
+          const inp = document.getElementById("composer-input");
+          if (inp) {
+            inp.value = "Génère un jeu de données CSV complet et analyse : " + inp.value;
+            inp.focus();
+          }
+        },
+        "plus-action-slides": () => {
+          const inp = document.getElementById("composer-input");
+          if (inp) {
+            inp.value = "Crée une présentation Web interactive en HTML/CSS/JS sur : " + inp.value;
+            inp.focus();
+          }
+        },
+        "plus-action-templates": () => {
+          openModal("modal-library");
+          setTimeout(() => {
+            const q = document.getElementById("library-search-input");
+            if (q) {
+              q.value = "template";
+              q.dispatchEvent(new Event("input"));
+            }
+          }, 50);
+        },
+      };
+
+      Object.entries(plusActions).forEach(([aid, ahandler]) => {
+        const el = document.getElementById(aid);
+        if (el) {
+          el.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            if (plusMenu) plusMenu.style.display = "none";
+            await ahandler();
+          });
         }
       });
     }
@@ -3617,6 +4847,12 @@
       if (target.hasAttribute("data-delete-conv")) {
         e.stopPropagation();
         const cid = target.getAttribute("data-delete-conv");
+        const convToDelete = ((state.appState && state.appState.conversations) || []).find((c) => c.id === cid);
+        if (!(await confirmModal({
+          title: "Supprimer cette discussion ?",
+          message: `« ${(convToDelete && convToDelete.title) || "Discussion"} » sera supprimée définitivement.`,
+          confirmLabel: "Supprimer",
+        }))) return;
         try {
           await apiPost("/api/conversations/delete", { id: cid });
         } catch (_) {}
@@ -3635,13 +4871,9 @@
       if (target.hasAttribute("data-preview-file")) {
         const fpath = target.getAttribute("data-preview-file");
         closeModal("modal-global-search");
-        const lower = String(fpath || "").toLowerCase();
-        if (lower.endsWith(".pdf")) {
-          await openDocumentPreview({ type: "pdf", path: fpath });
-          return;
-        }
-        if (lower.endsWith(".html") || lower.endsWith(".htm")) {
-          await openDocumentPreview({ type: "html", path: fpath });
+        const typ = detectArtifactType(fpath);
+        if (typ !== "unknown") {
+          await openDocumentPreview({ type: typ, path: fpath });
           return;
         }
         try {

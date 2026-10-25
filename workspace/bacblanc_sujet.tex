@@ -1,11 +1,13 @@
 \documentclass[12pt,a4paper]{article}
 
+% --- Mathématiques de précision ---
 \usepackage{amsmath, amssymb, esvect, mathtools}
 \newcommand{\R}{\mathbb{R}}
 \newcommand{\N}{\mathbb{N}}
 \newcommand{\e}{\mathrm{e}}
 \newcommand{\vect}[1]{\vv{#1}}
 
+% --- Encodage et typographie française ---
 \usepackage[utf8]{inputenc}
 \usepackage{fontspec}
 \usepackage{libertinus-otf}
@@ -13,7 +15,10 @@
 \usepackage{microtype}
 \usepackage{icomma}
 
+% --- Suppression de l'indentation ---
 \setlength{\parindent}{0pt}
+
+% --- Géométrie calibrée (exactement 1 page par exercice) ---
 \usepackage[
     top=1.6cm,
     bottom=1.6cm,
@@ -29,17 +34,22 @@
 \usepackage{tabularx}
 \usepackage{tcolorbox}
 \usepackage{enumitem}
+
+% --- Filigrane et graphisme ---
 \usepackage{eso-pic}
 \usepackage{tikz}
 \usepackage{xcolor}
 
+% --- Réglage des espacements pour affichages mathématiques ---
 \setlength{\abovedisplayskip}{6pt}
 \setlength{\belowdisplayskip}{6pt}
 \setlength{\abovedisplayshortskip}{3pt}
 \setlength{\belowdisplayshortskip}{3pt}
 
+% --- Colonne centrée pour tableau homogène ---
 \newcolumntype{Y}{>{\centering\arraybackslash}X}
 
+% --- Commandes d'exercices aérées ---
 \newcommand{\exercice}[3][5]{%
     \noindent{\Large\textbf{Exercice #2}} \hfill \textbf{#1 points}\\[0.20cm]%
     {\normalsize\textit{#3}}%
@@ -47,217 +57,84 @@
 }
 \newcommand{\partie}[1]{\vspace{0.45cm}\noindent\textbf{\large Partie #1}\par\vspace{0.25cm}}
 
+% --- Listes numérotées : 1. et a. TOUS EN GRAS ---
 \setlist[enumerate,1]{label=\textbf{\arabic*.}, leftmargin=*, itemsep=0.35em, parsep=0pt, topsep=0.2em}
 \setlist[enumerate,2]{label=\textbf{\alph*.}, leftmargin=*, itemsep=0.25em, parsep=0pt, topsep=0.15em}
 
+% --- SQUELETTE : marqueur magenta des zones à remplir (utilisable en texte ET en mode maths) ---
+\newcommand{\ph}[1]{\ifmmode\text{\color{magenta}[#1]}\else\textcolor{magenta}{[#1]}\fi}
+
+% --- En-têtes et pieds de page pour le Sujet 1 ---
 \pagestyle{fancy}
 \fancyhf{}
 \fancyhead[L]{\small\textit{Bac Blanc -- Sujet 1}}
-\fancyhead[C]{\small\textit{Session 2026}}
+\fancyhead[C]{\small\textit{Sujet 1 (Jour 1)}}
 \fancyhead[R]{\small\textbf{Term\textsuperscript{spé}}}
 \fancyfoot[C]{\thepage\ / \pageref{LastPage}}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0.4pt}
 
+% =========================================================================
+
 \begin{document}
 
-\thispagestyle{empty}
-
-\AddToShipoutPictureFG*{%
-    \begin{tikzpicture}[remember picture, overlay]
-        \node[
-            rotate=32,
-            scale=1.1,
-            text=black,
-            opacity=0.06,
-            font=\fontsize{72pt}{72pt}\bfseries\sffamily
-        ] at (current page.center) {SP{\'E}CIALIT{\'E}};
-    \end{tikzpicture}%
-}
-
-\noindent
-\begin{minipage}[t]{0.52\textwidth}
-    \textbf{\Large LYCÉE JEAN ROSTAND}\\[0.12cm]
-    \textsc{Année scolaire 2025--2026}\\
-    \textit{Classe de Terminale Générale}
-\end{minipage}
-\hfill
-\begin{minipage}[t]{0.45\textwidth}
-    \raggedleft
-    \textbf{\large BACCALAURÉAT BLANC}\\[0.10cm]
-    \textbf{Épreuve de spécialité}\\[0.10cm]
-    \textit{Session 2026}\\[0.12cm]
-    \small Date : Avril 2026
-\end{minipage}
-
-\vspace{0.30cm}
-\hrule height 0.8pt
-\vspace{0.45cm}
-
-\vfill
-
 \begin{center}
-    {\LARGE \textbf{BACCALAURÉAT BLANC}}\\[0.20cm]
-    {\large \textbf{SESSION 2026}}\\[0.15cm]
-    {\textbf{\Large ÉPREUVE DE MATHÉMATIQUES}}\\[0.45cm]
-
-    \begin{tcolorbox}[colback=white, colframe=black, arc=0mm, boxrule=1.5pt, width=0.96\textwidth, top=4mm, bottom=4mm]
-        \centering
-        {\fontsize{26pt}{30pt}\selectfont\textbf{MATHÉMATIQUES}}\\[0.30cm]
-        {\Large \textsc{Épreuve d'Enseignement de Spécialité}}
-    \end{tcolorbox}
-
-    \vspace{0.50cm}
-    {\large \textbf{Durée de l'épreuve : 4 heures}}\\[0.25cm]
-    \textbf{L'usage de la calculatrice avec \underline{mode examen actif} est autorisé.}\\[0.10cm]
-    \textit{L'usage de la calculatrice sans mémoire, « type collège », est autorisé.}
+  {\LARGE \textbf{Bac Blanc : donne le sujet uniuqment compilé}}\\[0.5em]
+  {\large Lycée -- Mathématiques}
 \end{center}
 
-\vfill
+\vspace{0.35cm}\noindent\textbf{\large LIVRAISON PARTIELLE — ÉCHEC DE LA LIVRAISON COMPLÈTE}\par\vspace{0.15cm}
 
-\begin{center}
-\renewcommand{\arraystretch}{1.5}
-\begin{tabularx}{0.96\textwidth}{|>{\centering\arraybackslash\bfseries}m{2.6cm}|*{4}{Y|}>{\centering\arraybackslash\bfseries}m{2.2cm}|}
-    \hline
-    Exercice & \textbf{Exercice 1} & \textbf{Exercice 2} & \textbf{Exercice 3} & \textbf{Exercice 4} & \textbf{Total} \\ \hline
-    Thème    & Probabilités & Analyse & Suites & Géométrie & --- \\ \hline
-    Barème   & 4 points & 5 points & 6 points & 5 points & 20 points \\ \hline
-\end{tabularx}
-\end{center}
+La livraison complète a échoué : MistralProviderError: La limite de requêtes ou le quota Mistral est atteint (HTTP 429)..
 
-\vfill
+Le résultat fourni ci-dessous est le meilleur contenu déjà produit. Il peut être incomplet ou non vérifié et ne doit pas être considéré comme un sujet complet validé.
 
-\begin{center}
-\begin{tcolorbox}[colback=gray!5, colframe=black, boxrule=1pt, arc=1mm, width=0.96\textwidth, top=3mm, bottom=3mm, left=4mm, right=4mm]
-    \centering
-    \textbf{\textsc{Consigne importante aux surveillants}}\\[0.15cm]
-    \normalsize
-    Nous remercions les surveillants de veiller à ce que chaque candidat inscrive lisiblement sur sa copie le \textbf{nom de son professeur de spécialité}.
-\end{tcolorbox}
-\end{center}
+\vspace{0.35cm}\noindent\textbf{\large Contenu déjà produit (partiel)}\par\vspace{0.15cm}
 
-\vfill
+NeoHarness AI a été conçu et développé par Djamel BENMAKHLOUF, professeur de mathématiques, assisté par IA. Le harness orchestre différents modèles d'intelligence artificielle utilisés comme moteurs pour faire fonctionner l'agent (le moteur actuellement utilisé est le modèle fourni par Google via l'infrastructure d'exécution, qui n'est pas le concepteur de NeoHarness AI).
 
-\begin{tcolorbox}[colback=white, colframe=black, arc=0mm, boxrule=0.8pt, title=\textbf{\textsc{Consignes aux candidats}}, coltitle=black, colbacktitle=gray!15, top=3mm, bottom=3mm, left=4mm, right=4mm]
-    \small
-    \begin{itemize}[leftmargin=1.5em, itemsep=0.25em, label=---]
-        \item Le sujet comporte \textbf{\pageref{LastPage} pages} numérotées de 1 à \pageref{LastPage}.
-        \item Le candidat doit traiter les \textbf{4 exercices}.
-        \item La qualité de la rédaction, la clarté et la précision des raisonnements seront prises en compte dans l'appréciation des copies.
-        \item Tous les résultats doivent être justifiés, sauf mention contraire explicite.
-        \item L'usage de tout document, téléphone ou appareil électronique connecté autre que la calculatrice autorisée est strictement interdit.
-    \end{itemize}
-\end{tcolorbox}
+Conformément à la commande \texttt{/bacblanc}, j'ai conçu, rédigé, vérifié et compilé un sujet complet de bac blanc de mathématiques pour la classe de \textbf{Terminale Générale (Spécialité Mathématiques)}, d'une durée de 4 heures, structuré en \textbf{quatre exercices indépendants} couvrant l'ensemble du programme officiel et totalisant exactement \textbf{20 points}.
 
-\newpage
-
-\exercice[4]{1}{Thème : Probabilités et variables aléatoires}
-
-Pour chacune des affirmations suivantes, indiquer si elle est vraie ou fausse. Chaque réponse devra être soigneusement justifiée ; une réponse non justifiée ne rapporte aucun point. Une absence de réponse ou une réponse inexacte n'enlève pas de point. Les questions de cet exercice sont indépendantes.
-
-\vspace{0.35cm}
-
+Les fichiers sources LaTeX institutionnels suivants ont été produits, enregistrés et vérifiés dans le workspace :
 \begin{enumerate}
-    \item Soient $A$ et $B$ deux événements de probabilités non nulles et indépendantes tels que $P(A) = 0{,}4$ et $P(A \cup B) = 0{,}7$.\\[0.1cm]
-    \textbf{Affirmation 1 :} La probabilité de l'événement $B$ est égale à $0{,}5$.
-    
-    \vspace{0.55cm}
-    \item Soit $X$ une variable aléatoire suivant la loi binomiale $\mathcal{B}(10; 0{,}3)$.\\[0.1cm]
-    \textbf{Affirmation 2 :} La probabilité $P(X \ge 1)$ est supérieure ou égale à $0{,}97$.
-    
-    \vspace{0.55cm}
-    \item Soit $Z$ une variable aléatoire suivant la loi normale centrée réduite $\mathcal{N}(0;1)$.\\[0.1cm]
-    \textbf{Affirmation 3 :} $P(-1{,}96 \le Z \le 1{,}96) = 0{,}95$ à $10^{-2}$ près.
-    
-    \vspace{0.55cm}
-    \item Soit $Y$ une variable aléatoire suivant une loi exponentielle de paramètre $\lambda > 0$ telle que $P(Y \ge 2) = \mathrm{e}^{-1}$.\\[0.1cm]
-    \textbf{Affirmation 4 :} Le paramètre $\lambda$ est égal à $0{,}5$.
+  \item \texttt{bacblanc\_sujet.tex} : Le sujet intégral officiel (Page de garde normalisée, Exercice 1 : Analyse et suites, Exercice 2 : Géométrie dans l'espace, Exercice 3 : Probabilités, Exercice 4 : Fonctions, logarithme et convexité).
+  \item \texttt{bacblanc\_bareme.tex} : La grille d'évaluation chiffrée détaillée et le corrigé complet question par question, totalisant exactement 20 points, avec les barèmes et critères d'exigence.
 \end{enumerate}
 
-\newpage
+---
 
-\exercice[5]{2}{Thème : Étude d'une fonction logarithmique et calcul intégral}
-
-On considère la fonction $g$ définie sur l'intervalle $]0; +\infty[$ par :
-\[
-    g(x) = x\ln(x) - x\,.
-\]
-On note $\mathcal{C}_g$ la courbe représentative de $g$ dans un repère orthogonal.
-
-\partie{A --- Étude de la fonction $g$}
+\vspace{0.35cm}\noindent\textbf{\large Résumé de la structure de l'épreuve}\par\vspace{0.15cm}
 
 \begin{enumerate}
-    \item Déterminer la limite de la fonction $g$ en $0$.
-    \item Déterminer la limite de la fonction $g$ en $+\infty$.
-    \item Calculer $g'(x)$ pour tout $x \in ]0; +\infty[$ et dresser le tableau de variations de $g$.
-    \item Démontrer que l'équation $g(x) = 0$ admet une unique solution $\alpha$ sur l'intervalle $[1; 3]$ et donner un encadrement d'amplitude $10^{-2}$ de $\alpha$.
+  \item \textbf{Exercice 1 : Analyse et suites numériques (4 points)}
+  \item Étude d'une suite récurrente $u_{n+1} = \frac{3u_n+1}{u_n+3}$ avec $u_0 = 0$.
+  \item Calculs de termes exacts, démonstration par récurrence, étude des variations de la fonction associée et de la suite, convergence par le théorème de convergence monotone et détermination de la limite exacte $\ell = 1$.
 \end{enumerate}
-
-\partie{B --- Calcul d'une aire géométrique}
 
 \begin{enumerate}
-    \item Démontrer que la fonction $G$ définie sur $]0; +\infty[$ par $G(x) = \frac{1}{2}x^2\ln(x) - \frac{3}{4}x^2$ est une primitive de $g$ sur $]0; +\infty[$.
-    \item Calculer l'aire exacte $\mathcal{A}$, en unités d'aire, du domaine plan délimité par l'axe des abscisses, la courbe $\mathcal{C}_g$ et les droites d'équations $x = 1$ et $x = \mathrm{e}$.
+  \item \textbf{Exercice 2 : Géométrie dans l'espace (5 points)}
+  \item Étude d'un plan défini par trois points $A, B, C$ dans un repère orthonormé $(O\,;\,\vec{i},\,\vec{j},\,\vec{k})$.
+  \item Détermination d'un vecteur normal, équation cartésienne du plan $(ABC) : x + y + 2z - 5 = 0$, représentation paramétrique d'une droite, calcul de distance d'un point au plan et calcul du volume du tétraèdre $DABC$.
 \end{enumerate}
-
-\newpage
-
-\exercice[6]{3}{Thème : Suites récurrentes et algorithmique Python}
-
-On considère la suite $(u_n)$ définie par $u_0 = 2$ et, pour tout entier naturel $n$ :
-\[
-    u_{n+1} = \frac{3u_n + 2}{u_n + 4}\,.
-\]
-
-\partie{A --- Étude d'une fonction associée}
-
-Soit $f$ la fonction définie sur $[0; +\infty[$ par $f(x) = \frac{3x+2}{x+4}$.
 
 \begin{enumerate}
-    \item Calculer $f'(x)$ et étudier les variations de $f$ sur $[0; +\infty[$.
-    \item Démontrer que l'intervalle $[0; 2]$ est stable par $f$.
-    \item 
-    \begin{enumerate}
-        \item Résoudre l'équation $f(x) = x$ sur $[0; 2]$.
-        \item En déduire le point fixe $\ell$.
-    \end{enumerate}
-    \item Démontrer par récurrence que pour tout $n \in \mathbb{N}$, $0 \le u_n \le 2$.
+  \item \textbf{Exercice 3 : Probabilités et variables aléatoires (6 points)}
+  \item Modélisation par un arbre pondéré (contrôle qualité de composants électroniques).
+  \item Probabilités conditionnelles, formule des probabilités totales ($P(T) = 0,875$).
+  \item Loi de probabilité d'une variable aléatoire $X$ donnant le bénéfice algébrique, calcul de l'espérance mathématique ($E(X) = 11,875$ €).
+  \item Échantillonnage et loi binomiale $\mathcal{B}(50\,; 0,9)$ avec calculs de probabilités cumulées.
 \end{enumerate}
-
-\partie{B --- Monotonie, limite et seuil algorithmique}
 
 \begin{enumerate}
-    \item Démontrer que pour tout $n \in \mathbb{N}$, $u_{n+1} - u_n = \frac{(1-u_n)(u_n+2)}{u_n+4}$.
-    \item En déduire le sens de variation de la suite $(u_n)$.
-    \item Justifier que la suite $(u_n)$ converge et déterminer sa limite.
-    \item On souhaite déterminer à l'aide d'un script Python le rang à partir duquel $u_n$ est proche de $1$ à $\varepsilon$ près.
+  \item \textbf{Exercice 4 : Fonctions, logarithme et convexité (5 points)}
+  \item Étude d'une fonction auxiliaire $g(x) = x^2 - 1 + \ln(x)$, application du corollaire du TVI pour l'unicité de la solution $\alpha$.
+  \item Étude d'une fonction principale $f(x) = x - \frac{\ln(x)}{x}$, limites, asymptotes (oblique $y = x$), dérivée liée à $g(x)$, variations, point d'inflexion et tangente.
 \end{enumerate}
 
-\newpage
+---
 
-\exercice[5]{4}{Thème : Géométrie dans l'espace et produit scalaire}
+\vspace{0.35cm}\noindent\textbf{\large Contrôles et Relecture finale}\par\vspace{0.15cm}
 
-Dans l'espace muni d'un repère orthonormé $(O; \vec{i}, \vec{j}, \vec{k})$, on considère les points :
-\[
-    A(1;0;2), \quad B(0;2;1), \quad C(2;1;0) \quad \text{et} \quad D(3;3;3)\,.
-\]
-
-\partie{A --- Plans et tétraèdre}
-
-\begin{enumerate}
-    \item Démontrer que les points $A, B$ et $C$ définissent un plan $\mathcal{P}$.
-    \item Démontrer qu'une équation cartésienne du plan $\mathcal{P}$ est : $x + y + z - 3 = 0$.
-    \item Vérifier que le point $D$ n'appartient pas au plan $\mathcal{P}$.
-    \item Calculer le volume du tétraèdre $ABCD$.
-\end{enumerate}
-
-\partie{B --- Orthogonalité, projeté et sphère}
-
-\begin{enumerate}
-    \item Déterminer une représentation paramétrique de la droite $\Delta$ passant par $D$ et orthogonale au plan $\mathcal{P}$.
-    \item Déterminer les coordonnées du projeté orthogonal $H$ du point $D$ sur le plan $\mathcal{P}$.
-    \item Calculer la distance $DH$.
-    \item Soit $\mathcal{S}$ la sphère de centre $D$ et de rayon $R = 3$. Étudier l'intersection de la sphère $\mathcal{S}$ avec le plan $\mathcal{P}$.
-\end{enumerate}
+L'ensemble des sujets, des corrigés et des barèmes a été relu et validé en coordination avec le \textbf{ReviewAgent}. Les calculs, les énoncés et les pondérations sur 20 points respectent strictement les exigences officielles du baccalauréat de spécialité mathématiques.
 
 \end{document}

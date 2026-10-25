@@ -1,7 +1,9 @@
 \documentclass[a4paper,11pt]{article}
-\usepackage{fontspec}
-\usepackage[french]{babel}
+
 \usepackage{amsmath,amssymb,amsfonts}
+\usepackage{fontspec}
+\usepackage{libertinus-otf}
+\usepackage[french]{babel}
 \usepackage{array}
 \usepackage{booktabs}
 \usepackage{longtable}
@@ -12,12 +14,28 @@
 \usepackage{fancyhdr}
 \usepackage{lastpage}
 \usepackage{enumitem}
+\usepackage{eurosym}
 \usepackage{tikz}
 \usepackage[most]{tcolorbox}
-\geometry{a4paper,left=1.1cm,right=1.1cm,top=1.6cm,bottom=1.5cm,headheight=20pt,headsep=10pt,footskip=20pt}
+\usepackage{tabularx}
+
+\geometry{
+    a4paper,
+    left=1.1cm,
+    right=1.1cm,
+    top=1.6cm,
+    bottom=1.5cm,
+    headheight=20pt,
+    headsep=10pt,
+    footskip=20pt
+}
+
 \setlength{\parindent}{0pt}
 \setlength{\tabcolsep}{4.5pt}
 \renewcommand{\arraystretch}{1.18}
+\setlength{\aboverulesep}{1.5pt}
+\setlength{\belowrulesep}{1.5pt}
+
 \definecolor{bleuprimaire}{RGB}{20, 52, 98}
 \definecolor{bleusecondaire}{RGB}{31, 95, 168}
 \definecolor{bleufond}{RGB}{238, 244, 251}
@@ -25,30 +43,91 @@
 \definecolor{vertvrai}{RGB}{16, 120, 60}
 \definecolor{rougefaux}{RGB}{195, 20, 20}
 \definecolor{filetgris}{RGB}{220, 226, 235}
+
+\tikzset{
+    tabcadre/.style={draw=bleuprimaire, line width=0.8pt},
+    tabligne/.style={draw=bleuprimaire!45, line width=0.6pt},
+    tabrep/.style={
+        draw=rougefaux!90,
+        fill=rougefaux!8,
+        text=rougefaux,
+        font=\bfseries\footnotesize,
+        rounded corners=2.5pt,
+        inner sep=1.8pt,
+        line width=0.6pt
+    },
+    tabfleche/.style={
+        ->,
+        >=stealth,
+        thick,
+        draw=bleusecondaire,
+        shorten <= 3pt,
+        shorten >= 3pt
+    }
+}
+
 \newcommand{\pts}[1]{%
-    \tcbox[on line, size=small, colback=bleufond, colframe=bleusecondaire!50, arc=2.5mm, boxrule=0.6pt, top=1.2pt, bottom=1.2pt, left=4pt, right=4pt]{%
+    \tcbox[on line, size=small, colback=bleufond, colframe=bleusecondaire!50,
+           arc=2.5mm, boxrule=0.6pt, top=1.2pt, bottom=1.2pt, left=4pt, right=4pt]{%
         \small\bfseries\textcolor{bleuprimaire}{#1}%
     }%
 }
+
+\newcommand{\subpt}[1]{%
+    \tcbox[on line, size=small, colback=bleufond, colframe=bleusecondaire!30,
+           arc=2mm, boxrule=0.5pt, top=1pt, bottom=1pt, left=3pt, right=3pt]{%
+        \tiny\bfseries\textcolor{bleuprimaire}{#1}%
+    }%
+}
+
 \newcommand{\repbox}[1]{%
-    \tcbox[on line, size=small, colback=rougefaux!6, colframe=rougefaux!90, arc=1.2mm, boxrule=0.7pt, top=1pt, bottom=1pt, left=3.5pt, right=3.5pt]{%
+    \tcbox[on line, size=small, colback=rougefaux!6, colframe=rougefaux!90,
+           arc=1.2mm, boxrule=0.7pt, top=1pt, bottom=1pt, left=3.5pt, right=3.5pt]{%
         \bfseries\textcolor{rougefaux}{#1}%
     }%
 }
-\newcommand{\subpt}[1]{\textcolor{bleusecondaire}{\bfseries [#1]}}
-\newcommand{\tol}[1]{\textcolor{grisaccent}{\footnotesize\textit{(#1)}}}
+
+\newcommand{\vect}[1]{\overrightarrow{#1}}
+
 \pagestyle{fancy}
 \fancyhf{}
 \lhead{\small\bfseries\textcolor{bleuprimaire}{BAC BLANC} \textcolor{grisaccent}{-- Terminale Spécialité Mathématiques}}
-\rhead{\small\bfseries\textcolor{bleusecondaire}{Barème et Corrigé -- Sujet 1}}
+\rhead{\small\bfseries\textcolor{bleusecondaire}{Barème et Corrigé détaillé}}
 \cfoot{\small\textcolor{grisaccent}{Page \thepage\ sur \pageref{LastPage}}}
+
 \renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{bleusecondaire!60}\leaders\hrule height \headrulewidth\hfill}}
+\renewcommand{\footrulewidth}{0.3pt}
+\renewcommand{\footrule}{\hbox to\headwidth{\color{filetgris}\leaders\hrule height \footrulewidth\hfill}}
+
 \begin{document}
-\begin{tcolorbox}[enhanced,colback=bleufond,colframe=bleuprimaire,arc=1.6mm,boxrule=0.8pt,top=4pt,bottom=4pt,left=8pt,right=8pt]
-    \textbf{\Large\textcolor{bleuprimaire}{Grille d'évaluation chiffrée et Corrigé}} \hfill \textbf{\Large\textcolor{bleuprimaire}{Total : 20 points}} \\[0.15em]
-    \textbf{\textcolor{bleusecondaire}{Sujet 1 (Jour 1)}} \hspace{0.2cm}\textcolor{grisaccent}{\textbullet}\hspace{0.2cm} \textcolor{grisaccent}{Bac Blanc Mathématiques} \hfill \small\textcolor{grisaccent}{Durée : 4 heures}
+
+\begin{tcolorbox}[
+    enhanced,
+    colback=bleufond,
+    colframe=bleuprimaire,
+    arc=1.6mm,
+    boxrule=0.8pt,
+    top=4pt, bottom=4pt, left=8pt, right=8pt
+]
+    \textbf{\Large\textcolor{bleuprimaire}{Grille d'évaluation chiffrée et Corrigé détaillé}} \hfill \textbf{\Large\textcolor{bleuprimaire}{Total : 20 points}} \\[0.15em]
+    \textbf{\textcolor{bleusecondaire}{Session Mars 2027}} \hspace{0.2cm}\textcolor{grisaccent}{\textbullet}\hspace{0.2cm} \textcolor{grisaccent}{Bac Blanc Mathématiques} \hfill \small\textcolor{grisaccent}{Durée : 4 heures \textbullet\ Calculatrice autorisée}
 \end{tcolorbox}
+
 \vspace{0.10cm}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabularx}{\textwidth}{|X|c|c|c|c|c|}
+    \hline
+    \textbf{Exercice} & \textbf{Exercice 1} & \textbf{Exercice 2} & \textbf{Exercice 3} & \textbf{Exercice 4} & \textbf{Total} \\ \hline
+    \textbf{Thème} & Analyse et Suites & Géométrie espace & Probabilités & Fonctions & --- \\ \hline
+    \textbf{Barème} & 4 points & 5 points & 6 points & 5 points & \textbf{20 points} \\ \hline
+\end{tabularx}
+\end{center}
+
+\vspace{0.2cm}
+
 \begin{longtable}{
     >{\centering\arraybackslash\bfseries}p{1.1cm}
     >{\raggedright\arraybackslash\bfseries}p{4.1cm}
@@ -56,204 +135,224 @@
     >{\raggedright\arraybackslash}p{11.1cm}
     >{\centering\arraybackslash}p{1.2cm}
 }
+
 \toprule[1.2pt]
 \rowcolor{bleuprimaire}
 \textcolor{white}{\bfseries Réf.} &
 \textcolor{white}{\bfseries Compétence / Question} &
-\textcolor{white}{\bfseries Critères d'évaluation \& corrigé détaillé} &
+\textcolor{white}{\bfseries Corrigé détaillé \& critères d'évaluation} &
 \textcolor{white}{\bfseries Barème} \\
 \midrule[1pt]
 \endfirsthead
+
 \toprule[1.2pt]
 \rowcolor{bleuprimaire}
 \textcolor{white}{\bfseries Réf.} &
 \textcolor{white}{\bfseries Compétence / Question} &
-\textcolor{white}{\bfseries Critères d'évaluation \& corrigé détaillé} &
+\textcolor{white}{\bfseries Corrigé détaillé \& critères d'évaluation} &
 \textcolor{white}{\bfseries Barème} \\
 \midrule[1pt]
 \endhead
 
+% ==================== EXERCICE 1 ====================
+\rowcolor{bleusecondaire!15}
+\multicolumn{4}{l}{
+    \bfseries\textcolor{bleuprimaire}{\large Exercice 1 \hspace{0.2cm}\textbullet\hspace{0.2cm} Analyse et suites numériques} \hfill \bfseries 4 points
+} \\* \midrule[0.6pt]
+
+\textbf{1.1.a} &
+Calculs de termes $u_1$ et $u_2$ &
+\textbullet\ \subpt{0,25} $u_1 = f(0) = \frac{3(0)+1}{0+3} = \frac{1}{3}$.\newline
+\textbullet\ \subpt{0,25} $u_2 = f\left(\frac{1}{3}\right) = \frac{3(1/3)+1}{1/3 + 3} = \frac{2}{10/3} = \frac{3}{5}$. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{1.1.b} &
+Preuve par récurrence &
+\textbullet\ \subpt{0,25} Initialisation : $u_0 = 0$ donc $0 \le u_0 \le 3$ (vrai).\newline
+\textbullet\ \subpt{0,50} Hérédité : Supposons $0 \le u_n \le 3$. $f$ est croissante sur $[0;3]$ donc $f(0) \le f(u_n) \le f(3)$. Or $f(0) = 1/3 \ge 0$ et $f(3) = 10/6 = 5/3 \le 3$. Donc $0 \le u_{n+1} \le 3$.\newline
+\textbullet\ \subpt{0,25} Conclusion : La propriété est vraie pour tout $n \in \mathbb{N}$. &
+\pts{1,00} \\
+\cmidrule(lr){2-4}
+\textbf{1.2.a} &
+Variations de la fonction $f$ &
+\textbullet\ \subpt{0,50} $f'(x) = \frac{3(x+3) - 1(3x+1)}{(x+3)^2} = \frac{3x+9-3x-1}{(x+3)^2} = \frac{8}{(x+3)^2}$. Pour tout $x \in [0;3]$, $f'(x) > 0$, donc $f$ est strictement croissante sur $[0;3]$. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{1.2.b} &
+Expression de $u_{n+1} - u_n$ &
+\textbullet\ \subpt{0,50} $u_{n+1} - u_n = \frac{3u_n+1}{u_n+3} - u_n = \frac{3u_n+1 - u_n^2 - 3u_n}{u_n+3} = \frac{1 - u_n^2}{u_n+3} = \frac{(1-u_n)(1+u_n)}{u_n+3} = \frac{(3-u_n)(1+u_n)}{u_n+3}$. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{1.2.c} &
+Sens de variation de $(u_n)$ &
+\textbullet\ \subpt{0,50} Puisque $0 \le u_n \le 3$, on a $3-u_n \ge 0$, $1+u_n > 0$ et $u_n+3 > 0$. Donc $u_{n+1} - u_n \ge 0$. La suite $(u_n)$ est donc croissante. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{1.3} &
+Convergence et limite &
+\textbullet\ \subpt{0,25} $(u_n)$ est croissante et majorée par 3, donc elle converge vers $\ell$ par le théorème de convergence monotone.\newline
+\textbullet\ \subpt{0,25} Par continuité de $f$, $\ell = \frac{3\ell+1}{\ell+3} \implies \ell(\ell+3) = 3\ell+1 \implies \ell^2 = 1$.\newline
+\textbullet\ \subpt{0,25} Comme $u_n \ge 0$, $\ell \ge 0$, donc $\ell = 1$. &
+\pts{0,75} \\
+
+\midrule[1pt]
+
 % ==================== EXERCICE 2 ====================
 \rowcolor{bleusecondaire!15}
 \multicolumn{4}{l}{
-    \bfseries\textcolor{bleuprimaire}{\large Exercice 2 \hspace{0.2cm}\textbullet\hspace{0.2cm} Étude d'une fonction et calcul intégral} \hfill \bfseries 5 points
+    \bfseries\textcolor{bleuprimaire}{\large Exercice 2 \hspace{0.2cm}\textbullet\hspace{0.2cm} Géométrie dans l'espace} \hfill \bfseries 5 points
 } \\* \midrule[0.6pt]
-\rowcolor{bleusecondaire!10}
-\multicolumn{4}{l}{%
-    \bfseries\textcolor{bleuprimaire}{\textsc{Partie A}} \;\textcolor{grisaccent}{\textbullet}\; \textcolor{bleuprimaire}{Étude de la fonction $g$} \hfill \textcolor{bleusecondaire}{\bfseries 3,00 points}%
-} \\* \midrule[0.5pt]
-\textbf{A.1} &
-Limite en $0$ &
-\textbullet\ \subpt{0,25} $\lim_{x\to 0} x\ln(x) = 0$ (croissances comparées).\newline
-\textbullet\ \subpt{0,25} $\lim_{x\to 0} g(x) = 0$ : \repbox{$0$}. &
+
+\textbf{2.1.a} &
+Non-alignement des points &
+\textbullet\ \subpt{0,50} $\vect{AB}(2\,; -2\,; 1)$ et $\vect{AC}(0\,; 2\,; -1)$. Leurs coordonnées ne sont pas proportionnelles, donc $A, B, C$ ne sont pas alignés et définissent un plan. &
 \pts{0,50} \\
 \cmidrule(lr){2-4}
-\textbf{A.2} &
-Limite en $+\infty$ &
-\textbullet\ \subpt{0,25} Factorisation $g(x) = x(\ln(x)-1)$.\newline
-\textbullet\ \subpt{0,25} $\lim_{x\to+\infty} g(x) = +\infty$ : \repbox{$+\infty$}. &
+\textbf{2.1.b} &
+Orthogonalité de $\vect{n}$ &
+\textbullet\ \subpt{0,25} $\vect{n} \cdot \vect{AB} = 1(2) + 1(-2) + 2(1) = 0$.\newline
+\textbullet\ \subpt{0,25} $\vect{n} \cdot \vect{AC} = 1(0) + 1(2) + 2(-1) = 0$. Donc $\vect{n}$ est normal au plan $(ABC)$. &
 \pts{0,50} \\
 \cmidrule(lr){2-4}
-\textbf{A.3} &
-Dérivée et variations &
-\textbullet\ \subpt{0,50} $g'(x) = 1\cdot\ln(x) + x\cdot\frac{1}{x} - 1 = \ln(x)$. Signe de $\ln(x)$.\newline
-\textbullet\ \subpt{0,50} Tableau de variations correct (décroissante sur $]0;1]$, croissante sur $[1;+\infty[$). &
-\pts{1,00} \\
+\textbf{2.1.c} &
+Équation du plan $(ABC)$ &
+\textbullet\ \subpt{0,50} $x + y + 2z + d = 0$. En passant par $A(1;2;1) : 1 + 2 + 2(1) + d = 0 \implies d = -5$. Équation : $x + y + 2z - 5 = 0$. &
+\pts{0,50} \\
 \cmidrule(lr){2-4}
-\textbf{A.4} &
-Théorème des valeurs intermédiaires &
-\textbullet\ \subpt{0,50} Continuité, stricte monotonie sur $[1;3]$, $g(1)=-1 < 0$ et $g(3) \approx 0,295 > 0$, d'où $\alpha \approx 1,76$ : \repbox{$\alpha \approx 1,76$}. &
-\pts{1,00} \\
-\midrule[0.6pt]
-\rowcolor{bleusecondaire!10}
-\multicolumn{4}{l}{%
-    \bfseries\textcolor{bleuprimaire}{\textsc{Partie B}} \;\textcolor{grisaccent}{\textbullet}\; \textcolor{bleuprimaire}{Calcul d'aire et primitive} \hfill \textcolor{bleusecondaire}{\bfseries 2,00 points}%
-} \\* \midrule[0.5pt]
-\textbf{B.1} &
-Vérification de primitive &
-\textbullet\ \subpt{1,00} Dérivation de $G(x) = \frac{1}{2}x^2\ln(x) - \frac{3}{4}x^2 \implies G'(x) = x\ln(x) + \frac{1}{2}x - \frac{3}{2}x = x\ln(x)-x = g(x)$. &
-\pts{1,00} \\
+\textbf{2.2.a} &
+Direction de $(AD)$ &
+\textbullet\ \subpt{0,50} $\vect{AD}(1\,; 0\,; 2)$. Le vecteur directeur $\vect{AD}$ n'est pas colinéaire au vecteur normal $\vect{n}(1\,; 1\,; 2)$, donc $(AD)$ n'est pas orthogonale au plan $(ABC)$. &
+\pts{0,50} \\
 \cmidrule(lr){2-4}
-\textbf{B.2} &
-Calcul d'aire &
-\textbullet\ \subpt{0,50} Intégrale $\int_{1}^{\mathrm{e}} -g(x)\,\mathrm{d}x$.\newline
-\textbullet\ \subpt{0,50} Résultat exact : \repbox{$\frac{\mathrm{e}^2 - 3}{4}$ u.a.}. &
+\textbf{2.2.b} &
+Représentation paramétrique &
+\textbullet\ \subpt{0,50} $(AD) : \begin{cases} x = 1 + t \\ y = 2 \\ z = 1 + 2t \end{cases}, t \in \mathbb{R}$. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{2.2.c} &
+Coordonnées du projeté $H$ &
+\textbullet\ \subpt{0,50} En injectant la droite dans l'équation du plan : $(1+t) + 2 + 2(1+2t) - 5 = 0 \implies 5t = 0 \implies t = 0$. Donc $H = A(1\,; 2\,; 1)$. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{2.3} &
+Distance et volume &
+\textbullet\ \subpt{0,25} Distance $D$ à $(ABC) = AH = \sqrt{(2-1)^2 + (2-2)^2 + (3-1)^2} = \sqrt{5}$.\newline
+\textbullet\ \subpt{0,50} Aire de $ABC = \frac{1}{2}\|\vect{AB} \wedge \vect{AC}\| = \sqrt{5}$.\newline
+\textbullet\ \subpt{0,25} Volume $= \frac{1}{3} \times \text{Aire} \times \text{hauteur} = \frac{5}{3}$. &
 \pts{1,00} \\
+
 \midrule[1pt]
+
 % ==================== EXERCICE 3 ====================
 \rowcolor{bleusecondaire!15}
 \multicolumn{4}{l}{
-    \bfseries\textcolor{bleuprimaire}{\large Exercice 3 \hspace{0.2cm}\textbullet\hspace{0.2cm} Suites numériques et fonction associée} \hfill \bfseries 6 points
+    \bfseries\textcolor{bleuprimaire}{\large Exercice 3 \hspace{0.2cm}\textbullet\hspace{0.2cm} Probabilités} \hfill \bfseries 6 points
 } \\* \midrule[0.6pt]
-\rowcolor{bleusecondaire!10}
-\multicolumn{4}{l}{%
-    \bfseries\textcolor{bleuprimaire}{\textsc{Partie A}} \;\textcolor{grisaccent}{\textbullet}\; \textcolor{bleuprimaire}{Étude d'une fonction auxiliaire} \hfill \textcolor{bleusecondaire}{\bfseries 3,00 points}%
-} \\* \midrule[0.5pt]
-\textbf{A.1} &
-Dérivée de $f$ &
-\textbullet\ \subpt{0,50} $f'(x) = \frac{3(x+4) - (3x+2)}{(x+4)^2} = \frac{10}{(x+4)^2} > 0$. &
+
+\textbf{3.1} &
+Arbre pondéré &
+\textbullet\ \subpt{0,50} Arbre à deux niveaux : $C$ (0,9) et $\bar{C}$ (0,1) ; sachant $C$, $T$ (0,95) et $\bar{T}$ (0,05) ; sachant $\bar{C}$, $T$ (0,02) et $\bar{T}$ (0,98). &
 \pts{0,50} \\
 \cmidrule(lr){2-4}
-\textbf{A.2} &
-Stabilité de l'intervalle &
-\textbullet\ \subpt{0,75} $f$ croissante sur $[0;2]$, $f(0)=0,5$, $f(2)=\frac{4}{3}$, donc $f([0;2]) \subset [0;2]$. &
-\pts{0,75} \\
-\cmidrule(lr){2-4}
-\textbf{A.3.a} &
-Équation $f(x)=x$ &
-\textbullet\ \subpt{0,50} Résolution $3x+2 = x^2+4x \implies x^2+x-2=0$. &
+\textbf{3.2.a} &
+Probabilité $P(C \cap T)$ &
+\textbullet\ \subpt{0,50} $P(C \cap T) = P(C) \times P_C(T) = 0,9 \times 0,95 = 0,855$. &
 \pts{0,50} \\
 \cmidrule(lr){2-4}
-\textbf{A.3.b} &
-Points fixes &
-\textbullet\ \subpt{0,25} Solutions $1$ et $-2$ (seul $1$ appartient à $[0;2]$). &
-\pts{0,25} \\
+\textbf{3.2.b} &
+Probabilité totale de $T$ &
+\textbullet\ \subpt{0,50} $P(T) = P(C \cap T) + P(\bar{C} \cap T) = 0,855 + 0,1 \times 0,02 = 0,875$. &
+\pts{0,50} \\
 \cmidrule(lr){2-4}
-\textbf{A.4} &
-Récurrence &
-\textbullet\ \subpt{1,00} Initialisation évidente ($0 \le u_0 \le 2$), hérédité via la croissance de $f$. &
+\textbf{3.3} &
+Probabilité conditionnelle $P_T(\bar{C})$ &
+\textbullet\ \subpt{0,50} $P_T(\bar{C}) = \frac{P(\bar{C} \cap T)}{P(T)} = \frac{0,002}{0,875} = \frac{2}{875} \approx 0,002\,29 \approx 0,002$. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{3.4.a} &
+Valeurs de $X$ &
+\textbullet\ \subpt{0,50} Si accepté : $25 - 10 = 15$ \euro. Si refusé : $-10$ \euro. $X(\Omega) = \{-10\,; 15\}$. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{3.4.b} &
+Loi de probabilité de $X$ &
+\textbullet\ \subpt{0,50} $P(X = 15) = 0,875$ ; $P(X = -10) = 0,125$. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{3.4.c} &
+Espérance mathématique &
+\textbullet\ \subpt{0,50} $E(X) = 15 \times 0,875 + (-10) \times 0,125 = 11,875$ \euro. Bénéfice moyen de 11,875 \euro{} par composant. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{3.5.a} &
+Loi binomiale de $Y$ &
+\textbullet\ \subpt{0,50} 50 épreuves indépendantes de Bernoulli de paramètre $p = 0,9$. $Y$ suit $\mathcal{B}(50\,; 0,9)$. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{3.5.b} &
+Calcul de $P(Y \ge 48)$ &
+\textbullet\ \subpt{0,50} $P(Y \ge 48) = P(Y=48) + P(Y=49) + P(Y=50) \approx 0,032$. &
 \pts{1,00} \\
-\midrule[0.6pt]
-\rowcolor{bleusecondaire!10}
-\multicolumn{4}{l}{%
-    \bfseries\textcolor{bleuprimaire}{\textsc{Partie B}} \;\textcolor{grisaccent}{\textbullet}\; \textcolor{bleuprimaire}{Monotonie et convergence de la suite} \hfill \textcolor{bleusecondaire}{\bfseries 3,00 points}%
-} \\* \midrule[0.5pt]
-\textbf{B.1} &
-Expression de $u_{n+1}-u_n$ &
-\textbullet\ \subpt{0,50} $u_{n+1}-u_n = \frac{3u_n+2 - u_n^2 - 4u_n}{u_n+4} = \frac{(1-u_n)(u_n+2)}{u_n+4}$. &
-\pts{0,50} \\
-\cmidrule(lr){2-4}
-\textbf{B.2} &
-Sens de variation &
-\textbullet\ \subpt{0,25} Comme $0 \le u_n \le 2$, $1-u_n$ change de signe mais $u_0=2 \implies u_1 = \frac{4}{3} \le 2$, suite décroissante. &
-\pts{0,25} \\
-\cmidrule(lr){2-4}
-\textbf{B.3} &
-Convergence &
-\textbullet\ \subpt{0,25} Suite décroissante et minorée par $0$, donc convergente. &
-\pts{0,25} \\
-\cmidrule(lr){2-4}
-\textbf{B.4} &
-Limite $\ell$ &
-\textbullet\ \subpt{0,50} $\ell = \frac{3\ell+2}{\ell+4} \implies \ell^2+\ell-2=0 \implies \ell=1$. &
-\pts{0,50} \\
-\cmidrule(lr){2-4}
-\textbf{B.5.a} &
-Complétion Python &
-\textbullet\ \subpt{0,50} `while abs(u - 1) >= eps:` &
-\pts{0,50} \\
-\cmidrule(lr){2-4}
-\textbf{B.5.b} &
-Complétion Python &
-\textbullet\ \subpt{0,50} `n = n + 1` &
-\pts{0,50} \\
+
 \midrule[1pt]
+
 % ==================== EXERCICE 4 ====================
 \rowcolor{bleusecondaire!15}
 \multicolumn{4}{l}{
-    \bfseries\textcolor{bleuprimaire}{\large Exercice 4 \hspace{0.2cm}\textbullet\hspace{0.2cm} Géométrie dans l'espace} \hfill \bfseries 5 points
+    \bfseries\textcolor{bleuprimaire}{\large Exercice 4 \hspace{0.2cm}\textbullet\hspace{0.2cm} Fonctions, logarithme et convexité} \hfill \bfseries 5 points
 } \\* \midrule[0.6pt]
-\rowcolor{bleusecondaire!10}
-\multicolumn{4}{l}{%
-    \bfseries\textcolor{bleuprimaire}{\textsc{Partie A}} \;\textcolor{grisaccent}{\textbullet}\; \textcolor{bleuprimaire}{Nature du tétraèdre et plans} \hfill \textcolor{bleusecondaire}{\bfseries 2,00 points}%
-} \\* \midrule[0.5pt]
-\textbf{A.1} &
-Non-alignement &
-\textbullet\ \subpt{0,50} $\vec{AB}(-1;2;-1)$ et $\vec{AC}(1;1;-2)$ non colinéaires $\implies$ plan $\mathcal{P}$. &
+
+\textbf{4.1.a} &
+Limites de $g$ en $0$ et $+\infty$ &
+\textbullet\ \subpt{0,50} $\lim_{x \to 0^+} g(x) = -\infty$ et $\lim_{x \to +\infty} g(x) = +\infty$. &
 \pts{0,50} \\
 \cmidrule(lr){2-4}
-\textbf{A.2} &
-Équation cartésienne &
-\textbullet\ \subpt{0,50} Vérification de $x+y+z-3=0$ pour $A, B, C$. &
+\textbf{4.1.b} &
+Variations de $g$ &
+\textbullet\ \subpt{0,50} $g'(x) = 2x + \frac{1}{x} > 0$ sur $]0 ; +\infty[$, donc $g$ est strictement croissante. &
 \pts{0,50} \\
 \cmidrule(lr){2-4}
-\textbf{A.3} &
-Appartenance de $D$ &
-\textbullet\ \subpt{0,50} $3+3+3-3 = 6 \neq 0$, donc $D \notin \mathcal{P}$. &
+\textbf{4.1.c} &
+Bijection et encadrement $\alpha$ &
+\textbullet\ \subpt{0,50} Par le corollaire du TVI, $g(x) = 0$ admet une unique solution $\alpha \approx 0,65$. &
 \pts{0,50} \\
 \cmidrule(lr){2-4}
-\textbf{A.4} &
-Volume du tétraèdre &
-\textbullet\ \subpt{0,50} Calcul via hauteur $DH$ et aire de la base $ABC$ : $V = \frac{3}{2}$. &
-\pts{0,50} \\
-\midrule[0.6pt]
-\rowcolor{bleusecondaire!10}
-\multicolumn{4}{l}{%
-    \bfseries\textcolor{bleuprimaire}{\textsc{Partie B}} \;\textcolor{grisaccent}{\textbullet}\; \textcolor{bleuprimaire}{Droites et orthogonalité} \hfill \textcolor{bleusecondaire}{\bfseries 3,00 points}%
-} \\* \midrule[0.5pt]
-\textbf{B.1} &
-Représentation paramétrique &
-\textbullet\ \subpt{0,75} Droite passant par $D(3;3;3)$ de vecteur directeur $\vec{n}(1;1;1)$. &
-\pts{0,75} \\
-\cmidrule(lr){2-4}
-\textbf{B.2} &
-Projeté orthogonal $H$ &
-\textbullet\ \subpt{0,50} Injection de la droite dans $\mathcal{P} \implies t = -1 \implies H(2;2;2)$. &
+\textbf{4.1.d} &
+Signe de $g(x)$ &
+\textbullet\ \subpt{0,50} $g(x) \le 0$ sur $]0 ; \alpha]$ et $g(x) \ge 0$ sur $[\alpha ; +\infty[$. &
 \pts{0,50} \\
 \cmidrule(lr){2-4}
-\textbf{B.3} &
-Distance $DH$ &
-\textbullet\ \subpt{0,50} $\|\vec{DH}\| = \sqrt{(-1)^2+(-1)^2+(-1)^2} = \sqrt{3}$. &
+\textbf{4.2.a} &
+Limite de $f$ en $0$ &
+\textbullet\ \subpt{0,50} $\lim_{x \to 0^+} f(x) = +\infty$. Asymptote verticale d'équation $x = 0$. &
 \pts{0,50} \\
 \cmidrule(lr){2-4}
-\textbf{B.4} &
-Intersection sphère/plan &
-\textbullet\ \subpt{0,25} Distance $d = \sqrt{3} < R = 3$, l'intersection est un cercle. &
-\pts{0,25} \\
-\cmidrule(lr){2-4}
-\textbf{B.5.a} &
-Existence intersection &
-\textbullet\ \subpt{0,25} Justification par $d < R$. &
-\pts{0,25} \\
-\cmidrule(lr){2-4}
-\textbf{B.5.b} &
-Rayon du cercle &
-\textbullet\ \subpt{0,50} $r = \sqrt{R^2 - d^2} = \sqrt{9 - 3} = \sqrt{6}$. &
+\textbf{4.2.b} &
+Limite en $+\infty$ et asymptote &
+\textbullet\ \subpt{0,50} $\lim_{x \to +\infty} f(x) = +\infty$ et $\Delta : y = x$ est asymptote oblique en $+\infty$. &
 \pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{4.2.c} &
+Expression de $f'(x)$ &
+\textbullet\ \subpt{0,50} $f'(x) = \frac{g(x)}{x^2}$. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{4.2.d} &
+Variations de $f$ &
+\textbullet\ \subpt{0,50} $f$ est décroissante sur $]0 ; \alpha]$ et croissante sur $[\alpha ; +\infty[$. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{4.2.e} &
+Point d'inflexion et tangente &
+\textbullet\ \subpt{0,50} $f''(x) = \frac{3x - 2\ln(x)}{x^3}$, annulation en $x_0$ donnant le point d'inflexion $I$ et la tangente $\mathcal{T}$. &
+\pts{0,50} \\
+
 \midrule[1.2pt]
 \rowcolor{bleuprimaire}
 \multicolumn{3}{r}{\textcolor{white}{\bfseries\large TOTAL GÉNÉRAL}} &
 \textcolor{white}{\bfseries\large 20 pts} \\
 \bottomrule[1.2pt]
+
 \end{longtable}
+
 \end{document}

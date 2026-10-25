@@ -10,7 +10,7 @@ from core.task import Task
 
 class ResearchAgent(Agent):
     description = "Analyse des sujets, fichiers et sources accessibles au runtime."
-    capabilities = ("research", "source_analysis", "file_analysis", "synthesis")
+    capabilities = ("research", "source_analysis", "file_analysis", "synthesis", "document_retrieval")
     supported_intents = ("research", "file_analysis", "general_question")
 
     def __init__(self) -> None:
@@ -32,6 +32,12 @@ class ResearchAgent(Agent):
             "Pas de préambule, ne te présente pas, ne décris pas tes outils ni ta démarche.\n"
             "- Pour toute information récente ou changeante (actualité, prix, versions, "
             "personnes en poste, lois), utilise web_search avant de répondre.\n"
+            "- Si la mission demande de trouver, récupérer ou télécharger un document (ex: sujet de bac, annale, rapport, PDF) :\n"
+            "  * Utilise web_search pour localiser le document sur plusieurs sources réelles.\n"
+            "  * Navigue dans les pages et suis les liens de téléchargement directs.\n"
+            "  * Télécharge réellement le fichier dans le workspace et vérifie physiquement son existence, sa taille (> 0) et son format.\n"
+            "  * Ne considère JAMAIS une recherche comme réussie si le fichier demandé n'a pas été physiquement récupéré dans le workspace.\n"
+            "  * Si une source ne fournit pas le fichier, tente immédiatement une autre source ou reformule la recherche (ex: avec 'filetype:pdf').\n"
             "- Pour un fichier ou un document du workspace, lis-le réellement "
             "(read_file ou read_document) avant d'en parler.\n"
             "- Distingue ce qu'une source établit, ce que tu en déduis, et ce qui reste inconnu.\n"

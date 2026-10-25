@@ -24,6 +24,7 @@ class Task:
     allowed_tools: tuple[str, ...] | None = None
     mode: str = "ACCEPT"
     skill_name: str | None = None
+    task_context: Any | None = None
 
 
 def ensure_task(
@@ -31,14 +32,17 @@ def ensure_task(
     *,
     default_type: str = "researcher",
     mode: str = "ACCEPT",
+    task_context: Any | None = None,
 ) -> Task:
     """Normalise une demande brute (str) ou vérifie qu'il s'agit bien d'une instance Task."""
     if isinstance(task, Task):
         if not isinstance(task.description, str):
             task.description = str(task.description or "")
+        if task_context is not None and task.task_context is None:
+            task.task_context = task_context
         return task
     if isinstance(task, str):
-        return Task(description=task, type=default_type, mode=mode)
+        return Task(description=task, type=default_type, mode=mode, task_context=task_context)
     raise TypeError(
         f"Contrat invalide : une instance de Task ou une chaîne (str) est attendue, reçu {type(task).__name__}."
     )

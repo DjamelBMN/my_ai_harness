@@ -127,6 +127,57 @@ class ModelRouter:
         """Réactive les routes configurées et les préférences par intention."""
         self.automatic_routing = True
 
+    def get_fallback_provider(
+        self,
+        current_provider: BaseProvider | str,
+        exclude: set[str] | None = None,
+    ) -> tuple[str, BaseProvider] | None:
+        """Trouve un autre provider disponible différent du provider en échec, sans boucle ni ping-pong."""
+        import os
+
+        excluded = {str(x).lower().strip() for x in (exclude or set())}
+        curr_name = ""
+        if isinstance(current_provider, str):
+            curr_name = current_provider.lower().strip()
+        elif hasattr(current_provider, "get_name"):
+            curr_name = current_provider.get_name().lower().strip()
+
+        for k, p in self.providers.items():
+            if p == current_provider or (hasattr(p, "get_name") and p.get_name().lower().strip() == curr_name):
+                excluded.add(k.lower().strip())
+
+        # Développer automatiquement les familles complètes pour éviter le ping-pong
+        if any("gemini" in ex for ex in list(excluded)) or "gemini" in curr_name:
+            excluded.update({"gemini", "gemini_flash_lite", "gemini_pro", "geminiprovider"})
+        if any("claude" in ex for ex in list(excluded)) or "claude" in curr_name:
+            excluded.update({"claude", "claudeprovider"})
+        if any("openai" in ex or "gpt" in ex for ex in list(excluded)) or "openai" in curr_name:
+            excluded.update({"openai", "openaiprovider", "gpt-4o", "gpt-4o-mini"})
+        if any("mistral" in ex for ex in list(excluded)) or "mistral" in curr_name:
+            excluded.update({"mistral", "mistralprovider"})
+        if any("ollama" in ex for ex in list(excluded)) or "ollama" in curr_name:
+            excluded.update({"ollama", "ollamaprovider"})
+
+        for k, p in self.providers.items():
+            k_lower = k.lower().strip()
+            p_name = p.get_name().lower().strip() if hasattr(p, "get_name") else ""
+            if k_lower in excluded or p_name in excluded:
+                continue
+
+            # Vérifier l'éligibilité réelle du candidat
+            if "claude" in k_lower or "claude" in p_name:
+                continue
+            if ("openai" in k_lower or "openai" in p_name) and not os.environ.get("OPENAI_API_KEY", "").strip():
+                continue
+            if ("mistral" in k_lower or "mistral" in p_name) and not os.environ.get("MISTRAL_API_KEY", "").strip():
+                continue
+            if ("gemini" in k_lower or "gemini" in p_name) and not os.environ.get("GEMINI_API_KEY", "").strip():
+                continue
+
+            return k, p
+
+        return None
+
     def get_provider(
         self,
         agent_key: str,

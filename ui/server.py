@@ -19,6 +19,7 @@ import os
 from pathlib import Path
 import queue
 import re
+import shutil
 import threading
 from time import monotonic
 from typing import Any
@@ -31,6 +32,12 @@ from agents.reviewer import ReviewAgent
 from agents.tester import TestAgent
 from core.agent_loop import AgentLoop, AgentResult
 from core.agent_registry import AgentRegistry
+from core.artifacts import (
+    Artifact,
+    ArtifactStatus,
+    ArtifactType,
+    UniversalArtifactEngine,
+)
 from core.event_bus import NormalizedEventBus
 from core.events import HarnessEvent
 from core.memory import MemoryManager
@@ -56,6 +63,10 @@ from skills.runtime import SkillRuntime
 from tools.documents import _verify_compiled_pdf_bytes, compile_html, compile_latex, read_document
 from tools.filesystem import WORKSPACE_ROOT, WorkspaceFilesystem
 from tools.registry import ToolCall, ToolRegistry
+from tools.python_runtime import warm_matplotlib_cache_async
+from core.title_generator import generate_task_title
+from core.task_context import TaskContext
+from core.context import Context
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -82,6 +93,10 @@ class NeoHarnessRuntimeBridge:
 
         self.event_bus = NormalizedEventBus()
         self._lock = threading.RLock()
+
+        # Indexation unique des polices Matplotlib en arriere-plan : le premier graphique
+        # ne paie plus le cout de construction du cache.
+        warm_matplotlib_cache_async()
 
         # Gestion des approbations humaines (Human-in-the-Loop)
         self._pending_approvals: dict[str, dict[str, Any]] = {}
@@ -147,6 +162,7 @@ class NeoHarnessRuntimeBridge:
             model_registry=self.model_registry,
             tool_registry=self.tools,
         )
+        self.artifact_engine = UniversalArtifactEngine(event_bus=self.event_bus)
 
         # Persistance des conversations dans workspace/.harness/conversations.json
         self._conversations_path = self.workspace_path / ".harness" / "conversations.json"
@@ -652,25 +668,51 @@ class NeoHarnessRuntimeBridge:
     def create_conversation(self, title: str = "Nouvelle tâche", project: str = "NeoHarness AI") -> dict[str, Any]:
         with self._lock:
             now = datetime.now(timezone.utc).isoformat()
+            clean_title = (title or "").strip()
+            if clean_title and clean_title != "Nouvelle tâche":
+                clean_title = generate_task_title(clean_title)
+            cid = f"conv-{uuid.uuid4().hex[:8]}"
+            tc = TaskContext(conversation_id=cid)
             conv = {
-                "id": f"conv-{uuid.uuid4().hex[:8]}",
-                "title": title.strip() or "Nouvelle tâche",
+                "id": cid,
+                "title": clean_title or "Nouvelle tâche",
                 "pinned": False,
                 "archived": False,
                 "project": project.strip() or "NeoHarness AI",
                 "created_at": now,
                 "updated_at": now,
                 "messages": [],
+                "task_context": tc.to_dict(),
             }
             self.conversations.insert(0, conv)
             self.active_conversation_id = conv["id"]
             self._save_conversations()
+            # Contexte d'orchestration neuf et isolé pour la nouvelle tâche
+            if hasattr(self, "orchestrator") and self.orchestrator is not None:
+                self.orchestrator.context = Context()
+                self.orchestrator.context.sync_task_context(tc)
+            return conv
+
+    def select_conversation(self, conversation_id: str) -> dict[str, Any]:
+        with self._lock:
+            conv = self.get_conversation(conversation_id)
+            self.active_conversation_id = conv["id"]
+            tc = TaskContext.from_conversation(conv)
+            if hasattr(self, "orchestrator") and self.orchestrator is not None:
+                self.orchestrator.context = Context()
+                self.orchestrator.context.sync_task_context(tc)
+                for t in tc.turns:
+                    u_txt = t.get("user") or t.get("content") or ""
+                    a_txt = t.get("assistant") or ""
+                    self.orchestrator.context.history.append(f"Échange | Tâche : {u_txt} | Réponse : {a_txt[:300]}")
             return conv
 
     def get_conversation(self, conversation_id: str | None = None) -> dict[str, Any]:
         cid = conversation_id or self.active_conversation_id
         for conv in self.conversations:
             if conv["id"] == cid:
+                if "task_context" not in conv or not isinstance(conv["task_context"], dict):
+                    conv["task_context"] = TaskContext.from_conversation(conv).to_dict()
                 return conv
         if self.conversations:
             self.active_conversation_id = self.conversations[0]["id"]
@@ -1053,6 +1095,56 @@ class NeoHarnessRuntimeBridge:
             "changes": self.file_changes,
         }
 
+    def clear_workspace_files(self) -> dict[str, Any]:
+        """Supprime tout le contenu visible du workspace (uploads, exports, PDF...) en protégeant .harness/."""
+        if self.permissions.dry_run or self.mode_manager.current == HarnessMode.PLAN:
+            raise PermissionError("Suppression refusée en mode PLAN (dry-run actif).")
+        root = self.workspace_path
+        deleted = 0
+        with self._lock:
+            for item in list(root.iterdir()):
+                if item.name.startswith("."):
+                    continue
+                if item.is_symlink():
+                    item.unlink()
+                    deleted += 1
+                    continue
+                try:
+                    item.resolve().relative_to(root)
+                except ValueError:
+                    continue
+                if item.is_dir():
+                    deleted += sum(1 for f in item.rglob("*") if f.is_file())
+                    shutil.rmtree(item, ignore_errors=True)
+                else:
+                    item.unlink(missing_ok=True)
+                    deleted += 1
+            self.file_changes = []
+            try:
+                self.orchestrator.context.files.clear()
+            except Exception:
+                pass
+        self.event_bus.emit_normalized(
+            event="AGENT_STEP",
+            raw_event="workspace.cleared",
+            summary=f"Workspace vidé : {deleted} fichier(s) supprimé(s)",
+            status="completed",
+            details={"deleted": deleted},
+        )
+        return {"ok": True, "deleted": deleted}
+
+    def clear_conversations(self) -> dict[str, Any]:
+        """Supprime toutes les discussions et repart sur une conversation vide unique."""
+        with self._lock:
+            count = len(self.conversations)
+            self.conversations = []
+            self._create_default_conversation(persist=False)
+            self.active_conversation_id = self.conversations[0]["id"]
+            self._save_conversations()
+            if hasattr(self, "orchestrator") and self.orchestrator is not None:
+                self.orchestrator.context = Context()
+        return {"ok": True, "deleted": count}
+
     def read_workspace_file(self, relative_path: str) -> dict[str, Any]:
         ext = Path(relative_path).suffix.lower()
         if ext in {".pdf", ".docx", ".xlsx", ".pptx"}:
@@ -1376,12 +1468,56 @@ class NeoHarnessRuntimeBridge:
             compilation = self.compile_workspace_latex(rel, auto_repair=auto_repair)
             if compilation.get("status") == "success":
                 artifact = compilation
+        else:
+            art_obj = self.artifact_engine.process_file(rel, filesystem=self.filesystem, auto_repair=auto_repair)
+            if art_obj.status in {ArtifactStatus.READY, ArtifactStatus.REPAIRED}:
+                artifact = art_obj.to_dict()
         return {
             "file": info,
             "diffs": diffs,
             "artifact": artifact,
             "compilation": compilation,
         }
+
+    def process_workspace_artifact(
+        self,
+        relative_path: str,
+        *,
+        auto_repair: bool = True,
+    ) -> dict[str, Any]:
+        """Traite (compile, valide, exécute) un artefact quelconque du workspace via l'Universal Artifact Engine."""
+        art = self.artifact_engine.process_file(
+            relative_path,
+            filesystem=self.filesystem,
+            auto_repair=auto_repair,
+        )
+        return art.to_dict()
+
+    def execute_workspace_python(
+        self,
+        relative_path: str,
+        *,
+        arguments: list[str] | None = None,
+        timeout_seconds: int = 60,
+    ) -> dict[str, Any]:
+        """Exécute un script Python dans le workspace et collecte ses résultats et graphiques générés."""
+        art = self.artifact_engine.execute_artifact(
+            relative_path,
+            filesystem=self.filesystem,
+            arguments=arguments,
+            timeout_seconds=timeout_seconds,
+        )
+        return art.to_dict()
+
+    def get_artifact_history(self, relative_path: str) -> list[dict[str, Any]]:
+        """Retourne l'historique complet des versions pour un artefact."""
+        vers = self.artifact_engine.get_history(relative_path)
+        return [v.to_dict() for v in vers]
+
+    def rollback_artifact_version(self, relative_path: str, version_id: int) -> dict[str, Any]:
+        """Restaure une version antérieure d'un artefact."""
+        art = self.artifact_engine.rollback(relative_path, version_id, filesystem=self.filesystem)
+        return art.to_dict()
 
     def upload_workspace_file(
         self,
@@ -1714,6 +1850,8 @@ class NeoHarnessRuntimeBridge:
         recorded_diffs: list[dict[str, Any]],
         agent: str = "",
         skill: str = "",
+        task_id: str = "",
+        result_obj: Any = None,
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
         """Détecte les fichiers HTML/LaTeX/PDF produits pendant la tâche, extrait les blocs HTML/LaTeX
         si l'utilisateur a demandé un livrable sans écriture d'outil, compile les .tex avec Tectonic
@@ -1770,6 +1908,18 @@ class NeoHarnessRuntimeBridge:
                         has_html_file = True
                     except Exception:
                         pass
+
+        # Matérialisation automatique des blocs de code pour tout format d'artefact (Python, Mermaid, SVG, JSON, CSV, etc.)
+        if can_write and answer_text:
+            try:
+                extracted_paths = self.artifact_engine.extract_and_materialize_blocks(
+                    clean_prompt, answer_text, self.filesystem, can_write=can_write
+                )
+                for ep in extracted_paths:
+                    if ep not in modified_paths:
+                        modified_paths.append(ep)
+            except Exception:
+                pass
 
         # 2. Détection des livrables LaTeX / PDF et des Skills d'éducation obligatoires (/exercice, /dm, /bacblanc)
         has_tex_file = any(p.lower().endswith(".tex") for p in modified_paths)
@@ -1902,10 +2052,34 @@ class NeoHarnessRuntimeBridge:
                 if d.get("status") != "D" and d["path"] not in modified_paths:
                     modified_paths.append(d["path"])
 
-        # 4. Collecter les fichiers .pdf directs (ex: /export pdf) et les fichiers .html/.htm créés/modifiés
-        for rel_path in modified_paths:
+        # 4. Collecter les fichiers .pdf directs et documents explicitement produits pendant CETTE tâche
+        from core.artifacts.provenance import ProvenanceLedger
+        ledger = ProvenanceLedger(self.filesystem.root)
+
+        # Ajouter les fichiers explicitement enregistrés par l'agent pendant l'exécution
+        if result_obj and hasattr(result_obj, "files"):
+            for rf in result_obj.files:
+                if rf and rf not in modified_paths:
+                    modified_paths.append(rf)
+
+        for rel_path in list(modified_paths):
             lower_p = rel_path.lower()
+
+            # FILTRAGE SÉMANTIQUE OBLIGATOIRE : Rejeter tout document étranger (ex: sujet de Bac si l'utilisateur a demandé un CERFA)
+            semantic_check = ledger.verify_semantic_match(rel_path, clean_prompt, self.filesystem)
+            if not semantic_check.get("match", True):
+                continue
+
             if lower_p.endswith(".pdf") and rel_path not in compiled_pdf_paths:
+                f_abs = self.filesystem.resolve(rel_path)
+                if not f_abs.is_file() or f_abs.stat().st_size == 0:
+                    continue
+
+                # Si le fichier est un téléchargement web, vérifier sa chaîne de provenance
+                if lower_p.startswith("downloads/"):
+                    prov_check = ledger.verify_provenance_chain(rel_path, self.filesystem, task_id=task_id)
+                    if not prov_check.get("verified"):
+                        continue
                 try:
                     pdf_info = self.get_pdf_info(rel_path)
                     artifact_item = {
@@ -1984,6 +2158,32 @@ class NeoHarnessRuntimeBridge:
                                 status="completed",
                                 details=artifact_item,
                             )
+                except Exception:
+                    pass
+            elif lower_p.endswith((".py", ".svg", ".mmd", ".mermaid", ".json", ".csv", ".tsv", ".md", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp")):
+                try:
+                    repair_prov = None
+                    try:
+                        repair_prov = self.orchestrator.router.get_provider("coder", intent="writing")
+                    except Exception:
+                        pass
+                    art_obj = self.artifact_engine.process_file(
+                        rel_path,
+                        filesystem=self.filesystem,
+                        auto_repair=True,
+                        llm_provider=repair_prov if can_write else None,
+                    )
+                    if art_obj.status in {ArtifactStatus.READY, ArtifactStatus.REPAIRED}:
+                        preview_artifacts.append(art_obj.to_dict())
+                    elif art_obj.status == ArtifactStatus.ERROR:
+                        compilation_errors.append(
+                            {
+                                "source_path": rel_path,
+                                "compiler": art_obj.type.value,
+                                "error": art_obj.error or f"Erreur de traitement de l'artefact {art_obj.type.value}",
+                                "log": (art_obj.execution.log if art_obj.execution else "")[-1500:],
+                            }
+                        )
                 except Exception:
                     pass
 
@@ -2225,12 +2425,21 @@ class NeoHarnessRuntimeBridge:
             raise ValueError("La requête ne peut pas être vide.")
 
         conv = self.get_conversation(conversation_id)
+        self.active_conversation_id = conv["id"]
+        task_context = TaskContext.from_conversation(conv)
+        self.orchestrator.context.sync_task_context(task_context)
+
         if model_id:
             self.select_model(model_id)
 
-        # Si un Skill est sélectionné manuellement et que le prompt ne commence pas déjà par /
+        is_continuity = task_context.is_continuity_request(clean_prompt)
+
+        # Si un Skill est sélectionné manuellement ou hérité de la continuité de la tâche active
         active_skills = list(self.generation_preferences.get("active_skills", []))
         chosen_skill = explicit_skill or (active_skills[0] if active_skills else None)
+        if not chosen_skill and is_continuity and task_context.last_skill and task_context.last_skill.lower() in {"exercice", "bacblanc", "dm", "debug"}:
+            chosen_skill = task_context.last_skill
+
         effective_prompt = clean_prompt
         if chosen_skill and not effective_prompt.startswith("/"):
             skill_norm = chosen_skill.strip().lstrip("/").casefold()
@@ -2289,7 +2498,13 @@ class NeoHarnessRuntimeBridge:
         }
         conv["messages"].append(user_msg)
         if conv["title"] == "Nouvelle tâche" and len(conv["messages"]) == 1:
-            conv["title"] = clean_prompt[:52] + ("…" if len(clean_prompt) > 52 else "")
+            title_prov = None
+            try:
+                title_prov = self.orchestrator.router.get_provider("planner", intent="planning")
+            except Exception:
+                pass
+            conv["title"] = generate_task_title(clean_prompt, skill_hint=conv.get("last_skill", ""), llm_provider=title_prov)
+            self._save_conversations()
 
         # Snapshot des fichiers du workspace avant exécution pour calcul de diff réel
         before_snapshot = self._snapshot_workspace()
@@ -2321,7 +2536,7 @@ class NeoHarnessRuntimeBridge:
                 summary="Analyse de l'intention et construction du plan d'exécution",
                 status="running",
             )
-            preview_task = Task(description=clean_prompt, mode=self.mode_manager.current.value)
+            preview_task = Task(description=clean_prompt, mode=self.mode_manager.current.value, task_context=task_context, context=self.orchestrator.context)
             try:
                 planned_state = self.agent_loop.planner.plan(preview_task)
             except ClarificationRequired:
@@ -2364,7 +2579,7 @@ class NeoHarnessRuntimeBridge:
         try:
             self._ensure_routed_providers_ready()
             with contextlib.redirect_stdout(captured_stdout):
-                result_obj, used_skill, used_agent = self._dispatch_mission(effective_prompt)
+                result_obj, used_skill, used_agent = self._dispatch_mission(effective_prompt, task_context=task_context)
         except Exception as error:
             error_text = f"{type(error).__name__}: {error}"
             self.event_bus.emit_normalized(
@@ -2448,14 +2663,17 @@ class NeoHarnessRuntimeBridge:
             recorded_diffs=recorded_diffs,
             agent=used_agent,
             skill=used_skill,
+            task_id=task_id,
+            result_obj=result_obj,
         )
 
         elapsed_ms = int((monotonic() - started_mono) * 1000)
         is_education_skill = (used_skill or "").lower() in {"dm", "exercice", "bacblanc"}
         is_html_error = any(e.get("compiler") == "html_compiler" for e in compilation_errors)
+        is_artifact_error = any(e.get("compiler") in {"tectonic", "template_validator", "html_compiler", "python", "svg", "mermaid", "json", "csv"} for e in compilation_errors)
         if error_text and (result_obj is None or result_obj.status == "failed"):
             final_status = "Erreur"
-        elif compilation_errors and (is_education_skill or is_html_error):
+        elif compilation_errors and (is_education_skill or is_html_error or is_artifact_error):
             final_status = "Erreur"
             if not error_text:
                 error_text = compilation_errors[0].get("error", "Échec de compilation.")
@@ -2507,7 +2725,29 @@ class NeoHarnessRuntimeBridge:
         }
         conv["messages"].append(assistant_msg)
         conv["updated_at"] = assistant_msg["timestamp"]
+        # Mise à jour continue du contexte persistant de la tâche active
+        task_context.record_turn(
+            user_prompt=clean_prompt,
+            assistant_summary=answer_text,
+            skill=used_skill,
+            agent=used_agent,
+            intent=planned_state.intent if planned_state else "",
+            status=final_status,
+            files_modified=recorded_diffs,
+            errors=compilation_errors,
+            sources=used_sources,
+            artifacts=preview_artifacts,
+            tools_used=used_tools,
+        )
+        conv["task_context"] = task_context.to_dict()
         self._save_conversations()
+        self.event_bus.emit_normalized(
+            event="TASK_CONTEXT_UPDATED",
+            raw_event="task.context_updated",
+            summary=f"Contexte persistant mis à jour ({len(task_context.files)} fichier(s), statut '{final_status}')",
+            status="completed",
+            details=task_context.to_dict(),
+        )
 
         return {
             "task_id": task_id,
@@ -2533,7 +2773,7 @@ class NeoHarnessRuntimeBridge:
         )
         return {"ok": True, "task_id": self.current_task_id, "status": "Arrêté"}
 
-    def _dispatch_mission(self, prompt: str) -> tuple[AgentResult | None, str, str]:
+    def _dispatch_mission(self, prompt: str, task_context: Any | None = None) -> tuple[AgentResult | None, str, str]:
         """Exécute la mission en respectant exactement la logique de main._executer_mission."""
         runtime = SkillRuntime(
             orchestrator=self.orchestrator,
@@ -2617,6 +2857,8 @@ class NeoHarnessRuntimeBridge:
                     skill_name=skill.name,
                     skill=skill,
                     mode=self.mode_manager.current.value,
+                    task_context=task_context,
+                    context=self.orchestrator.context,
                 )
                 res = self.orchestrator.run_agentic(skill_task, self.agent_loop)
                 return res, skill.name, skill.agent.name
@@ -2650,10 +2892,21 @@ class NeoHarnessRuntimeBridge:
                     mode=self.mode_manager.current.value,
                 )
             else:
+                fallback_type = "researcher"
+                if task_context is not None and task_context.is_continuity_request(prompt):
+                    if any(w in prompt.casefold() for w in ("corrige", "répare", "fix", "bug", "erreur")):
+                        fallback_type = "coder"
+                    elif any(w in prompt.casefold() for w in ("test", "teste")):
+                        fallback_type = "tester"
+                    elif task_context.last_agent:
+                        fallback_type = task_context.last_agent
                 task = Task(
                     description=prompt.strip(),
-                    type="researcher",
+                    type=fallback_type,
+                    explicit_agent=(fallback_type != "researcher"),
                     mode=self.mode_manager.current.value,
+                    task_context=task_context,
+                    context=self.orchestrator.context,
                 )
         try:
             res = self.orchestrator.run_agentic(task, self.agent_loop)
@@ -2859,6 +3112,10 @@ class NeoHarnessUIApp:
             return HTTPStatus.OK, self.bridge.global_search(q)
         if path == "/api/approvals":
             return HTTPStatus.OK, {"approvals": self.bridge.list_pending_approvals()}
+        if path == "/api/artifacts/history":
+            art_p = _first("path")
+            return HTTPStatus.OK, {"history": self.bridge.get_artifact_history(art_p)}
+
         if path == "/api/credentials":
             return HTTPStatus.OK, {"credentials": self.bridge.get_credentials_status()}
 
@@ -2888,8 +3145,7 @@ class NeoHarnessUIApp:
 
             if path == "/api/conversations/select":
                 cid = str(body.get("id") or "")
-                conv = self.bridge.get_conversation(cid)
-                self.bridge.active_conversation_id = conv["id"]
+                conv = self.bridge.select_conversation(cid)
                 return HTTPStatus.OK, {"conversation": conv}
 
             if path == "/api/conversations/update":
@@ -2910,6 +3166,12 @@ class NeoHarnessUIApp:
                     "conversations": self.bridge.list_conversations(),
                     "active_conversation": self.bridge.get_conversation(),
                 }
+
+            if path == "/api/conversations/clear":
+                return HTTPStatus.OK, self.bridge.clear_conversations()
+
+            if path == "/api/files/clear":
+                return HTTPStatus.OK, self.bridge.clear_workspace_files()
 
             if path == "/api/tasks/run":
                 prompt = str(body.get("prompt") or "")
@@ -2941,6 +3203,38 @@ class NeoHarnessUIApp:
                 scope = str(body.get("scope") or "session")
                 value = str(body.get("value") or "")
                 return HTTPStatus.OK, self.bridge.mutate_memory(action, scope, value)
+
+            if path == "/api/artifacts/process":
+                art_path = str(body.get("path") or "").strip()
+                if not art_path:
+                    return HTTPStatus.BAD_REQUEST, {"error": "Paramètre 'path' requis."}
+                if body.get("content") is not None:
+                    self.bridge.write_workspace_file(art_path, str(body.get("content")))
+                auto_rep = bool(body.get("auto_repair", True))
+                processed = self.bridge.process_workspace_artifact(art_path, auto_repair=auto_rep)
+                if processed.get("status") == "error":
+                    return HTTPStatus.BAD_REQUEST, processed
+                return HTTPStatus.OK, processed
+
+            if path == "/api/artifacts/execute":
+                py_path = str(body.get("path") or "").strip()
+                if not py_path:
+                    return HTTPStatus.BAD_REQUEST, {"error": "Paramètre 'path' requis."}
+                args = body.get("arguments")
+                timeout_s = int(body.get("timeout", 60))
+                executed = self.bridge.execute_workspace_python(py_path, arguments=args, timeout_seconds=timeout_s)
+                if executed.get("status") == "error":
+                    return HTTPStatus.BAD_REQUEST, executed
+                return HTTPStatus.OK, executed
+
+            if path == "/api/artifacts/rollback":
+                roll_path = str(body.get("path") or "").strip()
+                ver_id = int(body.get("version_id", 1))
+                try:
+                    rolled = self.bridge.rollback_artifact_version(roll_path, ver_id)
+                    return HTTPStatus.OK, rolled
+                except Exception as ex:
+                    return HTTPStatus.BAD_REQUEST, {"error": str(ex)}
 
             if path == "/api/files/compile-html":
                 html_path = str(body.get("path") or "").strip()

@@ -44,6 +44,8 @@ class SkillRuntime:
         else:
             key = (agent_key or self.orchestrator.default_agent).strip().casefold()
             task = Task(description=text, type=key, explicit_agent=True)
+        task.task_context = getattr(self.orchestrator.context, "task_context", None)
+        task.context = self.orchestrator.context
         task.mode = (
             self.mode_manager.current.value
             if self.mode_manager is not None

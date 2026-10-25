@@ -111,9 +111,36 @@ def run_python_script(
     if len(args) > 20:
         raise ValueError("La limite est de 20 arguments pour un script Python.")
     timeout = max(1, min(int(timeout_seconds), 120))
-    environment = safe_subprocess_environment()
-    environment["PYTHONIOENCODING"] = "utf-8"
-    environment["PYTHONPATH"] = str(filesystem.root)
+    # Exécution headless : MPLBACKEND=Agg, plt.show() ne bloque jamais et chaque figure
+    # Matplotlib est enregistrée en PNG dans <dossier du script>/output/.
+    from tools.python_runtime import (
+        build_python_env,
+        new_manifest_path,
+        output_dir_for,
+        prepare_output_dir,
+        read_figure_manifest,
+        validate_png,
+    )
+
+    output_dir = output_dir_for(script)
+    prepare_output_dir(output_dir)
+    manifest_path = new_manifest_path()
+    environment = build_python_env(
+        output_dir=output_dir,
+        manifest_path=manifest_path,
+        extra_paths=[filesystem.root],
+    )
+
+    def _figures() -> list[dict[str, Any]]:
+        reports = []
+        for fig_abs in read_figure_manifest(manifest_path).get("figures", []):
+            report = validate_png(fig_abs)
+            try:
+                report["path"] = Path(fig_abs).resolve().relative_to(filesystem.root).as_posix()
+            except ValueError:
+                continue
+            reports.append(report)
+        return reports
     try:
         result = subprocess.run(
             [sys.executable, "-B", str(script), *args],
@@ -141,12 +168,16 @@ def run_python_script(
             "timeout_seconds": timeout,
             "stdout": stdout[-8000:],
             "stderr": stderr[-8000:],
+            "figures": _figures(),
         }
+    figures = _figures()
+    invalid = [f for f in figures if not f.get("valid")]
     return {
-        "status": "passed" if result.returncode == 0 else "failed",
+        "status": "passed" if result.returncode == 0 and not invalid else "failed",
         "exit_code": result.returncode,
         "script": script.relative_to(filesystem.root).as_posix(),
         "stdout": result.stdout[-8000:],
         "stderr": result.stderr[-8000:],
+        "figures": figures,
     }
 

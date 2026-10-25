@@ -96,12 +96,112 @@ class IntentEngine:
             )
         )
 
-    def decide(self, request: str) -> IntentDecision:
+    def decide(self, request: str, task_context: Any | None = None) -> IntentDecision:
         text = " ".join(request.casefold().strip().split())
         if not text:
             raise ValueError("La demande est vide.")
 
+        # Prise en compte du contexte persistant de la tâche active si fourni
+        is_cont = bool(task_context is not None and hasattr(task_context, "is_continuity_request") and task_context.is_continuity_request(request))
+        context_files = list(getattr(task_context, "files", [])) if is_cont else []
+        last_intent = str(getattr(task_context, "last_intent", "")) if is_cont else ""
+
+        # Détection des demandes directes de correction / déverminage dans la tâche active
+        is_fix_demand = any(m in text for m in ("corrige", "répare", "repare", "fix", "résous", "resous", "débogue", "debogue", "bug", "erreur"))
+        if is_cont and is_fix_demand:
+            return self._decision(
+                "coding",
+                request,
+                0.95,
+                capabilities=["coding"],
+                secondary=["testing"] if "testing" in last_intent or getattr(task_context, "tests_executed", None) else [],
+                tools=["list_files", "find_file", "search_files", "read_file", "read_document", "write_file", "patch_file", "run_python", "run_tests"],
+                workspace=True,
+                file_read=True,
+                modification=True,
+                tests=True,
+                risk="MODERATE",
+                confirmation=False,
+                criteria=["erreur corrigée sur les fichiers de la tâche active", "vérification observable"],
+                rationale=["continuité de la tâche active : correction demandée sur le travail en cours"],
+                files_required=context_files,
+            )
+
+        # Détection des demandes d'enchaînement de tests dans la tâche active
+        is_test_demand = any(m in text for m in ("test suivant", "tests suivants", "lance les tests", "relance les tests", "rejoue les tests", "teste-le", "teste ça"))
+        if is_cont and is_test_demand:
+            return self._decision(
+                "testing",
+                request,
+                0.95,
+                capabilities=["testing"],
+                tools=["list_files", "find_file", "search_files", "read_file", "read_document", "run_tests", "run_python"],
+                workspace=True,
+                file_read=bool(context_files),
+                tests=True,
+                criteria=["suite de tests exécutée sur les fichiers de la tâche active"],
+                rationale=["continuité de la tâche active : exécution des tests demandée"],
+                files_required=context_files,
+            )
+
+        # Détection des demandes d'analyse ou de consultation dans la continuité
+        is_analysis_continuity = is_cont and any(
+            m in text for m in ("analyse-le", "analyse le", "analyse la", "analyse-la", "analyse ce", "analyse", "lis-le", "ouvre-le", "regarde-le", "examine-le")
+        )
+        if is_analysis_continuity and context_files:
+            return self._decision(
+                "file_analysis",
+                request,
+                0.95,
+                capabilities=["file_analysis"],
+                tools=["read_document", "read_file", "list_files", "find_file"],
+                workspace=True,
+                file_read=True,
+                criteria=["document du workspace réellement lu et analysé", "synthèse fondée sur le contenu extrait"],
+                rationale=["continuité de la tâche active : analyse du document récupéré"],
+                files_required=context_files,
+            )
+
+        # Détection des demandes d'enchaînement générique (ensuite, continue, améliore-le, etc.)
+        is_next_step_demand = any(m in text for m in ("ensuite", "continue", "poursuis", "avance", "fais la suite", "la suite", "améliore-le", "ameliore-le", "optimise", "peaufine", "ça marche", "ca marche", "c'est bon"))
+        if is_cont and is_next_step_demand:
+            target_intent = last_intent if last_intent in {"coding", "testing", "exam_creation", "file_analysis", "review"} else ("coding" if context_files else "general_question")
+            if target_intent == "coding":
+                return self._decision(
+                    "coding",
+                    request,
+                    0.94,
+                    capabilities=["coding"],
+                    secondary=["testing"],
+                    tools=["list_files", "find_file", "search_files", "read_file", "read_document", "write_file", "patch_file", "run_python", "run_tests"],
+                    workspace=True,
+                    file_read=True,
+                    modification=True,
+                    tests=True,
+                    risk="MODERATE",
+                    criteria=["étape suivante de la tâche active réalisée"],
+                    rationale=["continuité de la tâche active : étape suivante de codage"],
+                    files_required=context_files,
+                )
+            elif target_intent == "exam_creation":
+                return self._decision(
+                    "exam_creation",
+                    request,
+                    0.93,
+                    capabilities=["exam_creation"],
+                    workspace=True,
+                    file_read=True,
+                    criteria=["suite du sujet réalisée"],
+                    rationale=["continuité de la tâche active : suite de création du sujet"],
+                    files_required=context_files,
+                )
+
         files = self._files(text)
+        if is_cont and context_files:
+            for cf in context_files:
+                if cf not in files:
+                    files.append(cf)
+
         has_file = bool(files) or any(
             phrase in text
             for phrase in ("fichier", "document", "pdf", "mon projet", "codebase")
@@ -160,7 +260,20 @@ class IntentEngine:
                 "cherche les bugs", "audit mon code", "audit de code",
             )
         )
-        asks_file_analysis = has_file and any(
+        asks_download = any(
+            marker in text
+            for marker in (
+                "télécharge", "telecharge", "télécharger", "telecharger",
+                "télécharge-le", "télécharge le", "récupère", "recupere",
+                "téléchargement", "télécharge ce", "download",
+            )
+        ) or (
+            (asks_web or any(m in text for m in ("sur internet", "sur le web", "en ligne")))
+            and any(m in text for m in ("trouve", "cherche", "obtient", "prends", "télécharge", "telecharge"))
+            and any(m in text for m in ("pdf", "fichier", "document", "sujet", "annale"))
+        )
+
+        asks_file_analysis = has_file and not asks_download and not any(m in text for m in ("sur internet", "sur le web", "en ligne")) and any(
             marker in text
             for marker in (
                 "analyse", "résume", "resume", "lis ", "lire ", "compare", "extrais", "extrait", "explique le contenu",
@@ -233,6 +346,23 @@ class IntentEngine:
                 tests=True,
                 criteria=["suite de tests réellement exécutée", "résultats observés"],
                 rationale=["demande d'exécution ou de validation de tests détectée"],
+            )
+
+        if asks_download or (asks_research and asks_download):
+            return self._decision(
+                "research", request, 0.95,
+                capabilities=["research", "coding"],
+                tools=["web_search", "read_document", "read_file", "write_file", "list_files"],
+                web=True,
+                workspace=True,
+                file_read=True,
+                modification=True,
+                criteria=[
+                    "document identifié sur des sources fiables",
+                    "document réellement téléchargé dans le workspace",
+                    "fichier vérifié physiquement (existence, taille non nulle, format valide)",
+                ],
+                rationale=["demande de recherche et téléchargement effectif d'un document distant dans le workspace"],
             )
 
         if asks_file_analysis:
@@ -329,6 +459,7 @@ class IntentEngine:
         confirmation: bool = False,
         criteria: list[str] | None = None,
         rationale: list[str] | None = None,
+        files_required: list[str] | None = None,
     ) -> IntentDecision:
         return IntentDecision(
             intent=intent,
@@ -337,7 +468,7 @@ class IntentEngine:
             required_capabilities=capabilities,
             secondary_capabilities=secondary or [],
             required_tools=tools or [],
-            files_required=cls._files(request),
+            files_required=files_required if files_required is not None else cls._files(request),
             requires_workspace=workspace,
             requires_file_read=file_read,
             requires_modification=modification,

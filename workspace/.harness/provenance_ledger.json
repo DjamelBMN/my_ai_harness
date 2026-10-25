@@ -1,0 +1,535 @@
+{
+  "downloads/dummy_w3c_test.pdf": {
+    "source_kind": "web_download",
+    "origin_url": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+    "resolved_domain": "www.w3.org",
+    "download_timestamp": "2026-10-25T02:35:08.390190+00:00",
+    "local_path": "downloads/dummy_w3c_test.pdf",
+    "file_size": 13264,
+    "sha256": "3df79d34abbca99308e79cb94461c1893582604d68329a41fd4bec1885e6adb4",
+    "magic_bytes": "%PDF-1.4",
+    "task_id": "",
+    "content_excerpt": "Dummy PDF file",
+    "page_count": 1,
+    "verification_status": "verified",
+    "verification_checks": [
+      {
+        "step": "SOURCE WEB",
+        "status": "passed",
+        "detail": "Domaine source identifié : www.w3.org"
+      },
+      {
+        "step": "URL",
+        "status": "passed",
+        "detail": "URL distante valide : https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
+      },
+      {
+        "step": "TÉLÉCHARGEMENT",
+        "status": "passed",
+        "detail": "13264 octets reçus"
+      },
+      {
+        "step": "FICHIER PHYSIQUE",
+        "status": "passed",
+        "detail": "Écrit sur disque dans downloads/dummy_w3c_test.pdf"
+      },
+      {
+        "step": "HASH",
+        "status": "passed",
+        "detail": "SHA-256 = 3df79d34abbca99308e79cb94461c1893582604d68329a41fd4bec1885e6adb4"
+      },
+      {
+        "step": "TYPE/MAGIC BYTES",
+        "status": "passed",
+        "detail": "Signature = %PDF-1.4"
+      },
+      {
+        "step": "CONTENU",
+        "status": "passed",
+        "detail": "Extrait observable (14 car.)"
+      },
+      {
+        "step": "VÉRIFICATION",
+        "status": "passed",
+        "detail": "Chaîne de provenance complète validée sans substitution."
+      }
+    ],
+    "attempted_sources": [],
+    "anti_substitution": true
+  },
+  "downloads/sujet_bac_2026_metropole_jour1.pdf": {
+    "source_kind": "web_download",
+    "origin_url": "https://eduscol.education.fr/sujet1.pdf",
+    "resolved_domain": "eduscol.education.fr",
+    "download_timestamp": "2026-10-25T02:10:55.375731+00:00",
+    "local_path": "downloads/sujet_bac_2026_metropole_jour1.pdf",
+    "file_size": 34,
+    "sha256": "472a50342e5cd5335a8c1e09b1d7e109725a97516979f6923087ecc92dc07ba3",
+    "magic_bytes": "%PDF-1.4",
+    "content_excerpt": "",
+    "page_count": null,
+    "verification_status": "verified",
+    "verification_checks": [
+      {
+        "step": "SOURCE WEB",
+        "status": "passed",
+        "detail": "Domaine source identifié : eduscol.education.fr"
+      },
+      {
+        "step": "URL",
+        "status": "passed",
+        "detail": "URL distante valide : https://eduscol.education.fr/sujet1.pdf"
+      },
+      {
+        "step": "TÉLÉCHARGEMENT",
+        "status": "passed",
+        "detail": "34 octets reçus"
+      },
+      {
+        "step": "FICHIER PHYSIQUE",
+        "status": "passed",
+        "detail": "Écrit sur disque dans downloads/sujet_bac_2026_metropole_jour1.pdf"
+      },
+      {
+        "step": "HASH",
+        "status": "passed",
+        "detail": "SHA-256 = 472a50342e5cd5335a8c1e09b1d7e109725a97516979f6923087ecc92dc07ba3"
+      },
+      {
+        "step": "TYPE/MAGIC BYTES",
+        "status": "passed",
+        "detail": "Signature = %PDF-1.4"
+      },
+      {
+        "step": "VÉRIFICATION",
+        "status": "passed",
+        "detail": "Chaîne de provenance complète validée sans substitution."
+      }
+    ],
+    "attempted_sources": [],
+    "anti_substitution": true
+  },
+  "downloads/cerfa_15776_02.pdf": {
+    "source_kind": "web_download",
+    "origin_url": "https://immatriculation.ants.gouv.fr/files/1e4341b6-4695-4f74-a51a-5ef962fba392/73e9a682-f967-496f-8e75-30cfbb5e3c87/f6b39aa7-e58c-4c32-aa12-10d579dffd6f/cerfa_15776-02.pdf",
+    "resolved_domain": "immatriculation.ants.gouv.fr",
+    "download_timestamp": "2026-10-25T02:14:38.036711+00:00",
+    "local_path": "downloads/cerfa_15776_02.pdf",
+    "file_size": 357,
+    "sha256": "2b6e751ef352602fca3644ee526790137c079a54e742e5f9b3531b451dd918b6",
+    "magic_bytes": "3c68746d6c206c61",
+    "content_excerpt": "<html lang=\"en\"><head></head><body><script>window.location.href='/redirect_OX4ZHOZMMCV6MMQ5BLYLLAZMSIT4H7ZWW2D5BTK53HMSBUGDHCQQ====/files/1e4341b6-4695-4f74-a51a-5ef962fba392/73e9a682-f967-496f-8e75-30cfbb5e3c87/f6b39aa7-e58c-4c32-aa12-10d579dffd6f/cerfa_15776-02.pdf';</script><noscript>This website requires JS enabled and cookies</noscript></body></html>",
+    "page_count": null,
+    "verification_status": "verified",
+    "verification_checks": [
+      {
+        "step": "SOURCE WEB",
+        "status": "passed",
+        "detail": "Domaine source identifié : immatriculation.ants.gouv.fr"
+      },
+      {
+        "step": "URL",
+        "status": "passed",
+        "detail": "URL distante valide : https://immatriculation.ants.gouv.fr/files/1e4341b6-4695-4f74-a51a-5ef962fba392/73e9a682-f967-496f-8e75-30cfbb5e3c87/f6b39aa7-e58c-4c32-aa12-10d579dffd6f/cerfa_15776-02.pdf"
+      },
+      {
+        "step": "TÉLÉCHARGEMENT",
+        "status": "passed",
+        "detail": "357 octets reçus"
+      },
+      {
+        "step": "FICHIER PHYSIQUE",
+        "status": "passed",
+        "detail": "Écrit sur disque dans downloads/cerfa_15776_02.pdf"
+      },
+      {
+        "step": "HASH",
+        "status": "passed",
+        "detail": "SHA-256 = 2b6e751ef352602fca3644ee526790137c079a54e742e5f9b3531b451dd918b6"
+      },
+      {
+        "step": "TYPE/MAGIC BYTES",
+        "status": "passed",
+        "detail": "Signature = 3c68746d6c206c61"
+      },
+      {
+        "step": "CONTENU",
+        "status": "passed",
+        "detail": "Extrait observable (357 car.)"
+      },
+      {
+        "step": "VÉRIFICATION",
+        "status": "passed",
+        "detail": "Chaîne de provenance complète validée sans substitution."
+      }
+    ],
+    "attempted_sources": [],
+    "anti_substitution": true
+  },
+  "downloads/bac_2026_maths_metropole_1.pdf": {
+    "source_kind": "web_download",
+    "origin_url": "https://eduscol.education.fr/bac2026.pdf",
+    "resolved_domain": "eduscol.education.fr",
+    "download_timestamp": "2026-10-25T02:35:02.347749+00:00",
+    "local_path": "downloads/bac_2026_maths_metropole_1.pdf",
+    "file_size": 47,
+    "sha256": "3ad0936d0e78731987bb581e307df5228163c41825bcdd66f54d3ef5f15c9dd1",
+    "magic_bytes": "%PDF-1.4",
+    "task_id": "task-A-bac",
+    "content_excerpt": "Baccalauréat Général 2026 Métropole Spécialité Mathématiques",
+    "page_count": null,
+    "verification_status": "verified",
+    "verification_checks": [
+      {
+        "step": "SOURCE WEB",
+        "status": "passed",
+        "detail": "Domaine source identifié : eduscol.education.fr"
+      },
+      {
+        "step": "URL",
+        "status": "passed",
+        "detail": "URL distante valide : https://eduscol.education.fr/bac2026.pdf"
+      },
+      {
+        "step": "TÉLÉCHARGEMENT",
+        "status": "passed",
+        "detail": "47 octets reçus"
+      },
+      {
+        "step": "FICHIER PHYSIQUE",
+        "status": "passed",
+        "detail": "Écrit sur disque dans downloads/bac_2026_maths_metropole_1.pdf"
+      },
+      {
+        "step": "HASH",
+        "status": "passed",
+        "detail": "SHA-256 = 3ad0936d0e78731987bb581e307df5228163c41825bcdd66f54d3ef5f15c9dd1"
+      },
+      {
+        "step": "TYPE/MAGIC BYTES",
+        "status": "passed",
+        "detail": "Signature = %PDF-1.4"
+      },
+      {
+        "step": "CONTENU",
+        "status": "passed",
+        "detail": "Extrait observable (60 car.)"
+      },
+      {
+        "step": "VÉRIFICATION",
+        "status": "passed",
+        "detail": "Chaîne de provenance complète validée sans substitution."
+      }
+    ],
+    "attempted_sources": [],
+    "anti_substitution": true
+  },
+  "downloads/dummy_alt_test.pdf": {
+    "source_kind": "web_download",
+    "origin_url": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+    "resolved_domain": "www.w3.org",
+    "download_timestamp": "2026-10-25T02:35:03.212225+00:00",
+    "local_path": "downloads/dummy_alt_test.pdf",
+    "file_size": 13264,
+    "sha256": "3df79d34abbca99308e79cb94461c1893582604d68329a41fd4bec1885e6adb4",
+    "magic_bytes": "%PDF-1.4",
+    "task_id": "",
+    "content_excerpt": "Dummy PDF file",
+    "page_count": 1,
+    "verification_status": "verified",
+    "verification_checks": [
+      {
+        "step": "SOURCE WEB",
+        "status": "passed",
+        "detail": "Domaine source identifié : www.w3.org"
+      },
+      {
+        "step": "URL",
+        "status": "passed",
+        "detail": "URL distante valide : https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
+      },
+      {
+        "step": "TÉLÉCHARGEMENT",
+        "status": "passed",
+        "detail": "13264 octets reçus"
+      },
+      {
+        "step": "FICHIER PHYSIQUE",
+        "status": "passed",
+        "detail": "Écrit sur disque dans downloads/dummy_alt_test.pdf"
+      },
+      {
+        "step": "HASH",
+        "status": "passed",
+        "detail": "SHA-256 = 3df79d34abbca99308e79cb94461c1893582604d68329a41fd4bec1885e6adb4"
+      },
+      {
+        "step": "TYPE/MAGIC BYTES",
+        "status": "passed",
+        "detail": "Signature = %PDF-1.4"
+      },
+      {
+        "step": "CONTENU",
+        "status": "passed",
+        "detail": "Extrait observable (14 car.)"
+      },
+      {
+        "step": "VÉRIFICATION",
+        "status": "passed",
+        "detail": "Chaîne de provenance complète validée sans substitution."
+      }
+    ],
+    "attempted_sources": [
+      {
+        "url": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+        "strategy": "direct",
+        "timestamp": "2026-10-25T02:35:02.357456+00:00"
+      }
+    ],
+    "anti_substitution": true
+  },
+  "downloads/dummy_spy_test.pdf": {
+    "source_kind": "web_download",
+    "origin_url": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+    "resolved_domain": "www.w3.org",
+    "download_timestamp": "2026-10-25T02:35:06.060396+00:00",
+    "local_path": "downloads/dummy_spy_test.pdf",
+    "file_size": 13264,
+    "sha256": "3df79d34abbca99308e79cb94461c1893582604d68329a41fd4bec1885e6adb4",
+    "magic_bytes": "%PDF-1.4",
+    "task_id": "",
+    "content_excerpt": "Dummy PDF file",
+    "page_count": 1,
+    "verification_status": "verified",
+    "verification_checks": [
+      {
+        "step": "SOURCE WEB",
+        "status": "passed",
+        "detail": "Domaine source identifié : www.w3.org"
+      },
+      {
+        "step": "URL",
+        "status": "passed",
+        "detail": "URL distante valide : https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
+      },
+      {
+        "step": "TÉLÉCHARGEMENT",
+        "status": "passed",
+        "detail": "13264 octets reçus"
+      },
+      {
+        "step": "FICHIER PHYSIQUE",
+        "status": "passed",
+        "detail": "Écrit sur disque dans downloads/dummy_spy_test.pdf"
+      },
+      {
+        "step": "HASH",
+        "status": "passed",
+        "detail": "SHA-256 = 3df79d34abbca99308e79cb94461c1893582604d68329a41fd4bec1885e6adb4"
+      },
+      {
+        "step": "TYPE/MAGIC BYTES",
+        "status": "passed",
+        "detail": "Signature = %PDF-1.4"
+      },
+      {
+        "step": "CONTENU",
+        "status": "passed",
+        "detail": "Extrait observable (14 car.)"
+      },
+      {
+        "step": "VÉRIFICATION",
+        "status": "passed",
+        "detail": "Chaîne de provenance complète validée sans substitution."
+      }
+    ],
+    "attempted_sources": [
+      {
+        "url": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+        "strategy": "direct",
+        "timestamp": "2026-10-25T02:35:05.786752+00:00"
+      }
+    ],
+    "anti_substitution": true
+  },
+  "downloads/bac_maths_test_mismatch.pdf": {
+    "source_kind": "web_download",
+    "origin_url": "https://eduscol.education.fr/sujet_bac.pdf",
+    "resolved_domain": "eduscol.education.fr",
+    "download_timestamp": "2026-10-25T02:35:06.084552+00:00",
+    "local_path": "downloads/bac_maths_test_mismatch.pdf",
+    "file_size": 54,
+    "sha256": "698cc7a78219d003651e34a73b5040eaf02f5cb6beecb75cb11ad6876d647ea2",
+    "magic_bytes": "%PDF-1.4",
+    "task_id": "task-old",
+    "content_excerpt": "Épreuve de spécialité mathématiques du baccalauréat 2026",
+    "page_count": null,
+    "verification_status": "verified",
+    "verification_checks": [
+      {
+        "step": "SOURCE WEB",
+        "status": "passed",
+        "detail": "Domaine source identifié : eduscol.education.fr"
+      },
+      {
+        "step": "URL",
+        "status": "passed",
+        "detail": "URL distante valide : https://eduscol.education.fr/sujet_bac.pdf"
+      },
+      {
+        "step": "TÉLÉCHARGEMENT",
+        "status": "passed",
+        "detail": "54 octets reçus"
+      },
+      {
+        "step": "FICHIER PHYSIQUE",
+        "status": "passed",
+        "detail": "Écrit sur disque dans downloads/bac_maths_test_mismatch.pdf"
+      },
+      {
+        "step": "HASH",
+        "status": "passed",
+        "detail": "SHA-256 = 698cc7a78219d003651e34a73b5040eaf02f5cb6beecb75cb11ad6876d647ea2"
+      },
+      {
+        "step": "TYPE/MAGIC BYTES",
+        "status": "passed",
+        "detail": "Signature = %PDF-1.4"
+      },
+      {
+        "step": "CONTENU",
+        "status": "passed",
+        "detail": "Extrait observable (56 car.)"
+      },
+      {
+        "step": "VÉRIFICATION",
+        "status": "passed",
+        "detail": "Chaîne de provenance complète validée sans substitution."
+      }
+    ],
+    "attempted_sources": [],
+    "anti_substitution": true
+  },
+  "downloads/cerfa_15776_02_officiel.pdf": {
+    "source_kind": "web_download",
+    "origin_url": "https://www.formulaires.service-public.fr/gf/cerfa_15776.do",
+    "resolved_domain": "www.formulaires.service-public.fr",
+    "download_timestamp": "2026-10-25T02:35:08.147194+00:00",
+    "local_path": "downloads/cerfa_15776_02_officiel.pdf",
+    "file_size": 651214,
+    "sha256": "c28daa99c33ce605a93b50cdbc2cabfc52ee489b3ff236b27071d9dec4061ae7",
+    "magic_bytes": "%PDF-1.4",
+    "task_id": "task-cerfa-real-test",
+    "content_excerpt": " CERTIFICAT DE CESSION D’UN VÉHICULE D’OCCASION\n (à remplir par l’ancien propriétaire et le nouveau proprietaire)\nArticles R322-4 et R322-9 du code de la route\ncerfa\nN° 15776*02\n   \n(A) Numéro d’immatriculation du véhicule (E) Numéro d’identification du véhicule  (B) Date de 1re immatriculation du véhicule\n   \n(D.1 Marque)  (D.2 Type, variante, version)  (J.1 Genre national)  (D.3 Dénomination commerciale)\nKilométrage inscrit au compteur du véhicule :  \nPrésence du certificat d’immatriculation :\n OUI – numéro de formule \n (figure sur le 1er volet du certificat d’immatriculation de type AB-123-CD)\n ou (I) date du certificat d’immatriculation \n (si ancien format d’immatriculation de type 123 AB 45)\n2   0\n Personne physique ou entreprise individuelle   —   Sexe :   M     F \n Personne morale\nJe soussigné(e),  \n NOM, NOM D’USAGE le cas échéant et PRÉNOM ou RAISON SOCIALE N° SIRET, (le cas échéant)\nAdresse complète :                \n N° de la voie Extension (bis, ter, .) Type de voie (avenue, etc.) Nom de la voie\n     \n Code postal Commune\nCertifie (veuillez cocher la case correspondante) :   céder         céder pour destruction\nLe  à h le véhicule désigné ci-dessus.\nJe certifie en outre (veuillez cocher la case correspondante):\n  Avoir remis au nouveau propriétaire un certificat établi depuis moins de quinze jours par le ministre de l’Intérieur, attestant à sa date \nd’édition de la situation administrative du véhicule ;\n  Que ce véhicule n’a pas subi de transformation notable susceptible de modifier les indications du certificat de conformité ou de l’actuel \ncertificat d’immatriculation ;\n  Que ce véhicule est cédé pour destruction à un professionnel de la destruction des véhicules hors d’usage (VHU)  \nportant le n° d’agrément : __________________________. (Le numéro d’agrément VHU du professionnel acquéreur est obligatoire si le \nvéhicule est une voiture particulière, une camionnette ou un cyclomoteur à trois roues. La liste des professionnels agréés est disponible sur \nhttps://immatriculation.ants.gouv.fr).\nFait à _______________________, le_________________ Signature de l’ancien propriétaire,\n(Pour les sociétés : nom et qualité  \ndu signataire et cachet)\n Personne physique ou entreprise individuelle   —   Sexe :   M     F \n Personne morale\nJe soussigné(e),  \n NOM, NOM D’USAGE le cas échéant et PRÉNOM ou RAISON SOCIALE N° SIRET, (le cas échéant)\nNé (e) le    à  \nAdresse complète :                \n N° de la voie Extension (bis, ter, .) Type de voie (avenue, etc.) Nom de la voie\n     \n Code postal Commune\nCertifie (veuillez cocher la case correspondante) : \n Acquérir le véhicule désigné ci-dessus aux dates et heures indiquées par l’ancien propriétaire ;\n Avoir été informé de la situation administrative du véhicule.\nFait à _______________________, le_________________ Signature du nouveau propriétaire,\n(Pour les sociétés : nom et qualité  \ndu signataire et cachet)\nLE VÉHICULE (à remplir par l’ancien propriétaire)\nAncien propriétaire\nNouveau propriétaire\n NON – Motif d’absence de certificat d’immatriculation :\n_______________________________________________________\n_______________________________________________________\nExemplaire 1 destiné à l’ancien propriétaire\nJe m’oppose à la réutilisation de mes données personnelles à des fins de prospection commerciale  ",
+    "page_count": 2,
+    "verification_status": "verified",
+    "verification_checks": [
+      {
+        "step": "SOURCE WEB",
+        "status": "passed",
+        "detail": "Domaine source identifié : www.formulaires.service-public.fr"
+      },
+      {
+        "step": "URL",
+        "status": "passed",
+        "detail": "URL distante valide : https://www.formulaires.service-public.fr/gf/cerfa_15776.do"
+      },
+      {
+        "step": "TÉLÉCHARGEMENT",
+        "status": "passed",
+        "detail": "651214 octets reçus"
+      },
+      {
+        "step": "FICHIER PHYSIQUE",
+        "status": "passed",
+        "detail": "Écrit sur disque dans downloads/cerfa_15776_02_officiel.pdf"
+      },
+      {
+        "step": "HASH",
+        "status": "passed",
+        "detail": "SHA-256 = c28daa99c33ce605a93b50cdbc2cabfc52ee489b3ff236b27071d9dec4061ae7"
+      },
+      {
+        "step": "TYPE/MAGIC BYTES",
+        "status": "passed",
+        "detail": "Signature = %PDF-1.4"
+      },
+      {
+        "step": "CONTENU",
+        "status": "passed",
+        "detail": "Extrait observable (3331 car.)"
+      },
+      {
+        "step": "VÉRIFICATION",
+        "status": "passed",
+        "detail": "Chaîne de provenance complète validée sans substitution."
+      }
+    ],
+    "attempted_sources": [],
+    "anti_substitution": true
+  },
+  "downloads/identites.pdf": {
+    "source_kind": "web_download",
+    "origin_url": "https://www.boursorama.com/content/pdf/aide-en-ligne.pdf",
+    "resolved_domain": "www.boursorama.com",
+    "download_timestamp": "2026-10-25T03:01:26.926635+00:00",
+    "local_path": "downloads/identites.pdf",
+    "file_size": 3873011,
+    "sha256": "18682e7ccc672fcc2e4f4838ccef57cf66d8f9181be21e966316f79044637bc5",
+    "magic_bytes": "%PDF-1.5",
+    "task_id": "",
+    "content_excerpt": "AIDE À L ’USAGE DES GRAPHIQUES\nCe guide en ligne sur l’utilisation de notre outil graphique vous \naccompagnera dans la découverte et le bon usage des graphiques \ndynamiques sur Boursorama.com.",
+    "page_count": 21,
+    "verification_status": "verified",
+    "verification_checks": [
+      {
+        "step": "SOURCE WEB",
+        "status": "passed",
+        "detail": "Domaine source identifié : www.boursorama.com"
+      },
+      {
+        "step": "URL",
+        "status": "passed",
+        "detail": "URL distante valide : https://www.boursorama.com/content/pdf/aide-en-ligne.pdf"
+      },
+      {
+        "step": "TÉLÉCHARGEMENT",
+        "status": "passed",
+        "detail": "3873011 octets reçus"
+      },
+      {
+        "step": "FICHIER PHYSIQUE",
+        "status": "passed",
+        "detail": "Écrit sur disque dans downloads/identites.pdf"
+      },
+      {
+        "step": "HASH",
+        "status": "passed",
+        "detail": "SHA-256 = 18682e7ccc672fcc2e4f4838ccef57cf66d8f9181be21e966316f79044637bc5"
+      },
+      {
+        "step": "TYPE/MAGIC BYTES",
+        "status": "passed",
+        "detail": "Signature = %PDF-1.5"
+      },
+      {
+        "step": "CONTENU",
+        "status": "passed",
+        "detail": "Extrait observable (192 car.)"
+      },
+      {
+        "step": "VÉRIFICATION",
+        "status": "passed",
+        "detail": "Chaîne de provenance complète validée sans substitution."
+      }
+    ],
+    "attempted_sources": [
+      {
+        "url": "https://www.boursorama.com/content/pdf/aide-en-ligne.pdf",
+        "strategy": "page_link",
+        "timestamp": "2026-10-25T03:01:08.097763+00:00"
+      }
+    ],
+    "anti_substitution": true
+  }
+}
