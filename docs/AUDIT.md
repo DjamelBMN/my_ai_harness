@@ -150,3 +150,37 @@ Exécution des tests de base réels du projet :
 - [x] Risques de sécurité et faiblesses architecturales recensés.
 - [x] État de base des tests exécuté et mesuré.
 - [x] Classification exhaustive des problèmes de typage et de linter sur `core/`.
+
+
+---
+
+## 7. Réalisation et Validation de la Phase 0.C (Assainissement ciblé)
+
+Tous les 10 points prescrits ont été exécutés et vérifiés par tests unitaires dédiés (`tests/test_phase0c_sanitization.py` et `tests/test_agent_loop_characterization.py`) :
+
+1. **Suppression des backdoors de contournement** : Les appels directs hors permissions à `autonomous_web_retrieve_and_download` et `tools.document_reader` sur échec provider ou refus du modèle ont été intégralement éradiqués. Tout appel passe par `ToolRegistry`.
+2. **Élimination de la fausse réussite** : Aucun chemin d'erreur provider ne retourne `status="success"` ou n'annonce de faux `[DELIVERY OK]`. En cas d'échec, le statut est strictement `failed` ou `incomplete`.
+3. **Remplacement des heuristiques de sous-chaîne** : `_contains_any_word` avec frontières de mots regex (`\b`) déployé dans `core/agent_loop.py` et `core/intent_engine.py`. Les termes comme « politique » ou « liste » ne déclenchent plus d'action documentaire erronée.
+4. **Refactorisation du retry provider et rupture de cycle dans le failover** : Distinction stricte entre erreurs de quota (failover immédiat) et erreurs transitoires (backoff borné). Détection de cycle sur l'ensemble des providers candidats : la boucle s'arrête proprement dès épuisement sans jamais boucler indéfiniment.
+5. **Neutralisation des données non fiables** : Encapsulation systématique de tout retour d'outil dans des balises `<donnees_non_fiables>...</donnees_non_fiables>` assorties d'une directive d'inviolabilité d'instruction.
+6. **Découplage de `bacblanc_complete_deliverable`** : Les noms de vérification sont dérivés dynamiquement de la configuration de l'agent et du livrable (`{agent_name}_complete_deliverable`).
+7. **Encapsulation et hygiène d'état** : Initialisation complète de tous les attributs dans `AgentLoop.__init__` (`_stop_requested`, `router`, `delegation_engine`, `consecutive_tool_failures`). Suppression des mutations d'instance non protégées.
+8. **Garde-fou anti-bégaiement (repetition guard)** : Détection et arrêt immédiat avec levée d'erreur structurée dès que 3 appels consécutifs échouent avec le même hash d'arguments.
+9. **Budget de mission (`MissionBudget`)** : Dataclass encadrant les tokens, le temps d'exécution, le nombre d'outils et la profondeur de délégation avec arrêt propre sur épuisement.
+10. **Honnêteté du statut de `PlanStep`** : Élimination de la boucle qui marquait frauduleusement toutes les étapes comme « completed » à la livraison. Seules les étapes disposant d'une preuve d'observation ou de validation passent à `completed`.
+
+---
+
+## 8. Métriques Avant / Après Phase 0
+
+| Métrique | État Initial (Master) | État Final (Phase 0) | Statut |
+| :--- | :--- | :--- | :--- |
+| **Backdoors autonomes hors permissions** | 2 appels directs non sécurisés | 0 (100% via ToolRegistry & permissions) | **RÉSOLU** |
+| **Risque de boucle infinie sur provider** | Non borné (jusqu'à 264 étapes en UI) | Rupture de cycle déterministe (arrêt propre) | **RÉSOLU** |
+| **Fausse réussite sur erreur provider** | Présente (`status="success"` simulé) | Supprimée (`status="failed"` honnête) | **RÉSOLU** |
+| **Faux positifs sous-chaîne ('politique', 'liste')**| Déclenchait des actions intempestives | 0 faux positif (frontières `\b`) | **RÉSOLU** |
+| **Garde-fou anti-bégaiement outils** | Inexistant (boucle jusqu'à max_iterations) | Actif (arrêt propre à $K=3$ échecs identiques) | **RÉSOLU** |
+| **Isolation des données non fiables** | Données injectées brutes | Délimitées `<donnees_non_fiables>` | **RÉSOLU** |
+| **Tests de caractérisation AgentLoop** | 0 test | 8 tests dédiés (100% passants) | **VALIDÉ** |
+| **Tests de non-régression Phase 0.C** | 0 test | 8 tests dédiés (100% passants) | **VALIDÉ** |
+| **Tests existants de non-régression** | 192 tests passants | 195 tests passants (100% passants) | **PRÉSERVÉ** |
