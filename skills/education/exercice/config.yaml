@@ -35,6 +35,7 @@ tools:
   - read_document
   - write_file
   - web_search
+  - generate_docx
 templates:
   - template_exercice.tex
 rag_directory: rag

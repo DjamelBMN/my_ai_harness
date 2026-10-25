@@ -20,6 +20,7 @@ from pathlib import Path
 import queue
 import re
 import shutil
+import subprocess
 import threading
 from time import monotonic
 from typing import Any
@@ -1168,7 +1169,27 @@ class NeoHarnessRuntimeBridge:
         target = self.filesystem.resolve(relative_path)
         rel = target.relative_to(self.filesystem.root).as_posix()
         if not target.exists() or not target.is_file():
-            raise FileNotFoundError(f"Fichier PDF introuvable : {rel}")
+            # Tenter la compilation automatique du PDF compagnon depuis un .docx ou .tex
+            stem = target.stem
+            parent_rel = rel.rsplit("/", 1)[0] if "/" in rel else ""
+            comp_tex = f"{parent_rel}/{stem}.tex" if parent_rel else f"{stem}.tex"
+            comp_docx = f"{parent_rel}/{stem}.docx" if parent_rel else f"{stem}.docx"
+            try:
+                if self.filesystem.resolve(comp_tex).is_file():
+                    self.compile_workspace_latex(comp_tex, output_relative_path=rel)
+                elif self.filesystem.resolve(comp_docx).is_file():
+                    from tools.docx import find_pandoc_binary
+                    pandoc_bin = find_pandoc_binary(project_root=PROJECT_ROOT)
+                    if pandoc_bin:
+                        subprocess.run(
+                            [pandoc_bin, str(self.filesystem.resolve(comp_docx)), "-o", str(target), "--pdf-engine=tectonic"],
+                            timeout=25,
+                            capture_output=True,
+                        )
+            except Exception:
+                pass
+            if not target.exists() or not target.is_file():
+                raise FileNotFoundError(f"Fichier PDF introuvable : {rel}")
         data = self.filesystem.read_bytes(rel)
         pages = _verify_compiled_pdf_bytes(data)
         candidate_tex = str(Path(rel).with_suffix(".tex")).replace("\\", "/")
@@ -3544,6 +3565,42 @@ def create_http_server(
                 return
             try:
                 target = ui_app.bridge.filesystem.resolve(clean_rel)
+                if not target.exists():
+                    # Génération à la volée du format miroir (PDF <-> DOCX) si l'un existe
+                    stem = Path(clean_rel).stem
+                    parent = Path(clean_rel).parent
+                    parent_str = str(parent).replace("\\", "/")
+                    if clean_rel.lower().endswith(".pdf"):
+                        comp_docx = f"{parent_str}/{stem}.docx" if parent_str != "." else f"{stem}.docx"
+                        comp_tex = f"{parent_str}/{stem}.tex" if parent_str != "." else f"{stem}.tex"
+                        try:
+                            comp_docx_target = ui_app.bridge.filesystem.resolve(comp_docx)
+                            comp_tex_target = ui_app.bridge.filesystem.resolve(comp_tex)
+                            if comp_tex_target.exists():
+                                from tools.compiler import AutonomousCompiler
+                                comp = AutonomousCompiler(workspace=ui_app.bridge.filesystem.root)
+                                comp.compile_and_fix(comp_tex, clean_rel)
+                            elif comp_docx_target.exists():
+                                from tools.docx import find_pandoc_binary
+                                pandoc_bin = find_pandoc_binary(project_root=PROJECT_ROOT)
+                                if pandoc_bin:
+                                    subprocess.run([pandoc_bin, str(comp_docx_target), "-o", str(target), "--pdf-engine=tectonic"], timeout=25)
+                        except Exception as exc:
+                            import traceback
+                            traceback.print_exc()
+                    elif clean_rel.lower().endswith(".docx"):
+                        comp_md = f"{parent_str}/{stem}.md" if parent_str != "." else f"{stem}.md"
+                        comp_tex = f"{parent_str}/{stem}.tex" if parent_str != "." else f"{stem}.tex"
+                        try:
+                            comp_md_target = ui_app.bridge.filesystem.resolve(comp_md)
+                            comp_tex_target = ui_app.bridge.filesystem.resolve(comp_tex)
+                            from tools.docx import generate_docx
+                            if comp_md_target.exists():
+                                generate_docx(comp_md_target.read_text(encoding="utf-8"), output_path=clean_rel, workspace=ui_app.bridge.filesystem.root, project_root=PROJECT_ROOT)
+                            elif comp_tex_target.exists():
+                                generate_docx(comp_tex_target.read_text(encoding="utf-8"), output_path=clean_rel, workspace=ui_app.bridge.filesystem.root, project_root=PROJECT_ROOT)
+                        except Exception:
+                            pass
                 raw = ui_app.bridge.filesystem.read_bytes(clean_rel)
             except FileNotFoundError:
                 self._send_json(HTTPStatus.NOT_FOUND, {"error": f"Fichier introuvable : {clean_rel}"})
@@ -3617,13 +3674,230 @@ def create_http_server(
                     pandoc_bin = find_pandoc_binary(project_root=PROJECT_ROOT)
                     if pandoc_bin:
                         try:
-                            cmd = [pandoc_bin, str(target), "-s", "--mathjax"]
+                            cmd = [pandoc_bin, str(target), "-s", "--mathjax", "-t", "html5"]
                             proc = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
                             if proc.returncode == 0 and proc.stdout:
-                                raw = proc.stdout.encode("utf-8")
+                                html_text = proc.stdout
+                                filename = target.name
+                                stem = target.stem
+                                rel_docx = clean_rel
+                                parent_dir = str(Path(clean_rel).parent).replace("\\", "/")
+                                rel_pdf = f"{parent_dir}/{stem}.pdf" if parent_dir != "." else f"{stem}.pdf"
+                                has_companion_pdf = False
+                                try:
+                                    has_companion_pdf = ui_app.bridge.filesystem.resolve(rel_pdf).exists()
+                                except Exception:
+                                    pass
+                                pdf_btn_html = (
+                                    f'<a href="/api/files/raw?path={quote(rel_pdf)}&download=1" download class="word-btn secondary" title="Télécharger la version PDF">'
+                                    f'📑 Télécharger PDF</a>'
+                                    if has_companion_pdf
+                                    else f'<a href="/api/files/raw?path={quote(rel_docx)}&download=1" download class="word-btn secondary" title="Télécharger en Word">'
+                                    f'📑 Version PDF disponible</a>'
+                                )
+                                word_style = f"""
+<style id="__neoharness_word_preview_styles__">
+  :root {{
+    --word-primary: #185ABD;
+    --word-dark: #103F91;
+    --word-bg: #EAEAEA;
+    --page-bg: #FFFFFF;
+    --text-main: #242424;
+  }}
+  * {{ box-sizing: border-box; }}
+  html, body {{
+    margin: 0;
+    padding: 0;
+    background-color: var(--word-bg);
+    font-family: 'Aptos', 'Calibri', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: var(--text-main);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }}
+  .word-top-ribbon {{
+    position: sticky;
+    top: 0;
+    z-index: 999;
+    background: linear-gradient(135deg, #185ABD 0%, #103F91 100%);
+    color: #FFFFFF;
+    padding: 9px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+    font-size: 13px;
+  }}
+  .word-ribbon-title {{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+  }}
+  .word-logo-badge {{
+    background: #FFFFFF;
+    color: #185ABD;
+    font-weight: 800;
+    font-size: 13px;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }}
+  .word-ribbon-actions {{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }}
+  .word-btn {{
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #FFFFFF;
+    color: #185ABD;
+    padding: 5px 13px;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    transition: all 0.15s ease;
+  }}
+  .word-btn:hover {{
+    background: #F0F4FA;
+    transform: translateY(-1px);
+  }}
+  .word-btn.secondary {{
+    background: rgba(255,255,255,0.18);
+    color: #FFFFFF;
+    border: 1px solid rgba(255,255,255,0.3);
+  }}
+  .word-btn.secondary:hover {{
+    background: rgba(255,255,255,0.28);
+  }}
+  .word-canvas {{
+    padding: 28px 16px 64px;
+    display: flex;
+    justify-content: center;
+  }}
+  .word-document-page {{
+    background: var(--page-bg);
+    width: 100%;
+    max-width: 820px;
+    min-height: 1080px;
+    padding: 56px 68px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06);
+    border: 1px solid #D8D8D8;
+    border-radius: 2px;
+  }}
+  h1, h2, h3, h4 {{
+    color: var(--word-dark);
+    font-family: 'Aptos Display', 'Calibri', 'Segoe UI', sans-serif;
+    font-weight: 600;
+  }}
+  h1 {{
+    font-size: 21pt;
+    margin-top: 0;
+    margin-bottom: 0.6em;
+    border-bottom: 2px solid #E1DFDD;
+    padding-bottom: 8px;
+  }}
+  h2 {{ font-size: 15pt; margin-top: 1.4em; margin-bottom: 0.5em; }}
+  h3 {{ font-size: 12.5pt; margin-top: 1.2em; margin-bottom: 0.4em; }}
+  p {{ margin: 0.7em 0; font-size: 11pt; }}
+  ul, ol {{ margin: 0.6em 0; padding-left: 28px; font-size: 11pt; }}
+  li {{ margin: 0.3em 0; }}
+  table {{
+    border-collapse: collapse;
+    width: 100%;
+    margin: 18px 0;
+    font-size: 10.5pt;
+  }}
+  th, td {{
+    border: 1px solid #D2D2D2;
+    padding: 8px 12px;
+    text-align: left;
+  }}
+  th {{
+    background-color: #F3F6FA;
+    color: var(--word-dark);
+    font-weight: 600;
+  }}
+  tr:nth-child(even) td {{
+    background-color: #FAFAFA;
+  }}
+  blockquote {{
+    border-left: 3.5px solid var(--word-primary);
+    margin: 14px 0;
+    padding: 8px 18px;
+    background: #F7F9FC;
+    color: #444;
+    border-radius: 0 4px 4px 0;
+  }}
+  code {{
+    background: #F3F3F3;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 10pt;
+    color: #A31515;
+  }}
+  .mjx-chtml {{
+    font-size: 115% !important;
+  }}
+</style>
+<script>
+window.MathJax = {{
+  tex: {{
+    inlineMath: [['$', '$'], ['\\(', '\\)']],
+    displayMath: [['$$', '$$'], ['\\[', '\\]']],
+    processEscapes: true
+  }},
+  options: {{
+    skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+  }}
+}};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+"""
+                                body_match = re.search(r"<body[^>]*>([\s\S]*?)</body>", html_text, re.IGNORECASE)
+                                body_content = body_match.group(1) if body_match else html_text
+                                wrapped_body = f"""
+<body>
+  <div class="word-top-ribbon">
+    <div class="word-ribbon-title">
+      <span class="word-logo-badge">W</span>
+      <span>Microsoft Word · {filename}</span>
+    </div>
+    <div class="word-ribbon-actions">
+      <a href="/api/files/raw?path={quote(rel_docx)}&download=1" download class="word-btn" title="Télécharger le document Word">
+        📄 Télécharger Word (.docx)
+      </a>
+      {pdf_btn_html}
+    </div>
+  </div>
+  <div class="word-canvas">
+    <div class="word-document-page">
+      {body_content}
+    </div>
+  </div>
+</body>
+"""
+                                if "</head>" in html_text.lower():
+                                    idx = html_text.lower().rfind("</head>")
+                                    html_text = html_text[:idx] + word_style + html_text[idx:]
+                                    html_text = re.sub(r"<body[^>]*>[\s\S]*?</body>", wrapped_body, html_text, flags=re.IGNORECASE)
+                                else:
+                                    html_text = f"<!DOCTYPE html><html><head><meta charset='utf-8'>{word_style}</head>{wrapped_body}</html>"
+                                raw = html_text.encode("utf-8")
                                 content_type = "text/html; charset=utf-8"
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            import sys, traceback
+                            print("=== DOCX PREVIEW ERROR ===", e, file=sys.stderr)
+                            traceback.print_exc()
             elif ext == ".css":
                 content_type = "text/css; charset=utf-8"
             elif ext in {".js", ".mjs"}:

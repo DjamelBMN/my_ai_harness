@@ -513,6 +513,8 @@
             <div class="doc-preview-actions">
               <div id="doc-view-switcher" class="doc-view-switcher">
                 <button id="btn-doc-view-render" type="button" class="doc-switch-btn active">Aperçu</button>
+                <button id="btn-doc-view-word" type="button" class="doc-switch-btn" style="display: none;">📄 Vue Word</button>
+                <button id="btn-doc-view-pdf" type="button" class="doc-switch-btn" style="display: none;">📑 Vue PDF</button>
                 <button id="btn-doc-view-source" type="button" class="doc-switch-btn">Code source</button>
                 <button id="btn-doc-view-files" type="button" class="doc-switch-btn" style="display: none;">Fichiers</button>
                 <button id="btn-doc-view-console" type="button" class="doc-switch-btn" style="display: none;">Console</button>
@@ -542,6 +544,14 @@
                   <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
                 </svg>
               </button>
+              <a id="btn-doc-download-word" class="doc-dl-btn word" href="#" download title="Télécharger le document Word (.docx)" style="display: none;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                <span>Word (.docx)</span>
+              </a>
+              <a id="btn-doc-download-pdf" class="doc-dl-btn pdf" href="#" download title="Télécharger le document PDF (.pdf)" style="display: none;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                <span>PDF (.pdf)</span>
+              </a>
               <a id="btn-doc-download" class="icon-btn-mini" href="#" download title="Télécharger le fichier" aria-label="Télécharger">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
