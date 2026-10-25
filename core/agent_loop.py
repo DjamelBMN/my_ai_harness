@@ -8,6 +8,7 @@ import hashlib
 import json
 import re
 import time
+import uuid
 from dataclasses import dataclass, field
 
 
@@ -73,6 +74,7 @@ class AgentLoop:
         tools: ToolRegistry,
         planner: Planner | None = None,
         verifier: Verifier | None = None,
+        reflective_memory: Any | None = None,
         *,
         max_iterations: int = 15,
         max_retries: int = 2,
@@ -82,7 +84,8 @@ class AgentLoop:
         stream_callback: Callable[[str, str], None] | None = None,
     ) -> None:
         self.tools = tools
-        self.planner = planner or Planner()
+        self.reflective_memory = reflective_memory
+        self.planner = planner or Planner(reflective_memory=reflective_memory)
         self.verifier = verifier or Verifier()
         self.max_iterations = max(1, max_iterations)
         self.max_retries = max(0, max_retries)
@@ -139,7 +142,17 @@ class AgentLoop:
             {"tool": item.tool, "status": item.status, "output": item.output}
             for item in initial_results
         ]
+        lessons_block = ""
+        if getattr(state, "relevant_lessons", None):
+            from core.memory import ReflectiveMemory
+            lessons_block = ReflectiveMemory.format_lessons_for_prompt(state.relevant_lessons)
+        elif self.reflective_memory is not None:
+            lessons = self.reflective_memory.retrieve_relevant_lessons(task.description, limit=3)
+            if lessons:
+                from core.memory import ReflectiveMemory
+                lessons_block = ReflectiveMemory.format_lessons_for_prompt(lessons)
         parts = [
+                lessons_block,
                 agent.build_prompt(task),
                 "MISSION STATE (plan évolutif):\n" + "\n".join(plan_lines),
                 "DÉCISION DE MISSION:\n" + json.dumps(state.intent_decision, ensure_ascii=False),

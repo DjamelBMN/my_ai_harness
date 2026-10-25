@@ -44,6 +44,6 @@ features:
   closed_loop_tdd: true
   independent_critic: true
   backtracking: true
-  reflective_memory: false
+  reflective_memory: true
   dynamic_browser: false
   multi_agent_hierarchy: false

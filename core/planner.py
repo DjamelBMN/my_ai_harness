@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import re
+from typing import Any
 
 from core.task import Task, ensure_task
 from core.task_state import PlanStep, TaskState
@@ -22,8 +23,9 @@ class Planner:
         ".xlsx", ".pptx", ".html", ".css", ".js", ".ts", ".py",
     }
 
-    def __init__(self) -> None:
+    def __init__(self, reflective_memory: Any | None = None) -> None:
         self.intent_engine = IntentEngine()
+        self.reflective_memory = reflective_memory
 
     def set_agent_registry(self, registry) -> None:
         """Active la reconnaissance des capacités ajoutées par les plugins."""
@@ -123,6 +125,13 @@ class Planner:
         else:
             decision.primary_agent = agent
 
+        relevant_lessons = []
+        if self.reflective_memory is not None:
+            try:
+                relevant_lessons = self.reflective_memory.retrieve_relevant_lessons(request, limit=3)
+            except Exception:
+                relevant_lessons = []
+
         state = TaskState(
             user_request=request,
             mode=task.mode,
@@ -138,6 +147,7 @@ class Planner:
                 "Ne jamais prétendre avoir lu un fichier si l'extraction a échoué.",
             ],
         )
+        state.relevant_lessons = relevant_lessons
         if task_context is not None:
             for f in getattr(task_context, "files", []):
                 if f not in state.files:
