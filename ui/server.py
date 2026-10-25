@@ -1874,6 +1874,11 @@ class NeoHarnessRuntimeBridge:
                 prompt_lower,
             )
         )
+        if wants_docx:
+            wants_latex = False
+            wants_pdf_deliverable = False
+            is_education_skill = False
+
         if wants_docx and not has_docx_file and can_write and answer_text and not answer_text.startswith("⚠️"):
             from tools.docx import generate_docx
             target_docx_name = suggest_filename(clean_prompt, "docx", content=answer_text)
@@ -1883,6 +1888,8 @@ class NeoHarnessRuntimeBridge:
                     output_path=target_docx_name,
                     title=clean_prompt[:80],
                     workspace=self.filesystem.root,
+                    project_root=PROJECT_ROOT,
+                    event_sink=self.event_bus.emit_normalized,
                 )
                 if docx_res.get("status") == "success":
                     rel_docx = docx_res["relative_path"]
@@ -1957,11 +1964,12 @@ class NeoHarnessRuntimeBridge:
             skill in ("bacblanc", "exercice", "dm")
             or bool(re.search(r"^/(?:bacblanc|exercice|dm)\b", clean_prompt.strip(), re.IGNORECASE))
         )
-        # RÈGLE ABSOLUE : Si aucun fichier n'est demandé ou si un format exclusif autre que PDF (ex: Word) est demandé, ne pas générer de PDF
-        if not art_req.wants_file and not is_education_skill:
+        # RÈGLE ABSOLUE : Si Word est demandé, ou si aucun fichier n'est demandé, ou format sans PDF : ne JAMAIS générer de PDF
+        if wants_docx or (art_req.wants_file and art_req.formats and "pdf" not in art_req.formats):
             wants_latex = False
             wants_pdf_deliverable = False
-        elif art_req.wants_file and art_req.formats and "pdf" not in art_req.formats and not is_education_skill:
+            is_education_skill = False
+        elif not art_req.wants_file and not is_education_skill:
             wants_latex = False
             wants_pdf_deliverable = False
         else:
@@ -3602,6 +3610,20 @@ def create_http_server(
                         raw = html_text.encode("utf-8")
                     except Exception:
                         pass
+            elif ext == ".docx":
+                content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                if for_preview:
+                    from tools.docx import find_pandoc_binary
+                    pandoc_bin = find_pandoc_binary(project_root=PROJECT_ROOT)
+                    if pandoc_bin:
+                        try:
+                            cmd = [pandoc_bin, str(target), "-s", "--mathjax"]
+                            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                            if proc.returncode == 0 and proc.stdout:
+                                raw = proc.stdout.encode("utf-8")
+                                content_type = "text/html; charset=utf-8"
+                        except Exception:
+                            pass
             elif ext == ".css":
                 content_type = "text/css; charset=utf-8"
             elif ext in {".js", ".mjs"}:

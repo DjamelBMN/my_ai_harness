@@ -684,6 +684,7 @@
       return et;
     }
     const lower = String(path || "").toLowerCase();
+    if (lower.endsWith(".docx") || lower.endsWith(".doc")) return "docx";
     if (lower.endsWith(".pdf")) return "pdf";
     if (lower.endsWith(".html") || lower.endsWith(".htm")) return "html";
     if (lower.endsWith(".tex")) return "tex";
@@ -735,6 +736,7 @@
       addArt({ path: p });
     }
 
+    if (list.some((a) => a.type === "docx")) return list.filter((a) => a.type !== "tex" && a.type !== "pdf");
     if (list.some((a) => a.type === "pdf")) return list.filter((a) => a.type !== "tex");
     return list;
   }
@@ -807,6 +809,26 @@
                 </div>
               `;
             }
+            if (typ === "docx" || typ === "word") {
+              const sizeTxt = art.size_bytes ? ` · ${Math.max(1, Math.round(art.size_bytes / 1024))} Ko` : "";
+              return `
+                <div class="artifact-card">
+                  <div class="artifact-card-title">
+                    <span>📘</span>
+                    <span class="mono">${esc(art.path)}</span>
+                    <span class="meta-chip accent">Word (DOCX)${esc(sizeTxt)}</span>
+                  </div>
+                  <div class="artifact-card-actions">
+                    <button type="button" class="artifact-btn primary" data-open-doc-preview="docx" data-doc-path="${esc(art.path)}">
+                      Aperçu Word
+                    </button>
+                    <a class="artifact-btn" href="/api/files/raw?path=${encodeURIComponent(art.path)}&download=1" download title="Télécharger le document Word (.docx)">
+                      ⬇ Télécharger
+                    </a>
+                  </div>
+                </div>
+              `;
+            }
             if (typ === "python") {
               return `
                 <div class="artifact-card">
@@ -822,6 +844,9 @@
                     <button type="button" class="artifact-btn" data-open-doc-preview="python" data-doc-path="${esc(art.path)}" data-doc-view="source">
                       Code source
                     </button>
+                    <a class="artifact-btn" href="/api/files/raw?path=${encodeURIComponent(art.path)}&download=1" download title="Télécharger le fichier">
+                      ⬇ Télécharger
+                    </a>
                   </div>
                 </div>
               `;
@@ -2038,6 +2063,8 @@
         const fileData = await apiGet(`/api/files/content?path=${encodeURIComponent(cleanPath)}`);
         docObj.size_bytes = fileData.size_bytes;
       } catch (_) {}
+    } else if (type === "docx") {
+      docObj.viewMode = "render";
     } else {
       try {
         const fileData = await apiGet(`/api/files/content?path=${encodeURIComponent(cleanPath)}`);
@@ -2727,6 +2754,7 @@
 
     const badgeMap = {
       pdf: "PDF · Tectonic",
+      docx: "Word · Pandoc",
       html: "HTML · Sandbox",
       tex: "LaTeX · Source",
       python: "Python · Exécution",
@@ -2876,7 +2904,7 @@
           errorBox.innerHTML = `<strong>⚠️ Aperçu PDF impossible</strong><pre class="mono" style="margin-top:8px;white-space:pre-wrap;font-size:11.5px;">${esc(err.message)}</pre>`;
         }
       });
-    } else if (doc.type === "html" && htmlFrame) {
+    } else if ((doc.type === "html" || doc.type === "docx") && htmlFrame) {
       htmlFrame.style.display = "block";
       htmlFrame.src = `/api/preview/workspace/${doc.path.split("/").map(encodeURIComponent).join("/")}?t=${Date.now()}`;
     } else if (doc.type === "svg" && svgViewer) {

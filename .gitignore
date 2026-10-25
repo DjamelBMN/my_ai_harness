@@ -5,4 +5,7 @@ __pycache__/
 workspace/.neoharness/
 workspace/exercice_maths.*
 workspace/uploads/
+runtime/**/*.exe
+runtime/*.exe
+
 

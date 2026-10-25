@@ -367,6 +367,18 @@ class IntentEngine:
                 rationale=["demande de recherche et téléchargement effectif d'un document distant dans le workspace"],
             )
 
+        asks_word = any(kw in text for kw in ("word", "docx", ".docx", "document word", "fichier word", "pandoc"))
+        if asks_word and (asks_creation or any(v in text for v in ("fais", "faire", "produis", "genere", "cree", "redige", "livre"))):
+            return self._decision(
+                "document_generation", request, 0.94,
+                capabilities=["document_generation", "writing"],
+                tools=["generate_docx", "read_file", "write_file", "list_files"],
+                workspace=True,
+                modification=True,
+                criteria=["document Word (.docx) généré via Pandoc", "formules mathématiques converties en OMML", "fichier Word vérifié et intègre"],
+                rationale=["demande de génération de document Word (DOCX) via Pandoc"],
+            )
+
         if asks_file_analysis:
             return self._decision(
                 "file_analysis", request, 0.92,
