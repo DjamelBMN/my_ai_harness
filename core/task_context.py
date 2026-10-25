@@ -42,8 +42,22 @@ class TaskContext:
     turns: list[dict[str, Any]] = field(default_factory=list)
     intermediate_results: list[dict[str, Any]] = field(default_factory=list)
     pending_items: list[str] = field(default_factory=list)
+    searched_document: str = ""
+    primary_source_url: str = ""
+    downloaded_file: str = ""
+    artifact_type: str = ""
+    artifact_path: str = ""
+    verification_results: list[dict[str, Any]] = field(default_factory=list)
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+    @property
+    def initial_request(self) -> str:
+        return self.initial_objective
+
+    @initial_request.setter
+    def initial_request(self, val: str) -> None:
+        self.initial_objective = val
 
     # Marqueurs évidents de continuation / suivi direct
     CONTINUITY_PATTERNS = [
@@ -307,14 +321,43 @@ class TaskContext:
         p = str(path or "").strip().replace("\\", "/")
         if not p:
             return
+        self.artifact_path = p
+        self.artifact_type = art_type or Path(p).suffix.lstrip(".")
         self.record_file(p)
         if not any(a.get("path") == p for a in self.artifacts):
             self.artifacts.append({
                 "path": p,
-                "type": art_type or Path(p).suffix.lstrip("."),
+                "type": self.artifact_type,
                 "preview_url": preview_url,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             })
+
+    def record_download(
+        self,
+        path: str,
+        origin_url: str = "",
+        document_name: str = "",
+        sha256: str = "",
+    ) -> None:
+        """Enregistre les données d'un document Web téléchargé dans le contexte."""
+        p = str(path or "").strip().replace("\\", "/")
+        if p:
+            self.downloaded_file = p
+            self.record_file(p)
+        if origin_url:
+            self.primary_source_url = origin_url
+            self.record_sources([{"url": origin_url, "title": document_name or p}])
+        if document_name:
+            self.searched_document = document_name
+
+    def record_verification(self, verif_report: dict[str, Any]) -> None:
+        """Enregistre le résultat des contrôles du vérificateur."""
+        if isinstance(verif_report, dict):
+            self.verification_results.append({
+                **verif_report,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+            self.verification_results[:] = self.verification_results[-10:]
 
     def record_error(self, message: str, compiler: str = "") -> None:
         """Enregistre une erreur non résolue."""
@@ -411,9 +454,12 @@ class TaskContext:
                 "Confirme son chemin dans le workspace et assure-toi que l'aperçu dans le panneau droit est activé."
             )
         elif re.search(r"\b(?:analyse-le|lis-le|examine-le|résume-le|resume-le)\b", clean_lower):
+            target_f = self.downloaded_file or self.artifact_path or (self.files[-1] if self.files else "")
+            target_desc = f"le fichier '{target_f}'" if target_f else "le document déjà obtenu"
             parts.append(
-                "\n**DIRECTIVE CONTEXTUELLE (ANALYSE DE DOCUMENT TÉLÉCHARGÉ) :** L'utilisateur demande d'analyser le document récupéré. "
-                "Utilise 'read_document' ou 'read_file' pour lire physiquement le fichier téléchargé dans le workspace et en extraire le contenu réel."
+                f"\n**DIRECTIVE CONTEXTUELLE (ANALYSE IMMÉDIATE DU MÊME FICHIER) :** L'utilisateur demande d'analyser le document. "
+                f"Ne recommence PAS la recherche Internet et ne génère PAS de nouveau document de substitution. "
+                f"Lis et analyse directement {target_desc} avec l'outil 'read_document' ou 'read_file'."
             )
         elif re.search(r"\bpeu[x]?\s+importe\b", clean_lower):
             primary_url = self.get_primary_source_link()
@@ -513,6 +559,12 @@ class TaskContext:
             turns=list(data.get("turns") or []),
             intermediate_results=list(data.get("intermediate_results") or []),
             pending_items=list(data.get("pending_items") or []),
+            searched_document=str(data.get("searched_document") or ""),
+            primary_source_url=str(data.get("primary_source_url") or ""),
+            downloaded_file=str(data.get("downloaded_file") or ""),
+            artifact_type=str(data.get("artifact_type") or ""),
+            artifact_path=str(data.get("artifact_path") or ""),
+            verification_results=list(data.get("verification_results") or []),
             created_at=str(data.get("created_at") or datetime.now(timezone.utc).isoformat()),
             updated_at=str(data.get("updated_at") or datetime.now(timezone.utc).isoformat()),
         )

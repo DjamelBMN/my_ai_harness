@@ -10,6 +10,7 @@ from typing import Any
 
 from core.task_state import TaskState
 from tools.filesystem import WorkspaceFilesystem
+from core.artifact_intent import classify_origin, detect_artifact_request, evaluate_artifacts
 
 
 class Verifier:
@@ -338,6 +339,30 @@ class Verifier:
                     if provenance_passed
                     else "Aucun document authentique n'a été récupéré depuis la source demandée dans le workspace."
                 ),
+            })
+
+        # CONTRÔLE D'INTÉGRITÉ ET CONFORMITÉ DE L'ARTEFACT PRODUIT (demande -> attendu -> produit)
+        art_req = detect_artifact_request(state.user_request, skill=state.skill_name or "")
+        produced_deliverables = []
+        for item in successful:
+            produced_deliverables.extend(classify_origin(item))
+        for pf in state.files:
+            if pf not in [p for p, _ in produced_deliverables]:
+                produced_deliverables.append((pf, "created"))
+
+        art_eval = evaluate_artifacts(art_req, produced_deliverables)
+        if art_eval["status"] == "failed":
+            checks.append({
+                "check": "artifact_conformance",
+                "status": "failed",
+                "evidence": art_eval["evidence"],
+                "violations": art_eval.get("violations", []),
+            })
+        elif art_eval["status"] == "passed":
+            checks.append({
+                "check": "artifact_conformance",
+                "status": "passed",
+                "evidence": art_eval["evidence"],
             })
 
         if not checks:

@@ -22,6 +22,8 @@ from tools.code_search import search_code
 from tools.browser import DynamicBrowser
 from tools.compiler import AutonomousCompiler
 from tools.math_tikz import generate_math_figure
+from tools.docx import generate_docx
+from tools.vision import transcribe_image
 
 
 @dataclass
@@ -628,6 +630,46 @@ class ToolRegistry:
             risk=RiskLevel.READ_ONLY,
             mutates=False,
             timeout=45.0,
+        )
+        add(
+            "generate_docx",
+            "Génère un document Word (.docx) professionnel via Pandoc avec vérification physique d'intégrité (ZIP/XML) et déclaration ARTIFACT_READY.",
+            {
+                "content": string,
+                "output_path": optional_string,
+                "title": optional_string,
+            },
+            ["content"],
+            lambda content, output_path="", title="": (
+                generate_docx(
+                    content=content,
+                    output_path=output_path,
+                    title=title,
+                    workspace=fs.root,
+                )
+            ),
+            risk=RiskLevel.MODERATE,
+            mutates=True,
+            timeout=30.0,
+        )
+        add(
+            "transcribe_image",
+            "Transcrit fidèlement une image ou un exercice scanné via multi-passes OCR. Marque [illisible] sans inventer.",
+            {
+                "image_path": string,
+                "min_confidence": {"type": "number"},
+            },
+            ["image_path"],
+            lambda image_path, min_confidence=45.0: (
+                transcribe_image(
+                    image_path=image_path,
+                    filesystem=fs,
+                    min_confidence=min_confidence,
+                )
+            ),
+            risk=RiskLevel.READ_ONLY,
+            mutates=False,
+            timeout=30.0,
         )
 
 

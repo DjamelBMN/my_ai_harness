@@ -402,6 +402,8 @@ class AgentLoop:
         response_fragments: list[str] = []
         verification: dict[str, Any] = {"status": "not_required", "checks": []}
         provider_error: str | None = None
+        total_mission_failovers = 0
+        exhausted_providers: set[str] = set()
 
         for iteration in range(1, iteration_limit + 1):
             if getattr(self, "_stop_requested", False):
@@ -428,7 +430,19 @@ class AgentLoop:
                     tool_limit=self.budget.max_tool_calls,
                 )
             attempt = 0
-            failed_providers_in_turn: set[str] = set()
+            failed_providers_in_turn: set[str] = set(exhausted_providers)
+            # Si le provider actuel est déjà épuisé, basculer immédiatement sans exécuter un appel voué à l'échec
+            curr_prov_name = provider.get_name().lower() if hasattr(provider, "get_name") else ""
+            if curr_prov_name in exhausted_providers or any(ex in curr_prov_name for ex in exhausted_providers):
+                router = getattr(self, "router", None)
+                if router and hasattr(router, "get_fallback_provider"):
+                    fb = router.get_fallback_provider(provider, exclude=exhausted_providers)
+                    if fb:
+                        provider = fb[1]
+                        agent.set_provider(provider)
+                    else:
+                        state.status = TaskStatus.FAILED
+                        return self._failure_result(state, "Tous les providers disponibles ont épuisé leur quota.")
             while True:
                 if getattr(self, "_stop_requested", False):
                     self._emit("[AGENT LOOP] Arrêt demandé par l'utilisateur.")
@@ -524,6 +538,16 @@ class AgentLoop:
                             "[DELIVERY STATUS] Livraison complète impossible en raison "
                             f"du quota ou de la limite du provider {provider_name}."
                         )
+                        # Le provider a dépassé son quota : il est définitivement exclu pour TOUTE la mission
+                        exhausted_providers.add(provider_name.lower())
+                        if "gemini" in provider_name.lower():
+                            exhausted_providers.update({"gemini", "gemini_flash_lite", "gemini_pro", "geminiprovider"})
+                        elif "ollama" in provider_name.lower():
+                            exhausted_providers.update({"ollama", "ollamaprovider"})
+                        elif "openai" in provider_name.lower():
+                            exhausted_providers.update({"openai", "openaiprovider", "gpt-4o", "gpt-4o-mini"})
+                        elif "mistral" in provider_name.lower():
+                            exhausted_providers.update({"mistral", "mistralprovider"})
 
                     # Enregistrer le provider en échec et sa famille dans le set d'exclusion du tour
                     failed_providers_in_turn.add(provider_name.lower())
@@ -540,11 +564,18 @@ class AgentLoop:
                     router = getattr(self, "router", None)
                     fallback = None
                     all_known_providers = set(getattr(router, "providers", {}).keys()) if router else set()
-                    available_candidates = all_known_providers - failed_providers_in_turn
-                    if router and hasattr(router, "get_fallback_provider") and available_candidates:
-                        fallback = router.get_fallback_provider(provider, exclude=failed_providers_in_turn)
+                    available_candidates = all_known_providers - failed_providers_in_turn - exhausted_providers
+                    max_mission_failovers = max(2, min(len(all_known_providers), 4)) if all_known_providers else 2
+                    if (
+                        router
+                        and hasattr(router, "get_fallback_provider")
+                        and available_candidates
+                        and total_mission_failovers < max_mission_failovers
+                    ):
+                        fallback = router.get_fallback_provider(provider, exclude=failed_providers_in_turn | exhausted_providers)
 
                     if fallback is not None:
+                        total_mission_failovers += 1
                         next_key, next_prov = fallback
                         failed_providers_in_turn.add(next_key.lower())
                         if hasattr(next_prov, "get_name"):
@@ -566,21 +597,18 @@ class AgentLoop:
                         continue
 
                     # Aucun provider disponible ou limite atteinte : arrêt immédiat, JAMAIS de boucle infinie
-                    if attempt > self.max_retries or quota_or_rate_limit or fallback is None:
-
-
-                        state.status = TaskStatus.FAILED
-                        partial_result = self._partial_failure_result(
-                            agent,
-                            task,
-                            state,
-                            provider_error,
-                            best_available_result or "".join(response_fragments).strip(),
-                        )
-                        if partial_result is not None:
-                            return partial_result
-                        self._event("delivery.failed", reason="provider_error")
-                        return self._failure_result(state, provider_error)
+                    state.status = TaskStatus.FAILED
+                    partial_result = self._partial_failure_result(
+                        agent,
+                        task,
+                        state,
+                        provider_error,
+                        best_available_result or "".join(response_fragments).strip(),
+                    )
+                    if partial_result is not None:
+                        return partial_result
+                    self._event("delivery.failed", reason="provider_error")
+                    return self._failure_result(state, provider_error or "Fournisseur indisponible ou quota dépassé.")
                     self._emit(f"[RETRY] provider attempt {attempt}/{self.max_retries}")
                     time.sleep(min(0.25 * (2 ** (attempt - 1)), 1.0))
 

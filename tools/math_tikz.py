@@ -593,6 +593,281 @@ def generate_curve_plot(
     }
 
 
+def generate_number_line(
+    intervals: list[dict[str, Any]],
+    x_min: float = -5.0,
+    x_max: float = 5.0,
+    step: float = 1.0,
+    title: str = "",
+) -> dict[str, Any]:
+    """Génère une droite numérique graduée avec intervalles et unions d'intervalles certifiés."""
+    if x_min >= x_max:
+        raise MathConsistencyError(f"Borne minimale ({x_min}) >= borne maximale ({x_max}).")
+
+    for inter in intervals:
+        start = float(inter.get("start", x_min))
+        end = float(inter.get("end", x_max))
+        if start > end:
+            raise MathConsistencyError(f"Intervalle incohérent : borne début ({start}) > borne fin ({end}).")
+
+    tikz_lines = [
+        r"\needspace{6\baselineskip}",
+        r"\begin{center}",
+        r"\begin{tikzpicture}[>=stealth, scale=0.9]",
+        f"\\draw[->, thick] ({x_min - 0.5:.2f}, 0) -- ({x_max + 0.5:.2f}, 0) node[right] {{$x$}};",
+    ]
+
+    cur = math.ceil(x_min)
+    while cur <= math.floor(x_max):
+        tikz_lines.append(
+            f"\\draw[thick] ({cur:.2f}, 0.15) -- ({cur:.2f}, -0.15) node[below] {{$ {int(cur) if float(cur).is_integer() else cur} $}};"
+        )
+        cur += step
+
+    colors = ["blue!80!black", "red!80!black", "teal!80!black", "purple!80!black"]
+    for idx, inter in enumerate(intervals):
+        s = float(inter.get("start", x_min))
+        e = float(inter.get("end", x_max))
+        s_inc = bool(inter.get("start_included", True))
+        e_inc = bool(inter.get("end_included", True))
+        col = colors[idx % len(colors)]
+        y_off = 0.35 * (idx + 1)
+
+        s_draw = max(s, x_min - 0.3)
+        e_draw = min(e, x_max + 0.3)
+        tikz_lines.append(
+            f"\\draw[very thick, {col}, line width=2.5pt] ({s_draw:.2f}, {y_off:.2f}) -- ({e_draw:.2f}, {y_off:.2f});"
+        )
+        if s >= x_min:
+            s_sym = "[" if s_inc else "]"
+            tikz_lines.append(f"\\node[{col}, font=\\bfseries\\large] at ({s:.2f}, {y_off:.2f}) {{{s_sym}}};")
+        if e <= x_max:
+            e_sym = "]" if e_inc else "["
+            tikz_lines.append(f"\\node[{col}, font=\\bfseries\\large] at ({e:.2f}, {y_off:.2f}) {{{e_sym}}};")
+
+    tikz_lines.append(r"\end{tikzpicture}")
+    tikz_lines.append(r"\end{center}")
+
+    return {
+        "intervals": intervals,
+        "range": (x_min, x_max),
+        "tikz": "\n".join(tikz_lines),
+        "verified": True,
+    }
+
+
+def generate_graph(
+    nodes: list[str],
+    edges: list[dict[str, Any]],
+    directed: bool = False,
+    weighted: bool = False,
+    layout: str = "circular",
+) -> dict[str, Any]:
+    """Génère un graphe orienté ou non orienté, pondéré ou étiqueté."""
+    if not nodes:
+        raise MathConsistencyError("Le graphe doit comporter au moins un sommet.")
+
+    node_set = set(nodes)
+    for e in edges:
+        u = e.get("from") or e.get("source")
+        v = e.get("to") or e.get("target")
+        if u not in node_set or v not in node_set:
+            raise MathConsistencyError(f"L'arête ({u} -> {v}) référence un sommet inexistant dans {nodes}.")
+
+    n = len(nodes)
+    radius = max(2.0, 0.6 * n)
+    coords = {}
+    for i, node in enumerate(nodes):
+        angle = 2 * math.pi * i / n
+        x_pos = round(radius * math.cos(angle), 2)
+        y_pos = round(radius * math.sin(angle), 2)
+        coords[node] = (x_pos, y_pos)
+
+    tikz_lines = [
+        r"\needspace{8\baselineskip}",
+        r"\begin{center}",
+        r"\begin{tikzpicture}[>=stealth, font=\small]",
+    ]
+
+    for node in nodes:
+        x_pos, y_pos = coords[node]
+        safe_id = re.sub(r"[^a-zA-Z0-9]", "_", str(node))
+        tikz_lines.append(
+            f"  \\node[circle, draw, thick, minimum size=0.9cm] ({safe_id}) at ({x_pos}, {y_pos}) {{{node}}};"
+        )
+
+    arrow_style = "->, thick" if directed else "thick"
+    for e in edges:
+        u = e.get("from") or e.get("source")
+        v = e.get("to") or e.get("target")
+        weight = e.get("weight") or e.get("label") or ""
+        safe_u = re.sub(r"[^a-zA-Z0-9]", "_", str(u))
+        safe_v = re.sub(r"[^a-zA-Z0-9]", "_", str(v))
+
+        weight_str = f" node[midway, auto] {{{weight}}}" if weight else ""
+        tikz_lines.append(f"  \\draw[{arrow_style}] ({safe_u}) --{weight_str} ({safe_v});")
+
+    tikz_lines.append(r"\end{tikzpicture}")
+    tikz_lines.append(r"\end{center}")
+
+    return {
+        "nodes": nodes,
+        "edges": edges,
+        "directed": directed,
+        "weighted": weighted,
+        "tikz": "\n".join(tikz_lines),
+        "verified": True,
+    }
+
+
+def generate_convexity_table(
+    func_str: str,
+    var_str: str = "x",
+    domain: tuple[Any, Any] = (-sp.oo, sp.oo),
+    student_version: bool = False,
+) -> dict[str, Any]:
+    """Génère un tableau de convexité (dérivée seconde et points d'inflexion) certifié par SymPy."""
+    clean_str = func_str.replace("ln(", "log(")
+    x = sp.Symbol(var_str, real=True)
+    f = sp.sympify(clean_str, locals={var_str: x})
+    d2f = sp.diff(f, x, 2)
+
+    d_min, d_max = domain
+    d_min_sym = -sp.oo if d_min in (None, "-oo") else sp.sympify(d_min)
+    d_max_sym = sp.oo if d_max in (None, "oo", "+oo") else sp.sympify(d_max)
+    d_min_f = float(d_min_sym.evalf()) if d_min_sym != -sp.oo else -1e12
+    d_max_f = float(d_max_sym.evalf()) if d_max_sym != sp.oo else 1e12
+
+    roots = _find_real_roots_robust(d2f, x, d_min_f, d_max_f)
+
+    points = [("-oo" if d_min_sym == -sp.oo else "min", r"-\infty" if d_min_sym == -sp.oo else sp.latex(d_min_sym), d_min_sym)]
+    for r in roots:
+        points.append(("root", sp.latex(r), r))
+    points.append(("oo" if d_max_sym == sp.oo else "max", r"+\infty" if d_max_sym == sp.oo else sp.latex(d_max_sym), d_max_sym))
+
+    signs = []
+    convexities = []
+    for i in range(len(points) - 1):
+        p_left = points[i][2]
+        p_right = points[i + 1][2]
+        if p_left == -sp.oo and p_right != sp.oo:
+            t_x = float(p_right.evalf()) - 1.0
+        elif p_right == sp.oo and p_left != -sp.oo:
+            t_x = float(p_left.evalf()) + 1.0
+        else:
+            t_x = (float(p_left.evalf()) + float(p_right.evalf())) / 2.0
+
+        val = float(d2f.subs(x, t_x).evalf())
+        sign_char = "+" if val > 0 else ("-" if val < 0 else "0")
+        signs.append(sign_char)
+        convexities.append("Convexe" if val > 0 else ("Concave" if val < 0 else "Linéaire"))
+
+    row_x = ["x"]
+    row_d2 = [r"f''(x)"]
+    row_c = [r"\text{Convexité de } f"]
+
+    for i, p in enumerate(points):
+        row_x.append(p[1])
+        if i < len(signs):
+            row_x.append("")
+
+    for i, p in enumerate(points):
+        if p[0] == "root":
+            row_d2.append("0")
+        else:
+            row_d2.append("")
+        if i < len(signs):
+            row_d2.append(signs[i] if not student_version else r"\phantom{+}")
+
+    for i, p in enumerate(points):
+        if p[0] == "root":
+            row_c.append(r"\text{Inflexion}" if not student_version else r"\phantom{\text{I}}")
+        else:
+            row_c.append("")
+        if i < len(signs):
+            row_c.append(f"\\text{{{convexities[i]}}}" if not student_version else r"\phantom{\text{Convexe}}")
+
+    width_col = max(1.8, 12.0 / max(1, len(row_x)))
+    tikz_lines = [
+        r"\needspace{7\baselineskip}",
+        r"\begin{center}",
+        r"\begin{tikzpicture}",
+        r"\matrix (m) [matrix of math nodes, nodes in empty cells,",
+        r"  row sep=0.3cm, column sep=0.25cm,",
+        f"  nodes={{minimum width={width_col:.2f}cm, minimum height=0.65cm, anchor=center}},",
+        r"  column 1/.style={nodes={minimum width=2.4cm, anchor=east, font=\bfseries}}",
+        r"] {",
+        "  " + " & ".join(row_x) + r" \\",
+        "  " + " & ".join(row_d2) + r" \\",
+        "  " + " & ".join(row_c) + r" \\",
+        r"};",
+        r"\draw[thick] (m-1-1.south west) -- (m-1-" + str(len(row_x)) + r".south east);",
+        r"\draw[thick] (m-2-1.south west) -- (m-2-" + str(len(row_x)) + r".south east);",
+        r"\draw[thick] (m-1-1.north east) -- (m-3-1.south east);",
+        r"\end{tikzpicture}",
+        r"\end{center}",
+    ]
+
+    return {
+        "function": func_str,
+        "second_derivative": str(d2f),
+        "roots": [float(r.evalf()) for r in roots],
+        "signs": signs,
+        "convexities": convexities,
+        "student_version": student_version,
+        "tikz": "\n".join(tikz_lines),
+        "verified": True,
+    }
+
+
+def generate_value_table(
+    func_str: str,
+    x_values: list[float | int],
+    var_str: str = "x",
+) -> dict[str, Any]:
+    """Génère un tableau de valeurs exactes et décimales calculé avec SymPy."""
+    clean_str = func_str.replace("ln(", "log(")
+    x = sp.Symbol(var_str, real=True)
+    f = sp.sympify(clean_str, locals={var_str: x})
+
+    values = []
+    row_x = ["x"]
+    row_f = [r"f(x)"]
+
+    for xv in x_values:
+        y_sym = f.subs(x, xv)
+        y_val = float(y_sym.evalf())
+        values.append((xv, y_val))
+        row_x.append(str(xv))
+        row_f.append(sp.latex(y_sym))
+
+    width_col = max(1.2, 12.0 / max(1, len(row_x)))
+    tikz_lines = [
+        r"\needspace{5\baselineskip}",
+        r"\begin{center}",
+        r"\begin{tikzpicture}",
+        r"\matrix (m) [matrix of math nodes, nodes in empty cells,",
+        r"  row sep=0.25cm, column sep=0.25cm,",
+        f"  nodes={{minimum width={width_col:.2f}cm, minimum height=0.6cm, anchor=center}},",
+        r"  column 1/.style={nodes={minimum width=1.8cm, anchor=east, font=\bfseries}}",
+        r"] {",
+        "  " + " & ".join(row_x) + r" \\",
+        "  " + " & ".join(row_f) + r" \\",
+        r"};",
+        r"\draw[thick] (m-1-1.south west) -- (m-1-" + str(len(row_x)) + r".south east);",
+        r"\draw[thick] (m-1-1.north east) -- (m-2-1.south east);",
+        r"\end{tikzpicture}",
+        r"\end{center}",
+    ]
+
+    return {
+        "function": func_str,
+        "values": values,
+        "tikz": "\n".join(tikz_lines),
+        "verified": True,
+    }
+
+
 def _emit(event_sink: Callable[..., Any] | None, event_name: str, **kwargs: Any) -> None:
     """Émet un événement normalisé vers l'event_sink si disponible."""
     if event_sink is not None:
@@ -614,7 +889,10 @@ def verify_figure_consistency(figure_data: dict[str, Any]) -> bool:
     fig_type = figure_data.get("type") or (
         "variation_table" if "derivative" in figure_data
         else ("sign_table" if "signs" in figure_data
-        else ("probability_tree" if "branches_count" in figure_data else "curve_plot"))
+        else ("convexity_table" if "second_derivative" in figure_data
+        else ("number_line" if "intervals" in figure_data and "range" in figure_data
+        else ("graph" if "nodes" in figure_data
+        else ("probability_tree" if "branches_count" in figure_data else "curve_plot")))))
     )
 
     if fig_type == "variation_table":
@@ -640,6 +918,23 @@ def verify_figure_consistency(figure_data: dict[str, Any]) -> bool:
             root_probs = [b.get("prob", 0) for b in tree.get("root", [])]
             if root_probs:
                 MathOracle.verify_tree_sum(root_probs)
+    elif fig_type == "number_line":
+        for inter in figure_data.get("intervals", []):
+            s = float(inter.get("start", 0))
+            e = float(inter.get("end", 0))
+            if s > e:
+                raise MathConsistencyError(f"Droite graduée incohérente : borne début ({s}) > borne fin ({e}).")
+    elif fig_type == "graph":
+        nodes = set(figure_data.get("nodes", []))
+        for e in figure_data.get("edges", []):
+            u = e.get("from") or e.get("source")
+            v = e.get("to") or e.get("target")
+            if u not in nodes or v not in nodes:
+                raise MathConsistencyError(f"Graphe incohérent : arête ({u} -> {v}) hors des sommets déclarés.")
+    elif fig_type == "convexity_table":
+        for c in figure_data.get("convexities", []):
+            if c not in {"Convexe", "Concave", "Linéaire"}:
+                raise MathConsistencyError(f"Convexité invalide déclarée : {c}")
     return True
 
 
@@ -690,6 +985,12 @@ def generate_math_figure(
     tree_spec: dict[str, Any] | None = None,
     asymptotes: list[dict[str, Any]] | None = None,
     tangents: list[dict[str, Any]] | None = None,
+    intervals: list[dict[str, Any]] | None = None,
+    nodes: list[str] | None = None,
+    edges: list[dict[str, Any]] | None = None,
+    directed: bool = False,
+    weighted: bool = False,
+    x_values: list[float | int] | None = None,
     x_min: float = -3.0,
     x_max: float = 5.0,
     y_min: float | None = None,
@@ -736,6 +1037,33 @@ def generate_math_figure(
                 asymptotes=asymptotes,
                 tangents=tangents,
             )
+        elif figure_type == "number_line":
+            res = generate_number_line(
+                intervals=intervals or [],
+                x_min=x_min,
+                x_max=x_max,
+            )
+        elif figure_type == "graph":
+            res = generate_graph(
+                nodes=nodes or [],
+                edges=edges or [],
+                directed=directed,
+                weighted=weighted,
+            )
+        elif figure_type == "convexity_table":
+            dom = tuple(domain) if domain else (-sp.oo, sp.oo)
+            res = generate_convexity_table(
+                func_str,
+                var_str=var_str,
+                domain=dom,
+                student_version=student_version,
+            )
+        elif figure_type == "value_table":
+            res = generate_value_table(
+                func_str,
+                x_values=x_values or [-2, -1, 0, 1, 2],
+                var_str=var_str,
+            )
         else:
             raise ValueError(f"Type de figure non pris en charge : {figure_type}")
 
@@ -753,8 +1081,17 @@ def generate_math_figure(
             )
             res["compilation"] = comp_res
             if comp_res.get("status") == "success":
-                res["pdf_path"] = comp_res.get("pdf_path")
-                res["preview_image"] = comp_res.get("layout_preview")
+                # Double contrôle : structurel + visuel
+                pdf_abs = Path(comp_res.get("pdf_path", ""))
+                if pdf_abs.is_file():
+                    layout = PDFRasterizer.inspect_layout(pdf_abs, expected_pages=1)
+                    res["layout"] = layout
+                    if not layout.get("valid"):
+                        raise MathConsistencyError(
+                            f"Contrôle visuel échoué : débordement de marge ou page vide détecté ({layout})."
+                        )
+                    res["pdf_path"] = str(pdf_abs)
+                    res["preview_image"] = layout.get("first_page_preview")
 
         return res
 

@@ -1863,10 +1863,39 @@ class NeoHarnessRuntimeBridge:
         modified_paths = [d["path"] for d in recorded_diffs if d.get("status") != "D"]
         prompt_lower = clean_prompt.casefold()
 
+        from core.artifact_intent import detect_artifact_request, suggest_filename
+        art_req = detect_artifact_request(clean_prompt, skill=skill)
+
+        # 0. Gestion dédiée des livrables Word (.docx)
+        has_docx_file = any(p.lower().endswith(".docx") for p in modified_paths)
+        wants_docx = (art_req.wants_file and "docx" in art_req.formats) or bool(
+            re.search(
+                r"\b(crée|creer|créer|génère|generer|générer|fais|produis|rédige|redige|exporte)\b[\s\S]{0,40}\b(?:word|docx)\b|\bdocument\s+word\b|\ben\s+word\b|\ben\s+docx\b",
+                prompt_lower,
+            )
+        )
+        if wants_docx and not has_docx_file and can_write and answer_text and not answer_text.startswith("⚠️"):
+            from tools.docx import generate_docx
+            target_docx_name = suggest_filename(clean_prompt, "docx", content=answer_text)
+            try:
+                docx_res = generate_docx(
+                    answer_text,
+                    output_path=target_docx_name,
+                    title=clean_prompt[:80],
+                    workspace=self.filesystem.root,
+                )
+                if docx_res.get("status") == "success":
+                    rel_docx = docx_res["relative_path"]
+                    if rel_docx not in modified_paths:
+                        modified_paths.append(rel_docx)
+                    has_docx_file = True
+            except Exception:
+                pass
+
         # 1. Si l'utilisateur demande explicitement une page/aperçu HTML ou que le modèle a produit du HTML/CSS/JS,
         # et qu'aucun fichier .html n'a été écrit par outil, enregistrer le vrai fichier dans le workspace (ex: index.html ou nom demandé)
         has_html_file = any(p.lower().endswith((".html", ".htm")) for p in modified_paths)
-        wants_html = any(
+        wants_html = art_req.wants_file and any(
             kw in prompt_lower
             for kw in (
                 "html",
@@ -1928,10 +1957,24 @@ class NeoHarnessRuntimeBridge:
             skill in ("bacblanc", "exercice", "dm")
             or bool(re.search(r"^/(?:bacblanc|exercice|dm)\b", clean_prompt.strip(), re.IGNORECASE))
         )
-        wants_latex = is_education_skill or any(
-            kw in prompt_lower
-            for kw in ("latex", ".tex", "tectonic", "compile", "pdf", "bacblanc", "sujet", "exercice", "dm", "devoir maison")
-        )
+        # RÈGLE ABSOLUE : Si aucun fichier n'est demandé ou si un format exclusif autre que PDF (ex: Word) est demandé, ne pas générer de PDF
+        if not art_req.wants_file and not is_education_skill:
+            wants_latex = False
+            wants_pdf_deliverable = False
+        elif art_req.wants_file and art_req.formats and "pdf" not in art_req.formats and not is_education_skill:
+            wants_latex = False
+            wants_pdf_deliverable = False
+        else:
+            wants_latex = is_education_skill or any(
+                kw in prompt_lower
+                for kw in ("latex", ".tex", "tectonic", "compile", "pdf", "bacblanc", "sujet", "exercice", "dm", "devoir maison")
+            )
+            wants_pdf_deliverable = bool(
+                re.search(
+                    r"\b(crée|creer|créer|génère|generer|générer|fais|produis|rédige|redige|exporte)\b[\s\S]{0,40}\bpdf\b|\bdocument\s+pdf\b|\ben\s+pdf\b",
+                    prompt_lower,
+                )
+            )
 
         # 2a. Si skill éducatif (/exercice, /dm, /bacblanc) et qu'aucun .tex n'a été produit,
         # obligatoirement générer le fichier .tex basé sur le gabarit officiel
@@ -1953,36 +1996,34 @@ class NeoHarnessRuntimeBridge:
                     }
                 )
 
-        if not has_tex_file and can_write and answer_text and (wants_latex or "\\documentclass" in answer_text):
+        if wants_latex and not has_tex_file and can_write and answer_text and ("\\documentclass" in answer_text or "\\begin{document}" in answer_text):
             tex_match = re.search(r"```(?:latex|tex)\s*\r?\n([\s\S]*?)```", answer_text, re.IGNORECASE)
             if tex_match and ("\\documentclass" in tex_match.group(1) or "\\begin{document}" in tex_match.group(1)):
                 tex_code = tex_match.group(1).strip()
                 if tex_code:
                     name_match = re.search(r"\b([a-zA-Z0-9_-]+\.tex)\b", clean_prompt, re.IGNORECASE)
-                    rel_tex = name_match.group(1) if name_match else f"generated/document_{uuid.uuid4().hex[:6]}.tex"
+                    stem = name_match.group(1).removesuffix(".tex") if name_match else Path(suggest_filename(clean_prompt, "pdf", content=answer_text)).stem
+                    rel_tex = f"{stem}.tex"
                     try:
                         self.filesystem.write_file(rel_tex, tex_code, overwrite=True)
                         modified_paths.append(rel_tex)
                         has_tex_file = True
                     except Exception:
                         pass
-                        pass
 
         # 2b. Si l'utilisateur demande explicitement de créer/générer un PDF en langage naturel et qu'aucun .tex/.pdf n'a encore été produit,
         # convertir la réponse en document LaTeX propre et le compiler avec Tectonic
-        wants_pdf_deliverable = bool(
-            re.search(
-                r"\b(crée|creer|créer|génère|generer|générer|fais|produis|rédige|redige|exporte)\b[\s\S]{0,40}\bpdf\b|\bdocument\s+pdf\b|\ben\s+pdf\b",
-                prompt_lower,
-            )
-        )
         if wants_pdf_deliverable and not has_tex_file and not has_pdf_file and can_write and answer_text and not answer_text.startswith("⚠️"):
             name_match = re.search(r"\b([a-zA-Z0-9_-]+)\.pdf\b", clean_prompt, re.IGNORECASE)
-            stem = name_match.group(1) if name_match else f"document_{uuid.uuid4().hex[:6]}"
-            rel_tex = f"generated/{stem}.tex"
+            stem = name_match.group(1) if name_match else Path(suggest_filename(clean_prompt, "pdf", content=answer_text)).stem
+            rel_tex = f"{stem}.tex"
             try:
                 auto_tex = self._markdown_to_latex_document(clean_prompt[:80], answer_text)
                 self.filesystem.write_file(rel_tex, auto_tex, overwrite=True)
+                modified_paths.append(rel_tex)
+                has_tex_file = True
+            except Exception:
+                pass
                 modified_paths.append(rel_tex)
                 has_tex_file = True
             except Exception:
@@ -2160,6 +2201,34 @@ class NeoHarnessRuntimeBridge:
                             )
                 except Exception:
                     pass
+            elif lower_p.endswith(".docx"):
+                f_abs = self.filesystem.resolve(rel_path)
+                if f_abs.is_file() and f_abs.stat().st_size > 0:
+                    from tools.docx import verify_docx_file
+                    try:
+                        verif = verify_docx_file(f_abs)
+                        artifact_item = {
+                            "type": "docx",
+                            "title": f_abs.name,
+                            "path": rel_path,
+                            "docx_path": rel_path,
+                            "bytes": verif["size_bytes"],
+                            "size_bytes": verif["size_bytes"],
+                            "sha256": verif["sha256"],
+                            "compiler": "pandoc",
+                            "raw_url": f"/api/files/raw?path={quote(rel_path)}",
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        }
+                        preview_artifacts.append(artifact_item)
+                        self.event_bus.emit_normalized(
+                            event="ARTIFACT_READY",
+                            raw_event="artifact.ready",
+                            summary=f"Document Word DOCX prêt : {rel_path}",
+                            status="completed",
+                            details=artifact_item,
+                        )
+                    except Exception:
+                        pass
             elif lower_p.endswith((".py", ".svg", ".mmd", ".mermaid", ".json", ".csv", ".tsv", ".md", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp")):
                 try:
                     repair_prov = None
