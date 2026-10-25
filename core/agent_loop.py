@@ -659,18 +659,17 @@ class AgentLoop:
                 pending_tool_results = []
                 for call, execution in zip(calls, executions):
                     total_calls += 1
-                # Garde-fou anti-bégaiement (repetition guard)
-                call_key = hashlib.sha256(f"{call.name}:{json.dumps(call.arguments, sort_keys=True)}".encode()).hexdigest()
-                if execution.status == "error":
-                    self.consecutive_tool_failures[call_key] = self.consecutive_tool_failures.get(call_key, 0) + 1
-                    if self.consecutive_tool_failures[call_key] >= 3:
-                        msg = f"Échec répétitif détecté : l'outil '{call.name}' a échoué 3 fois consécutives avec les mêmes arguments."
-                        self._emit(f"[REPETITION GUARD] {msg}")
-                        state.errors.append({"phase": "repetition_guard", "message": msg})
-                        state.status = TaskStatus.FAILED
-                        return self._failure_result(state, msg)
-                else:
-                    self.consecutive_tool_failures.pop(call_key, None)
+                    call_key = hashlib.sha256(f"{call.name}:{json.dumps(call.arguments, sort_keys=True)}".encode()).hexdigest()
+                    if execution.status == "error":
+                        self.consecutive_tool_failures[call_key] = self.consecutive_tool_failures.get(call_key, 0) + 1
+                        if self.consecutive_tool_failures[call_key] >= 3:
+                            msg = f"Échec répétitif détecté : l'outil '{call.name}' a échoué 3 fois consécutives avec les mêmes arguments."
+                            self._emit(f"[REPETITION GUARD] {msg}")
+                            state.errors.append({"phase": "repetition_guard", "message": msg})
+                            state.status = TaskStatus.FAILED
+                            return self._failure_result(state, msg)
+                    else:
+                        self.consecutive_tool_failures.pop(call_key, None)
 
                     record = self._record_execution(state, execution, call.call_id)
                     pending_tool_results.append(record)
