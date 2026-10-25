@@ -46,4 +46,4 @@ features:
   backtracking: true
   reflective_memory: true
   dynamic_browser: true
-  multi_agent_hierarchy: false
+  multi_agent_hierarchy: true
