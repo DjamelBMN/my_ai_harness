@@ -45,5 +45,5 @@ features:
   independent_critic: true
   backtracking: true
   reflective_memory: true
-  dynamic_browser: false
+  dynamic_browser: true
   multi_agent_hierarchy: false

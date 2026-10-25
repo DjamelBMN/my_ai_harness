@@ -19,6 +19,7 @@ from tools.terminal import run_python_script, run_test_suite
 from tools.editor import edit_file
 from tools.viewer import view_file
 from tools.code_search import search_code
+from tools.browser import DynamicBrowser
 
 
 @dataclass
@@ -497,4 +498,85 @@ class ToolRegistry:
             mutates=True,
             timeout=30.0,
         )
+        add(
+            "navigate_url",
+            "Navigue vers une page Web avec le navigateur Chromium, extrait l'arbre DOM structuré et liste les éléments interactifs.",
+            {
+                "url": string,
+                "session_id": optional_string,
+                "override_robots": boolean,
+                "justification": optional_string,
+            },
+            ["url"],
+            lambda url, session_id="default", override_robots=False, justification="": (
+                self.browser.navigate(
+                    url,
+                    session_id=session_id or "default",
+                    override_robots=override_robots,
+                    justification=justification,
+                )
+            ),
+            risk=RiskLevel.READ_ONLY,
+            mutates=False,
+            timeout=30.0,
+        )
+        add(
+            "click_element",
+            "Clique sur un élément interactif de la page Web courante via son identifiant (ex. 'e_1').",
+            {"element_id": string, "session_id": optional_string},
+            ["element_id"],
+            lambda element_id, session_id="default": (
+                self.browser.click_element(element_id, session_id=session_id or "default")
+            ),
+            risk=RiskLevel.READ_ONLY,
+            mutates=False,
+            timeout=15.0,
+        )
+        add(
+            "fill_input",
+            "Saisit du texte dans un champ de formulaire Web identifié par son ID.",
+            {"element_id": string, "text": string, "session_id": optional_string},
+            ["element_id", "text"],
+            lambda element_id, text, session_id="default": (
+                self.browser.fill_input(element_id, text, session_id=session_id or "default")
+            ),
+            risk=RiskLevel.READ_ONLY,
+            mutates=False,
+            timeout=15.0,
+        )
+        add(
+            "download_via_browser",
+            "Télécharge un fichier distant via le navigateur dans workspace/downloads/ avec vérification d'intégrité et magic bytes.",
+            {
+                "url": string,
+                "target_filename": optional_string,
+                "session_id": optional_string,
+                "task_id": optional_string,
+            },
+            ["url"],
+            lambda url, target_filename=None, session_id="default", task_id="": (
+                self.browser.download_via_browser(
+                    url,
+                    target_filename=target_filename,
+                    session_id=session_id or "default",
+                    task_id=task_id,
+                )
+            ),
+            risk=RiskLevel.MODERATE,
+            mutates=True,
+            timeout=40.0,
+        )
+        add(
+            "screenshot_page",
+            "Prend une capture d'écran de la page Web courante pour inspection visuelle de repli.",
+            {"target_path": optional_string, "session_id": optional_string},
+            [],
+            lambda target_path=None, session_id="default": (
+                self.browser.screenshot(target_path=target_path, session_id=session_id or "default")
+            ),
+            risk=RiskLevel.READ_ONLY,
+            mutates=False,
+            timeout=15.0,
+        )
+
 
