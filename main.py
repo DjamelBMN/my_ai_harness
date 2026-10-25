@@ -48,6 +48,7 @@ def _arguments(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--autonomous", action="store_true", help="Démarre en AUTO et autorise explicitement les outils mutateurs sans confirmation")
     parser.add_argument("--verbose", action="store_true", help="Affiche le détail structuré de la mission")
     parser.add_argument("--ui", action="store_true", help="Démarre l'interface graphique web NeoHarness AI (Operating Environment)")
+    parser.add_argument("--replay", help="Rejoue une mission enregistrée par son run_id")
     parser.add_argument("--port", type=int, default=8765, help="Port HTTP local pour l'interface --ui (défaut : 8765)")
     args = parser.parse_args(argv)
     if args.max_iterations < 1 or args.max_iterations > 20:
@@ -754,6 +755,11 @@ def _executer_harness(
 
         if _traiter_raccourci_mode(runtime, message):
             continue
+        if message.lower().startswith("replay "):
+            run_id = message.split(maxsplit=1)[1].strip()
+            from core.replay import replay_mission
+            replay_mission(run_id, log_dir=loop.tools.filesystem.root / ".harness")
+            continue
         if message.lower() == "exit":
             print("Arrêt du harness.")
             return
@@ -914,6 +920,11 @@ def main(argv: list[str] | None = None) -> None:
         sys.stdout.reconfigure(errors="replace")
 
     args = _arguments(argv)
+    if getattr(args, "replay", None):
+        from core.replay import replay_mission
+        workspace = Path(args.workspace) if args.workspace else PROJECT_ROOT / "workspace"
+        replay_mission(args.replay, log_dir=workspace / ".harness")
+        return
     if getattr(args, "ui", False):
         from ui.server import run_ui_server
 

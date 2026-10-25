@@ -94,6 +94,20 @@ class JSONLMissionMetricsSink:
                 self.active_missions.pop(task_id, None)
 
         # Chaine vers le sink parent si configuré
+        try:
+            events_file = self.log_path.parent / "events.jsonl"
+            self.log_path.parent.mkdir(parents=True, exist_ok=True)
+            event_record = {
+                "name": name,
+                "data": data,
+                "timestamp": round(time.time(), 3),
+                "task_id": self._get_or_last_task(data) or "",
+            }
+            with open(events_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(event_record, ensure_ascii=False) + "\n")
+        except Exception:
+            pass
+
         if self.chained_sink is not None:
             try:
                 self.chained_sink(event)
