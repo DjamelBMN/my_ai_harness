@@ -49,6 +49,10 @@ NORMALIZED_EVENT_TYPES = (
     "TASK_COMPLETED",
     "TASK_STOPPED",
     "MODE_CHANGED",
+    "DAG_STARTED",
+    "DAG_NODE_STARTED",
+    "DAG_NODE_COMPLETED",
+    "DAG_COMPLETED",
 )
 
 
@@ -291,6 +295,18 @@ class NormalizedEventBus:
         elif name == "critic.verdict":
             norm_type = "CRITIC"
             status = "completed" if data.get("approved") else "warning"
+        elif name == "dag.started":
+            norm_type = "DAG_STARTED"
+            status = "running"
+        elif name == "dag.node_started":
+            norm_type = "DAG_NODE_STARTED"
+            status = "running"
+        elif name == "dag.node_completed":
+            norm_type = "DAG_NODE_COMPLETED"
+            status = "completed" if data.get("status") in ("COMPLETED", "success") else "error"
+        elif name == "dag.completed":
+            norm_type = "DAG_COMPLETED"
+            status = "completed" if data.get("status") == "success" else "warning"
         elif name == "task.stopped":
             norm_type = "TASK_STOPPED"
             status = "cancelled"

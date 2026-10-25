@@ -18,6 +18,7 @@ from tools.registry import ToolExecution
 
 class DelegationEngine:
     TOOL_NAME = "delegate_to_agent"
+    DAG_TOOL_NAME = "execute_dag"
 
     def __init__(
         self,
@@ -35,6 +36,53 @@ class DelegationEngine:
         self.agent_loop = agent_loop
         self.coordinator = coordinator
         self.emit = emit
+
+    @classmethod
+    def dag_schema(cls, allowed_agents: list[str] | None = None) -> dict[str, Any]:
+        agent_schema: dict[str, Any] = {
+            "type": "string",
+            "description": "Clé ou nom d'un agent déclaré dans le registre.",
+        }
+        if allowed_agents:
+            agent_schema["enum"] = list(allowed_agents)
+        return {
+            "name": cls.DAG_TOOL_NAME,
+            "description": (
+                "Décompose et exécute un graphe de sous-tâches (DAG) en parallèle avec gestion automatique "
+                "des dépendances et passage d'artefacts entre agents."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "nodes": {
+                        "type": "array",
+                        "description": "Liste des nœuds de tâches du graphe orienté.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "id": {"type": "string", "description": "Identifiant unique du nœud (ex: 'recherche', 'code')."},
+                                "agent": agent_schema,
+                                "title": {"type": "string", "description": "Titre court de l'étape."},
+                                "prompt": {"type": "string", "description": "Consigne précise pour cet agent."},
+                                "dependencies": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "IDs des nœuds prérequis dont les artefacts sont nécessaires.",
+                                },
+                            },
+                            "required": ["id", "agent", "prompt"],
+                        },
+                    },
+                    "requirements": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Critères d'acceptation finaux vérifiés par le Critic.",
+                    },
+                },
+                "required": ["nodes"],
+                "additionalProperties": False,
+            },
+        }
 
     @classmethod
     def schema(cls, allowed_agents: list[str] | None = None) -> dict[str, Any]:
@@ -70,7 +118,11 @@ class DelegationEngine:
         parent_state: TaskState,
         arguments: dict[str, Any],
         stack: tuple[tuple[str, str], ...],
+        tool_name: str = "delegate_to_agent",
     ) -> ToolExecution:
+        if tool_name == self.DAG_TOOL_NAME or "nodes" in arguments:
+            return self.execute_dag(parent_agent, parent_state, arguments, stack)
+
         target = arguments.get("agent")
         description = arguments.get("task")
         if not isinstance(target, str) or not isinstance(description, str):
@@ -237,6 +289,108 @@ class DelegationEngine:
                 data={"status": "failed", "agent": agent.name, "task_id": record.task_id},
                 risk_level="READ_ONLY",
             )
+
+    def execute_dag(
+        self,
+        parent_agent,
+        parent_state: TaskState,
+        arguments: dict[str, Any],
+        stack: tuple[tuple[str, str], ...],
+    ) -> ToolExecution:
+        """Exécute un graphe de tâches (DAG) multi-agents avec ordonnancement asynchrone."""
+        from core.dag_engine import AsyncDAGEngine, DAGNode, TaskDAG
+
+        raw_nodes = arguments.get("nodes", [])
+        requirements = arguments.get("requirements", [])
+        if not isinstance(raw_nodes, list) or not raw_nodes:
+            return self._error("La liste 'nodes' du DAG ne peut pas être vide.")
+
+        dag = TaskDAG(mission_id=f"dag_{parent_state.task_id}", requirements=list(requirements))
+        try:
+            for n in raw_nodes:
+                if not isinstance(n, dict) or not n.get("id") or not n.get("agent") or not n.get("prompt"):
+                    return self._error(f"Format de nœud DAG invalide : {n}")
+                dag.add_node(
+                    DAGNode(
+                        id=str(n["id"]),
+                        agent=str(n["agent"]),
+                        title=str(n.get("title", n["id"])),
+                        prompt=str(n["prompt"]),
+                        dependencies=list(n.get("dependencies", [])),
+                    )
+                )
+        except Exception as exc:
+            return self._error(f"Erreur de construction du DAG : {exc}")
+
+        self._emit(f"[DAG ORCHESTRATION] Lancement d'un graphe de {len(dag.nodes)} nœuds pour {parent_agent.name}.")
+
+        def _worker_runner(ctx: dict[str, Any]) -> dict[str, Any]:
+            node_agent_key = ctx["agent"]
+            node_prompt = ctx["prompt"]
+            key, agent_obj = self.registry.resolve(node_agent_key)
+            child_context = Context(
+                history=[
+                    f"Consigne du DAG ({ctx['id']}) : {node_prompt}",
+                    f"Artefacts d'entrée : {json.dumps(ctx.get('input_artifacts', []), ensure_ascii=False)}",
+                ],
+                files=list(parent_state.files[-10:]),
+            )
+            child_task = Task(
+                description=node_prompt,
+                type=key,
+                context=child_context,
+                explicit_agent=True,
+                mode=parent_state.mode,
+            )
+            child_state = self.agent_loop.planner.plan(child_task)
+            child_state.task_id = f"{parent_state.task_id}_{ctx['id']}"
+            provider = self.router.get_provider(agent_obj.routing_key)
+            agent_obj.set_provider(provider)
+            res = self.agent_loop.run(
+                agent_obj,
+                child_task,
+                state=child_state,
+                delegation_stack=(*stack, (agent_obj.routing_key, ctx["id"])),
+            )
+            artifacts = getattr(res, "artifacts", []) or []
+            return {
+                "status": "success" if res.status in ("completed", "partial") else "failed",
+                "summary": res.summary or res.answer[:500],
+                "artifacts": [{"uri": str(p), "sha256": ""} for p in artifacts],
+            }
+
+        worker_executors = {agent_key: _worker_runner for agent_key in self.registry.agents.keys()}
+        engine = AsyncDAGEngine(
+            global_timeout=300.0,
+            event_sink=getattr(self.agent_loop, "event_sink", None),
+        )
+
+        try:
+            dag_result = engine.execute_dag(dag=dag, worker_executors=worker_executors)
+            summary = (
+                f"Graphe DAG achevé avec le statut : {dag_result['status']} "
+                f"({len(dag.nodes)} nœuds traités, {len(dag_result['artifacts'])} artefacts)."
+            )
+            status = "success" if dag_result["status"] == "success" else "error"
+            parent_state.observations.append(
+                {
+                    "kind": "dag_execution",
+                    "status": dag_result["status"],
+                    "nodes_count": len(dag.nodes),
+                    "artifacts_count": len(dag_result["artifacts"]),
+                }
+            )
+            return ToolExecution(
+                tool=self.DAG_TOOL_NAME,
+                status=status,
+                summary=summary,
+                output=json.dumps(dag_result, ensure_ascii=False),
+                data=dag_result,
+                elapsed_seconds=0.0,
+                risk_level="READ_ONLY",
+            )
+        except Exception as exc:
+            return self._error(f"Erreur d'exécution du DAG : {exc}")
 
     @staticmethod
     def _error(message: str) -> ToolExecution:

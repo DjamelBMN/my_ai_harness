@@ -112,4 +112,12 @@ class EventTranslator:
             return f"Verdict critique : {'Approuvé' if data.get('approved') else 'Refusé'}."
         if name == "task.stopped":
             return "Mission arrêtée à la demande de l'utilisateur."
+        if name == "dag.started":
+            return f"Graphe multi-agents (DAG) démarré ({data.get('total_nodes', '?')} étapes)."
+        if name == "dag.node_started":
+            return f"Sous-tâche DAG lancée : [{data.get('agent', '')}] {data.get('title', '')}"
+        if name == "dag.node_completed":
+            return f"Sous-tâche DAG terminée : [{data.get('agent', '')}] {data.get('status', '')}"
+        if name == "dag.completed":
+            return f"Graphe multi-agents (DAG) achevé ({data.get('status', 'terminé')})."
         return name

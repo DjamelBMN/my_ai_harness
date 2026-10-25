@@ -354,6 +354,21 @@ class AgentLoop:
                     state.intent_decision.get("allowed_secondary_agents")
                 )
             )
+            # Exposer l'outil d'orchestration DAG pour les workflows, pipelines multi-agents ou demandes explicites
+            desc_lower = task.description.casefold() if hasattr(task, "description") else ""
+            if (
+                hasattr(self.delegation_engine, "dag_schema")
+                and (
+                    state.intent in ("workflow", "pipeline", "multi_agent")
+                    or getattr(task, "enable_dag", False)
+                    or any(k in desc_lower for k in ("dag", "graphe", "pipeline", "workflow multi-agents", "décompose en agents"))
+                )
+            ):
+                schemas.append(
+                    self.delegation_engine.dag_schema(
+                        state.intent_decision.get("allowed_secondary_agents")
+                    )
+                )
         if state.requires_web_search:
             if provider.get_name() == "GeminiProvider":
                 if not any(item.get("name") == "web_search" for item in schemas):
@@ -712,7 +727,7 @@ class AgentLoop:
                 else:
                     executions = []
                     for call in calls:
-                        if call.name == "delegate_to_agent":
+                        if call.name in ("delegate_to_agent", "execute_dag"):
                             engine = self.delegation_engine
                             if engine is None:
                                 execution = ToolExecution(
@@ -728,6 +743,7 @@ class AgentLoop:
                                     state,
                                     call.arguments,
                                     delegation_stack,
+                                    tool_name=call.name,
                                 )
                         elif (
                             (allowed_tools is not None and call.name not in set(allowed_tools))

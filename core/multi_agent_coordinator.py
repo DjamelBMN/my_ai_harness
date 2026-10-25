@@ -306,3 +306,22 @@ class HierarchicalCoordinator:
             "summary": current_summary,
             "remediation_rounds": remediation_round,
         }
+
+    def execute_dag(
+        self,
+        dag: Any,
+        worker_executors: dict[str, Callable[[dict[str, Any]], dict[str, Any]]],
+        critic_evaluator: Callable[[CritiqueRequest], CritiqueVerdict] | None = None,
+        max_remediation_rounds: int = 2,
+        event_sink: Callable[[str, dict[str, Any]], None] | None = None,
+    ) -> dict[str, Any]:
+        """Exécute un TaskDAG hautement concurrent avec gestion des dépendances et du Critic."""
+        from core.dag_engine import AsyncDAGEngine
+        engine = AsyncDAGEngine(global_timeout=self.global_timeout, event_sink=event_sink)
+        return engine.execute_dag(
+            dag=dag,
+            worker_executors=worker_executors,
+            critic_evaluator=critic_evaluator,
+            max_remediation_rounds=max_remediation_rounds,
+        )
+
