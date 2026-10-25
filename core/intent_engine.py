@@ -12,6 +12,15 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from core.agent_registry import AgentRegistry
 
+def _contains_any_word(text: str, keywords: tuple[str, ...] | list[str]) -> bool:
+    """Vérifie la présence d'au moins un mot ou locution avec frontière de mot."""
+    for kw in keywords:
+        pattern = r"(?:\b|_)" + re.escape(kw.strip()) + r"(?:\b|_)"
+        if re.search(pattern, text, re.IGNORECASE):
+            return True
+    return False
+
+
 
 @dataclass
 class IntentDecision:
@@ -145,9 +154,7 @@ class IntentEngine:
             )
 
         # Détection des demandes d'analyse ou de consultation dans la continuité
-        is_analysis_continuity = is_cont and any(
-            m in text for m in ("analyse-le", "analyse le", "analyse la", "analyse-la", "analyse ce", "analyse", "lis-le", "ouvre-le", "regarde-le", "examine-le")
-        )
+        is_analysis_continuity = is_cont and _contains_any_word(text, ("analyse-le", "analyse le", "analyse la", "analyse-la", "analyse ce", "analyse", "lis-le", "ouvre-le", "regarde-le", "examine-le", "lit", "lis"))
         if is_analysis_continuity and context_files:
             return self._decision(
                 "file_analysis",
@@ -273,12 +280,7 @@ class IntentEngine:
             and any(m in text for m in ("pdf", "fichier", "document", "sujet", "annale"))
         )
 
-        asks_file_analysis = has_file and not asks_download and not any(m in text for m in ("sur internet", "sur le web", "en ligne")) and any(
-            marker in text
-            for marker in (
-                "analyse", "résume", "resume", "lis ", "lire ", "compare", "extrais", "extrait", "explique le contenu",
-            )
-        )
+        asks_file_analysis = has_file and not asks_download and not any(m in text for m in ("sur internet", "sur le web", "en ligne")) and _contains_any_word(text, ("analyse", "résume", "resume", "lis", "lit", "lire", "compare", "extrais", "extrait", "explique le contenu"))
         asks_research = asks_web or any(
             marker in text
             for marker in ("cherche", "recherche", "trouve les sources", "trouve les informations", "vérifie cette information", "verifie cette information")

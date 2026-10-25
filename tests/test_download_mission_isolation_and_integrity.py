@@ -113,14 +113,14 @@ class TestDownloadMissionIsolationAndIntegrity(unittest.TestCase):
                     {
                         "url": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
                         "title": "Document officiel PDF",
-                        "snippet": "Exemplaire de test vérifié",
+                        "snippet": "Exemplaire de test vérifié conforme à la norme W3C dummy",
                     }
                 ]
             }
 
         with patch("tools.search.web_search", side_effect=failing_web_search):
             res = autonomous_web_retrieve_and_download(
-                query="norme w3c dummy document",
+                query="dummy pdf document",
                 workspace=str(self.workspace_dir),
                 target_filename="downloads/dummy_alt_test.pdf",
                 timeout=10.0,

@@ -703,6 +703,12 @@ def autonomous_web_retrieve_and_download(
     candidates: list[dict[str, Any]] = []
     seen_urls: set[str] = set()
 
+    # Accès direct si la requête est déjà une URL directe
+    if cleaned_query.startswith(("http://", "https://")):
+        if cleaned_query not in seen_urls:
+            seen_urls.add(cleaned_query)
+            candidates.append({"url": cleaned_query, "title": "Direct URL", "snippet": "Lien direct fourni"})
+
     # Accès direct aux formulaires officiels CERFA
     cerfa_num_match = re.search(r"(?:cerfa[_\s-]*)?(\d{5})(?:\*?(\d{2}))?", clean_lower)
     if "cerfa" in clean_lower and cerfa_num_match:
@@ -735,14 +741,24 @@ def autonomous_web_retrieve_and_download(
             break
         found: list[dict[str, Any]] = []
         errs: list[str] = []
-        for name, engine in (("bing", _search_bing), ("duckduckgo_lite", _search_duckduckgo_lite)):
-            try:
-                found = engine(sq, timeout=min(timeout, 8.0))
-            except Exception as e:
-                errs.append(f"{name}: {type(e).__name__}: {e}")
-                found = []
-            if found:
-                break
+        try:
+            ws_res = web_search(sq, timeout=min(timeout, 8.0))
+            if isinstance(ws_res, dict):
+                found = list(ws_res.get("results") or ws_res.get("sources") or [])
+            elif isinstance(ws_res, list):
+                found = list(ws_res)
+        except Exception as e:
+            errs.append(f"web_search: {type(e).__name__}: {e}")
+            found = []
+        if not found:
+            for name, engine in (("bing", _search_bing), ("duckduckgo_lite", _search_duckduckgo_lite)):
+                try:
+                    found = engine(sq, timeout=min(timeout, 8.0))
+                except Exception as e:
+                    errs.append(f"{name}: {type(e).__name__}: {e}")
+                    found = []
+                if found:
+                    break
         new = 0
         for item in found:
             u = item.get("url", "")
