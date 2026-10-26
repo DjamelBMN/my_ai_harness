@@ -263,7 +263,7 @@ class NeoHarnessRuntimeBridge:
     def _ensure_provider_ready(self, provider: Any, *, prefer_lite: bool = False) -> None:
         """Synchronise le modèle d'un provider réel avec la liste des modèles autorisés par sa clé API."""
         if isinstance(provider, GeminiProvider) and type(provider).list_available_models is GeminiProvider.list_available_models:
-            if not os.environ.get("GEMINI_API_KEY", "").strip() or provider._verified:
+            if not os.environ.get("GEMINI_API_KEY", "").strip() or provider._verified or provider.model:
                 return
             try:
                 models = provider.list_available_models()
@@ -295,7 +295,7 @@ class NeoHarnessRuntimeBridge:
             except Exception:
                 pass
         elif isinstance(provider, MistralProvider) and type(provider).list_available_models is MistralProvider.list_available_models:
-            if not os.environ.get("MISTRAL_API_KEY", "").strip() or provider._available_models:
+            if not os.environ.get("MISTRAL_API_KEY", "").strip() or provider._available_models or provider.model:
                 return
             try:
                 models = provider.list_available_models()
@@ -510,6 +510,9 @@ class NeoHarnessRuntimeBridge:
         self.orchestrator.skill_registry = skill_registry
         self.orchestrator.skill_loader = skill_loader
         self.orchestrator.skill_router = skill_router
+        self.rate_limit_manager = router.rate_limit_manager
+        if hasattr(self, "event_bus") and self.event_bus is not None:
+            self.rate_limit_manager.event_sink = self.event_bus.handle_harness_event
 
     # ------------------------------------------------------------------
     # APPROBATIONS HUMAINES & APERÇU DIFF
@@ -2516,6 +2519,8 @@ class NeoHarnessRuntimeBridge:
         attached_files: list[str] | None = None,
         explicit_skill: str | None = None,
         model_id: str | None = None,
+        deep_reflection: bool = False,
+        execution_mode: str | None = None,
     ) -> dict[str, Any]:
         """Exécute une requête utilisateur à travers le pipeline réel de NeoHarness AI."""
         clean_prompt = (prompt or "").strip()
@@ -2546,9 +2551,9 @@ class NeoHarnessRuntimeBridge:
 
         # Si des fichiers du workspace sont joints au composer, on les indique proprement et on précharge leur extrait réel
         attachments = [f for f in (attached_files or []) if isinstance(f, str) and f.strip()]
+        snippets: list[str] = []
         if attachments and not effective_prompt.startswith(("/mode", "/model", "/context", "/diagnostic", "/memory", "/export")):
             files_clause = ", ".join(attachments)
-            snippets: list[str] = []
             for att in attachments[:5]:
                 try:
                     ext = Path(att).suffix.lower()
@@ -2585,6 +2590,50 @@ class NeoHarnessRuntimeBridge:
         self.current_task_id = task_id
         self.current_task_status = "Planification"
 
+        # Résolution du mode d'exécution effectif (chat, mono, multi)
+        configured_mode = (
+            getattr(self, "rate_limit_manager", None).mode.value
+            if hasattr(self, "rate_limit_manager") and self.rate_limit_manager is not None
+            else "mono"
+        )
+        resolved_mode = (execution_mode or "").strip().lower()
+        if not resolved_mode:
+            resolved_mode = "multi" if deep_reflection else configured_mode
+        if resolved_mode not in {"chat", "mono", "multi"}:
+            resolved_mode = "mono"
+
+        # Configuration dynamique du RateLimitManager
+        if hasattr(self, "rate_limit_manager") and self.rate_limit_manager is not None:
+            if resolved_mode == "multi":
+                self.rate_limit_manager.configure(
+                    mode="multi",
+                    max_parallel_agents=max(2, self.rate_limit_manager.max_parallel_agents),
+                )
+                self.event_bus.emit_normalized(
+                    event="MULTI_AGENT_DISPATCHED",
+                    raw_event="agent.deep_reflection",
+                    summary="Mode Réflexion Approfondie (Multi-Agents) activé",
+                    status="running",
+                    details={"mode": "multi", "max_parallel_agents": self.rate_limit_manager.max_parallel_agents},
+                )
+            elif resolved_mode == "chat":
+                self.rate_limit_manager.configure(
+                    mode="chat",
+                    max_parallel_agents=1,
+                )
+                self.event_bus.emit_normalized(
+                    event="CHAT_MODE_DISPATCHED",
+                    raw_event="agent.chat_direct",
+                    summary="Mode Chat direct activé (Sans agent — Économie maximale de tokens)",
+                    status="running",
+                    details={"mode": "chat", "max_parallel_agents": 1, "tokens_saved": True},
+                )
+            else:
+                self.rate_limit_manager.configure(
+                    mode="mono",
+                    max_parallel_agents=1,
+                )
+
         # Ajout du message utilisateur dans la conversation
         user_msg = {
             "id": f"msg-{uuid.uuid4().hex[:8]}",
@@ -2601,8 +2650,95 @@ class NeoHarnessRuntimeBridge:
                 title_prov = self.orchestrator.router.get_provider("planner", intent="planning")
             except Exception:
                 pass
-            conv["title"] = generate_task_title(clean_prompt, skill_hint=conv.get("last_skill", ""))
+            conv["title"] = generate_task_title(clean_prompt, skill_hint="chat" if resolved_mode == "chat" else conv.get("last_skill", ""))
             self._save_conversations()
+
+        # =========================================================================
+        # MODE SANS AGENT (CHAT DIRECT) : ÉCONOMIE MAXIMALE DE TOKENS
+        # =========================================================================
+        if resolved_mode == "chat":
+            self.current_task_status = "Discussion"
+            self._ensure_routed_providers_ready()
+            try:
+                provider = self.orchestrator.router.get_provider("agent", intent="chat")
+            except Exception:
+                prov_key = self.orchestrator.router.session_provider_key
+                provider = self.orchestrator.router.providers.get(prov_key)
+
+            used_provider = provider.get_name() if provider else "Provider"
+            used_model = provider.get_model_name() if provider else "Modèle"
+
+            history_lines: list[str] = []
+            for prev_msg in conv.get("messages", [])[-8:-1]:
+                r_label = "Utilisateur" if prev_msg.get("role") == "user" else "Assistant"
+                c_text = (prev_msg.get("content") or "").strip()
+                if c_text:
+                    history_lines.append(f"{r_label}: {c_text}")
+
+            prompt_for_chat = clean_prompt
+            if history_lines:
+                prompt_for_chat = (
+                    "Historique récent de la discussion :\n"
+                    + "\n".join(history_lines)
+                    + f"\n\nUtilisateur : {clean_prompt}\nAssistant :"
+                )
+            if snippets:
+                prompt_for_chat += "\n\n" + "\n\n".join(snippets)
+
+            try:
+                answer_text = provider.generate(prompt=prompt_for_chat).strip()
+            except Exception as err:
+                answer_text = f"⚠️ Erreur lors de l'échange direct avec {used_provider} : {err}"
+
+            elapsed_ms = int((monotonic() - started_mono) * 1000)
+            assistant_msg = {
+                "id": f"msg-{uuid.uuid4().hex[:8]}",
+                "role": "assistant",
+                "content": answer_text,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "execution_mode": "chat",
+                "provider": used_provider,
+                "model": used_model,
+                "tools": [],
+                "sources": [],
+            }
+            conv["messages"].append(assistant_msg)
+            self._save_conversations()
+
+            self.event_bus.complete_task(
+                status="completed",
+                duration_ms=elapsed_ms,
+                summary=f"Discussion directe terminée en {elapsed_ms} ms (Mode Sans Agent - 0 surcoût tokens)",
+                details={
+                    "mode": "chat",
+                    "agent": "none",
+                    "provider": used_provider,
+                    "model": used_model,
+                },
+            )
+            self.current_task_status = "Terminé"
+
+            return {
+                "ok": True,
+                "task_id": task_id,
+                "conversation_id": conv["id"],
+                "status": "Terminé",
+                "duration_ms": elapsed_ms,
+                "objective": clean_prompt,
+                "result": assistant_msg,
+                "assistant_message": assistant_msg,
+                "answer": answer_text,
+                "used_agent": "Sans agent (Chat direct)",
+                "used_skill": "",
+                "used_provider": used_provider,
+                "used_model": used_model,
+                "used_tools": [],
+                "used_sources": [],
+                "verification": {"status": "ok", "summary": "Mode conversationnel direct (Sans agent · 0 surcoût tokens)"},
+                "recorded_diffs": [],
+                "preview_artifacts": [],
+                "compilation_errors": [],
+            }
 
         # Snapshot des fichiers du workspace avant exécution pour calcul de diff réel
         before_snapshot = self._snapshot_workspace()
@@ -2677,7 +2813,7 @@ class NeoHarnessRuntimeBridge:
         try:
             self._ensure_routed_providers_ready()
             with contextlib.redirect_stdout(captured_stdout):
-                result_obj, used_skill, used_agent = self._dispatch_mission(effective_prompt, task_context=task_context)
+                result_obj, used_skill, used_agent = self._dispatch_mission(effective_prompt, task_context=task_context, deep_reflection=deep_reflection)
         except Exception as error:
             error_text = f"{type(error).__name__}: {error}"
             self.event_bus.emit_normalized(
@@ -2958,7 +3094,7 @@ class NeoHarnessRuntimeBridge:
             "last_seq": events[-1].get("seq", 0) if events else 0,
         }
 
-    def _dispatch_mission(self, prompt: str, task_context: Any | None = None) -> tuple[AgentResult | None, str, str]:
+    def _dispatch_mission(self, prompt: str, task_context: Any | None = None, deep_reflection: bool = False) -> tuple[AgentResult | None, str, str]:
         """Exécute la mission en respectant exactement la logique de main._executer_mission."""
         runtime = SkillRuntime(
             orchestrator=self.orchestrator,
@@ -2999,6 +3135,8 @@ class NeoHarnessRuntimeBridge:
                 type=direct_agent.routing_key,
                 explicit_agent=True,
                 mode=self.mode_manager.current.value,
+                enable_dag=deep_reflection,
+                deep_reflection=deep_reflection,
             )
             launch = None
 
@@ -3044,6 +3182,8 @@ class NeoHarnessRuntimeBridge:
                     mode=self.mode_manager.current.value,
                     task_context=task_context,
                     context=self.orchestrator.context,
+                    enable_dag=deep_reflection,
+                    deep_reflection=deep_reflection,
                 )
                 res = self.orchestrator.run_agentic(skill_task, self.agent_loop)
                 return res, skill.name, skill.agent.name
@@ -3092,6 +3232,8 @@ class NeoHarnessRuntimeBridge:
                     mode=self.mode_manager.current.value,
                     task_context=task_context,
                     context=self.orchestrator.context,
+                    enable_dag=deep_reflection,
+                    deep_reflection=deep_reflection,
                 )
         try:
             res = self.orchestrator.run_agentic(task, self.agent_loop)
@@ -3220,6 +3362,15 @@ class NeoHarnessRuntimeBridge:
                 "mission_memory": ctx.mission_memory or None,
             },
             "workspace": self.list_workspace_files(),
+            "execution": self.rate_limit_manager.get_state() if hasattr(self, "rate_limit_manager") and self.rate_limit_manager is not None else {
+                "mode": "mono",
+                "max_parallel_agents": 1,
+                "profile": "free",
+                "active_calls": 0,
+                "queued_calls": 0,
+                "total_recent_429": 0,
+                "circuits": {},
+            },
             "memory": self.get_memory_state(),
             "rag": self.get_rag_state(),
             "pending_approvals": self.list_pending_approvals(),
@@ -3241,6 +3392,9 @@ class NeoHarnessUIApp:
         if path == "/api/state":
             model_param = _first("model") or None
             return HTTPStatus.OK, self.bridge.get_full_state(selected_model=model_param)
+        if path in {"/api/execution/config", "/api/execution/mode"}:
+            rlm = getattr(self.bridge, "rate_limit_manager", None)
+            return HTTPStatus.OK, rlm.get_state() if rlm else {}
         if path == "/api/models":
             return HTTPStatus.OK, {
                 "selection": self.bridge.model_registry.active_selection_summary(),
@@ -3371,14 +3525,40 @@ class NeoHarnessUIApp:
                 attachments = body.get("attachments") or []
                 skill = body.get("skill")
                 model_id = body.get("model")
+                exec_mode = body.get("execution_mode") or body.get("mode")
+                deep_refl = bool(body.get("deep_reflection", False) or exec_mode == "multi")
                 result = self.bridge.execute_task(
                     prompt,
                     conversation_id=cid,
                     attached_files=attachments,
                     explicit_skill=skill,
                     model_id=model_id,
+                    deep_reflection=deep_refl,
+                    execution_mode=exec_mode,
                 )
                 return HTTPStatus.OK, result
+
+            if path in {"/api/execution/config", "/api/execution/mode"}:
+                rlm = getattr(self.bridge, "rate_limit_manager", None)
+                if not rlm:
+                    return HTTPStatus.OK, {"ok": False, "error": "RateLimitManager non initialisé."}
+                mode = body.get("mode")
+                max_parallel = body.get("max_parallel_agents")
+                profile = body.get("profile")
+                fallback = body.get("fallback_enabled")
+                cooldown = body.get("cooldown_after_429")
+                max_retries = body.get("max_retries")
+                max_gemini = body.get("max_parallel_gemini")
+                res = rlm.configure(
+                    mode=mode,
+                    max_parallel_agents=max_parallel,
+                    max_parallel_gemini=max_gemini,
+                    profile=profile,
+                    fallback_enabled=fallback,
+                    cooldown_after_429=cooldown,
+                    max_retries=max_retries,
+                )
+                return HTTPStatus.OK, {"ok": True, "execution": res}
 
             if path == "/api/tasks/stop":
                 res = self.bridge.stop_active_task()
@@ -3678,30 +3858,14 @@ def create_http_server(
                             proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10)
                             if proc.returncode == 0 and proc.stdout:
                                 html_text = proc.stdout
+                                # Supprimer le bloc <style> injecté par Pandoc qui contraint le body à max-width: 36em et 50px de padding
+                                html_text = re.sub(r"<style[\s\S]*?</style>", "", html_text, flags=re.IGNORECASE)
                                 filename = target.name
-                                stem = target.stem
-                                rel_docx = clean_rel
-                                parent_dir = str(Path(clean_rel).parent).replace("\\", "/")
-                                rel_pdf = f"{parent_dir}/{stem}.pdf" if parent_dir != "." else f"{stem}.pdf"
-                                has_companion_pdf = False
-                                try:
-                                    has_companion_pdf = ui_app.bridge.filesystem.resolve(rel_pdf).exists()
-                                except Exception:
-                                    pass
-                                pdf_btn_html = (
-                                    f'<a href="/api/files/raw?path={quote(rel_pdf)}&download=1" download class="word-action-btn secondary" title="Télécharger la version PDF">'
-                                    f'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>'
-                                    f'<span>Télécharger PDF</span></a>'
-                                    if has_companion_pdf
-                                    else f'<a href="/api/files/raw?path={quote(rel_docx)}&download=1" download class="word-action-btn secondary" title="Version PDF générée sur demande">'
-                                    f'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
-                                    f'<span>Version PDF</span></a>'
-                                )
                                 word_style = f"""
 <style id="__neoharness_word_preview_styles__">
   :root {{
-    --word-primary: #0F6CBD;
-    --word-primary-dark: #115EA3;
+    --word-primary: #185ABD;
+    --word-primary-dark: #104A9E;
     --word-accent: #2B88D8;
     --word-bg: #F0F2F5;
     --page-bg: #FFFFFF;
@@ -3709,120 +3873,97 @@ def create_http_server(
     --text-muted: #616161;
     --border-light: #E0E0E0;
   }}
-  * {{ box-sizing: border-box; }}
+  *, *::before, *::after {{ box-sizing: border-box; }}
   html, body {{
-    margin: 0;
-    padding: 0;
-    background-color: var(--word-bg);
-    font-family: 'Segoe UI', 'Aptos', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 100% !important;
+    background-color: var(--word-bg) !important;
+    font-family: 'Segoe UI', 'Aptos', -apple-system, BlinkMacSystemFont, Roboto, sans-serif !important;
     color: var(--text-main);
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
   }}
   .word-top-ribbon {{
     position: sticky;
     top: 0;
+    left: 0;
+    right: 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
     z-index: 999;
-    background: linear-gradient(90deg, #0F6CBD 0%, #115EA3 100%);
+    background: rgba(24, 90, 189, 0.90);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.20);
     color: #FFFFFF;
     padding: 0 16px;
-    height: 42px;
+    height: 38px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08);
+    box-shadow: 0 2px 10px rgba(16, 90, 189, 0.22);
   }}
   .word-ribbon-left {{
     display: flex;
     align-items: center;
-    gap: 10px;
-    min-width: 0;
+    z-index: 2;
+  }}
+  .word-brand-pill {{
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    flex-shrink: 0;
   }}
   .word-app-badge {{
     background: #FFFFFF;
-    color: #0F6CBD;
+    color: #185ABD;
     font-weight: 800;
-    font-size: 13px;
-    width: 24px;
-    height: 24px;
+    font-size: 11px;
+    width: 18px;
+    height: 18px;
     border-radius: 4px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
     flex-shrink: 0;
   }}
-  .word-doc-title {{
+  .word-brand-name {{
     font-weight: 600;
-    font-size: 13px;
+    font-size: 11.5px;
+    color: #FFFFFF;
+    letter-spacing: -0.1px;
+  }}
+  .word-doc-title {{
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-weight: 600;
+    font-size: 12.5px;
+    color: #FFFFFF;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 280px;
+    max-width: 60%;
     letter-spacing: -0.1px;
-  }}
-  .word-status-badge {{
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 11px;
-    font-weight: 500;
-    padding: 2px 8px;
-    border-radius: 12px;
-    background: rgba(255,255,255,0.15);
-    color: #EBF3FC;
-    white-space: nowrap;
-  }}
-  .word-status-badge::before {{
-    content: "";
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #4ADE80;
-  }}
-  .word-ribbon-actions {{
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-  }}
-  .word-action-btn {{
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: #FFFFFF;
-    color: #0F6CBD;
-    padding: 5px 12px;
-    border-radius: 4px;
-    text-decoration: none;
-    font-size: 12px;
-    font-weight: 600;
-    white-space: nowrap;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
-    transition: all 0.15s ease;
-    border: 1px solid transparent;
-  }}
-  .word-action-btn:hover {{
-    background: #F8FAFD;
-    color: #115EA3;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
-  }}
-  .word-action-btn.secondary {{
-    background: rgba(255,255,255,0.16);
-    color: #FFFFFF;
-    border: 1px solid rgba(255,255,255,0.28);
-    box-shadow: none;
-  }}
-  .word-action-btn.secondary:hover {{
-    background: rgba(255,255,255,0.26);
-    color: #FFFFFF;
-    border-color: rgba(255,255,255,0.4);
+    text-align: center;
+    pointer-events: auto;
   }}
   .word-canvas {{
     padding: 24px 16px 48px;
     display: flex;
     justify-content: center;
+    width: 100%;
+    box-sizing: border-box;
   }}
   .word-document-page {{
     background: var(--page-bg);
@@ -3833,6 +3974,22 @@ def create_http_server(
     box-shadow: 0 2px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
     border: 1px solid var(--border-light);
     border-radius: 3px;
+    box-sizing: border-box;
+  }}
+  /* Scrollbar raffinée parfaitement intégrée */
+  ::-webkit-scrollbar {{
+    width: 8px;
+    height: 8px;
+  }}
+  ::-webkit-scrollbar-track {{
+    background: #E8ECEF;
+  }}
+  ::-webkit-scrollbar-thumb {{
+    background: #C4C9D0;
+    border-radius: 4px;
+  }}
+  ::-webkit-scrollbar-thumb:hover {{
+    background: #9FA6B2;
   }}
   h1, h2, h3, h4 {{
     color: #1A365D;
@@ -3907,20 +4064,15 @@ window.MathJax = {{
                                 body_match = re.search(r"<body[^>]*>([\s\S]*?)</body>", html_text, re.IGNORECASE)
                                 body_content = body_match.group(1) if body_match else html_text
                                 wrapped_body = f"""
-<body>
+<body style="margin: 0 !important; padding: 0 !important; width: 100% !important; max-width: 100% !important;">
   <div class="word-top-ribbon">
     <div class="word-ribbon-left">
-      <span class="word-app-badge">W</span>
-      <span class="word-doc-title" title="{filename}">{filename}</span>
-      <span class="word-status-badge">Document vérifié</span>
+      <div class="word-brand-pill">
+        <span class="word-app-badge">W</span>
+        <span class="word-brand-name">Word</span>
+      </div>
     </div>
-    <div class="word-ribbon-actions">
-      <a href="/api/files/raw?path={quote(rel_docx)}&download=1" download class="word-action-btn" title="Télécharger le fichier Word .docx">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        <span>Télécharger Word (.docx)</span>
-      </a>
-      {pdf_btn_html}
-    </div>
+    <div class="word-doc-title" title="{filename}">{filename}</div>
   </div>
   <div class="word-canvas">
     <div class="word-document-page">

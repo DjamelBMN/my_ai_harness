@@ -1,0 +1,126 @@
+% Compiler avec XeLaTeX ou LuaLaTeX
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{amsmath,amssymb}
+\usepackage{fontspec}
+\usepackage{unicode-math}
+\usepackage{polyglossia}
+\setmainlanguage{french}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage[margin=2cm,headheight=16pt,headsep=22pt]{geometry}
+\usepackage{enumitem}
+
+% Police principale et police mathématique : Libertinus
+\IfFontExistsTF{Libertinus Serif}
+  {\setmainfont{Libertinus Serif}}
+  {\IfFontExistsTF{Latin Modern Roman}{\setmainfont{Latin Modern Roman}}{\setmainfont{lmroman10-regular.otf}}}
+
+\IfFontExistsTF{Libertinus Math}
+  {\setmathfont{Libertinus Math}}
+  {\IfFontExistsTF{Latin Modern Math}{\setmathfont{Latin Modern Math}}{\setmathfont{latinmodern-math.otf}}}
+
+\linespread{1.07}
+\setlength{\parindent}{0pt}
+\AtBeginDocument{\setlength{\parindent}{0pt}}
+\setlength{\parskip}{0.35em}
+
+% En-tête
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Professeur de Mathématiques}
+\rhead{Seconde}
+% Pagination : « Page X / Y » centrée en pied de page
+\usepackage{lastpage}
+\cfoot{Page \thepage\ / \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\headrule}{\vskip 5pt\hrule width\headwidth height\headrulewidth \vskip-\headrulewidth}
+
+% Configuration des listes
+\setlist[enumerate,1]{itemsep=0.45em, topsep=0.3em, label=\textbf{\arabic*.}}
+\setlist[enumerate,2]{itemsep=0.25em, topsep=0.2em, label=\textbf{\alph*.}}
+
+% Commande exercice
+\newcommand{\exo}[2]{%
+  \vspace{1.5em}%
+  \noindent{\large\textbf{Exercice #1. -- #2}}%
+  \par\vspace{0.35em}%
+  \hrule height 0.5pt%
+  \vspace{0.7em}%
+}
+
+\newcommand{\partie}[1]{%
+  \vspace{0.9em}%
+  \noindent\textbf{#1}%
+  \par\vspace{0.3em}%
+}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE \textbf{Exercice d'entraînement : Racines carrées et Identités remarquables}}\\[0.5em]
+  {\large Classe de Seconde}
+\end{center}
+
+% ---------------------- EXERCICE 1 ----------------------
+\exo{1}{Calculs et simplifications algébriques}
+
+\partie{Partie A -- Simplification de radicaux}
+Écrire chacun des nombres suivants sous la forme $a\sqrt{b}$ où $a$ et $b$ sont des entiers, $b$ étant le plus petit possible.
+\begin{enumerate}
+  \item $A = \sqrt{75} - 2\sqrt{12} + 3\sqrt{27}$
+  \item $B = \sqrt{50} \times \sqrt{8}$
+\end{enumerate}
+
+\partie{Partie B -- Utilisation des identités remarquables}
+Développer et simplifier les expressions suivantes en détaillant les étapes :
+\begin{enumerate}
+  \item $C = (3 + \sqrt{5})^2$
+  \item $D = (2\sqrt{3} - 4)(2\sqrt{3} + 4)$
+  \item $E = (\sqrt{7} - 2)^2 + (\sqrt{7} + 2)(\sqrt{7} - 2)$
+\end{enumerate}
+
+% ---------------------- EXERCICE 2 ----------------------
+\exo{2}{Étude d'une expression littérale et application géométrique}
+
+On considère l'expression numérique $F = (2\sqrt{2} - 1)^2 + 4\sqrt{2}$.
+
+\begin{enumerate}
+  \item Développer et réduire l'expression $F$ en utilisant l'identité remarquable adaptée. Écrire le résultat sous la forme $a + b\sqrt{2}$ où $a$ et $b$ sont des entiers.
+  \item Soit un rectangle de dimensions $L = 2\sqrt{2} - 1$ et $l = \sqrt{2}$. 
+  \begin{enumerate}
+    \item Exprimer son aire exacte sous forme développée et simplifiée.
+    \item Calculer la longueur exacte de sa diagonale $d$, puis donner la valeur simplifiée de $d^2$.
+  \end{enumerate}
+\end{enumerate}
+
+\vspace{2em}
+\hrule
+\vspace{1em}
+\noindent{\large\textbf{Corrigé détaillé}}
+
+\partie{Exercice 1}
+\textbf{Partie A :}
+\begin{enumerate}
+  \item $A = \sqrt{25 \times 3} - 2\sqrt{4 \times 3} + 3\sqrt{9 \times 3} = 5\sqrt{3} - 2 \times 2\sqrt{3} + 3 \times 3\sqrt{3} = 5\sqrt{3} - 4\sqrt{3} + 9\sqrt{3} = 10\sqrt{3}$.
+  \item $B = \sqrt{50 \times 8} = \sqrt{400} = 20$.
+\end{enumerate}
+
+\textbf{Partie B :}
+\begin{enumerate}
+  \item $C = 3^2 + 2 \times 3 \times \sqrt{5} + (\sqrt{5})^2 = 9 + 6\sqrt{5} + 5 = 14 + 6\sqrt{5}$.
+  \item $D = (2\sqrt{3})^2 - 4^2 = 4 \times 3 - 16 = 12 - 16 = -4$.
+  \item $E = \left[(\sqrt{7})^2 - 2\times\sqrt{7}\times 2 + 2^2\right] + \left[(\sqrt{7})^2 - 2^2\right] = (7 - 4\sqrt{7} + 4) + (7 - 4) = (11 - 4\sqrt{7}) + 3 = 14 - 4\sqrt{7}$.
+\end{enumerate}
+
+\partie{Exercice 2}
+\begin{enumerate}
+  \item $F = (2\sqrt{2})^2 - 2 \times 2\sqrt{2} \times 1 + 1^2 + 4\sqrt{2} = 8 - 4\sqrt{2} + 1 + 4\sqrt{2} = 9$.
+  \item 
+  \begin{enumerate}
+    \item $\text{Aire} = L \times l = (2\sqrt{2} - 1)\sqrt{2} = 2(\sqrt{2})^2 - \sqrt{2} = 2(2) - \sqrt{2} = 4 - \sqrt{2}$.
+    \item D'après le théorème de Pythagore, $d^2 = L^2 + l^2 = (2\sqrt{2} - 1)^2 + (\sqrt{2})^2 = (9) + 2 = 11$. Donc $d = \sqrt{11}$.
+  \end{enumerate}
+\end{enumerate}
+
+\end{document}

@@ -361,6 +361,7 @@ class DelegationEngine:
 
         worker_executors = {agent_key: _worker_runner for agent_key in self.registry.agents.keys()}
         engine = AsyncDAGEngine(
+            rate_limit_manager=getattr(self.router, "rate_limit_manager", None),
             global_timeout=300.0,
             event_sink=getattr(self.agent_loop, "event_sink", None),
         )

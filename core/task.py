@@ -25,6 +25,8 @@ class Task:
     mode: str = "ACCEPT"
     skill_name: str | None = None
     task_context: Any | None = None
+    enable_dag: bool = False
+    deep_reflection: bool = False
 
 
 def ensure_task(

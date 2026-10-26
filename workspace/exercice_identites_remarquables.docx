@@ -1,0 +1,35 @@
+Exercice d’entraînement : Les identités remarquables en classe de troisième / seconde
+Cet exercice complet permet de réviser et de maîtriser l’utilisation des trois identités remarquables fondamentales en algèbre. Il est structuré en plusieurs parties progressives allant du calcul littéral de base à la résolution de problèmes et à la modélisation géométrique.
+Rappels de cours
+Pour tous nombres réels  et  : 1. Carré d’une somme :
+2. Carré d’une différence :
+3. Produit de la somme par la différence :
+Partie 1 : Développement et réduction
+Développer et réduire les expressions algébriques suivantes :
+Corrigé détaillé de la Partie 1
+Expression  :
+Expression  :
+Expression  :
+Expression  : On développe séparément les deux parties :
+Puis on soustrait en faisant attention aux signes :
+Partie 2 : Factorisation
+Factoriser les expressions suivantes en utilisant l’identité remarquable adéquate :
+Corrigé détaillé de la Partie 2
+Expression  :
+Expression  :
+Expression  :
+Expression  : Il s’agit d’une différence de deux carrés  avec  et  :
+Partie 3 : Application géométrique et calcul mental
+Calcul mental astucieux : En remarquant que , calculez  en utilisant une identité remarquable. De même, calculez  à l’aide d’une identité remarquable.
+Problème géométrique : Soit un carré de côté  (où ).
+Exprimez son aire  en fonction de  sous forme développée.
+On retire à ce carré un coin carré de côté . Exprimez l’aire restante  sous forme factorisée en utilisant une différence de deux carrés, puis développez-la.
+Corrigé détaillé de la Partie 3
+Calcul mental :
+.
+.
+Problème géométrique :
+L’aire initiale est .
+L’aire du petit carré retiré est . L’aire restante est donc :
+Sous forme factorisée (différence de deux carrés) :
+En développant l’expression initiale :

@@ -1,10 +1,44 @@
 default_provider: ollama
 
+execution:
+  mode: mono
+  max_parallel_agents: 1
+
+profiles:
+  free:
+    mode: mono
+    max_parallel_agents: 1
+    max_retries: 3
+    backoff: true
+    circuit_breaker: true
+    fallback_enabled: false
+    cooldown_after_429: 60
+
+  balanced:
+    mode: multi
+    max_parallel_agents: 2
+    max_retries: 3
+    backoff: true
+    circuit_breaker: true
+    fallback_enabled: true
+    cooldown_after_429: 45
+
+  powerful:
+    mode: multi
+    max_parallel_agents: 4
+    max_retries: 4
+    backoff: true
+    circuit_breaker: true
+    fallback_enabled: true
+    cooldown_after_429: 30
+
 openai:
   enabled: true
   model: "gpt-5-mini"
 
 providers:
+  fallback_enabled: true
+  cooldown_after_429: 60
   ollama:
     enabled: true
     model: "qwen3:1.7b"

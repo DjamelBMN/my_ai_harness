@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous" />
-  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/styles.css?v=2.3" />
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -129,7 +129,7 @@
       <!-- 1. LEFT SIDEBAR (COMPACTE & DISCRÈTE) -->
       <aside id="left-sidebar" class="sidebar" aria-label="Navigation principale">
         <div class="sidebar-header">
-          <button id="btn-new-task" class="new-task-btn" title="Nouvelle tâche (Ctrl+N)">
+          <button id="btn-new-task" class="new-task-btn" aria-label="Nouvelle tâche">
             <span class="new-task-btn-label">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -154,7 +154,7 @@
           <section class="sidebar-section">
             <div class="sidebar-conv-head">
               <span class="sidebar-conv-title">Discussions</span>
-              <button id="btn-delete-all-convs" type="button" class="sidebar-danger-btn" title="Supprimer toutes les discussions" aria-label="Supprimer toutes les discussions">
+              <button id="btn-delete-all-convs" type="button" class="sidebar-danger-btn" data-tooltip="Supprimer toutes les discussions" data-tooltip-pos="bottom" aria-label="Supprimer toutes les discussions">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <polyline points="3 6 5 6 21 6"></polyline>
                   <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
@@ -456,6 +456,26 @@
                     </div>
                   </div>
                 </div>
+                <!-- Bouton Chat Direct (Sans Agent - Économie de tokens) -->
+                <button id="btn-direct-chat" type="button" class="composer-chip-btn direct-chat-btn" data-tooltip="Chat direct avec Gemini (Sans agent · 0 surcoût tokens)" aria-pressed="false">
+                  <span class="direct-chat-icon">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                  </span>
+                  <span class="direct-chat-label">Chat direct</span>
+                </button>
+
+                <!-- Bouton Réflexion Approfondie (Mono / Multi-Agents) -->
+                <button id="btn-deep-reflection" type="button" class="composer-chip-btn deep-reflection-btn" data-tooltip="Réflexion approfondie (Multi-Agents / DAG)" aria-pressed="false">
+                  <span class="deep-reflection-icon">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.04"/>
+                      <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.04"/>
+                    </svg>
+                  </span>
+                  <span class="deep-reflection-label">Réflexion approfondie</span>
+                </button>
 
                 <!-- Inputs préservés pour compatibilité de tests et scripts -->
                 <select id="composer-model-select" class="composer-select" style="display: none;" title="Modèle actif" aria-label="Modèle actif">
@@ -665,12 +685,13 @@
        MODAL 1 : MODEL PICKER & CAPABILITIES MATRIX
        ====================================================================== -->
   <div id="modal-model-picker" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-model-title">
-    <div class="modal-panel">
+    <div class="modal-panel model-picker-panel">
       <div class="modal-header">
-        <strong id="modal-model-title">Sélection du Modèle & Capacités Réelles</strong>
-        <button class="icon-btn-mini" data-close-modal="modal-model-picker">Fermer</button>
-                <strong id="modal-model-title">Modèle</strong>
-        <button class="icon-btn-mini" data-close-modal="modal-model-picker" aria-label="Fermer">✕</button>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <strong id="modal-model-title">Sélection du Modèle &amp; Capacités Réelles</strong>
+          <span class="meta-chip">Architectures LLM</span>
+        </div>
+        <button class="icon-btn-mini" data-close-modal="modal-model-picker" aria-label="Fermer" title="Fermer (Échap)">✕</button>
       </div>
       <div id="modal-model-body" class="modal-body"></div>
     </div>
@@ -737,6 +758,6 @@
 
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-  <script src="/app.js"></script>
+  <script src="/app.js?v=2.3"></script>
 </body>
 </html>

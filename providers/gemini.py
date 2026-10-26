@@ -4,6 +4,8 @@
 
 import os
 import json
+import random
+import re
 import time
 from typing import Any
 
@@ -13,9 +15,98 @@ from providers.base_provider import AgentTurn, BaseProvider, ProviderToolCall
 class GeminiProviderError(RuntimeError):
     """Erreur de configuration, d'accès ou de génération Gemini."""
 
-    def __init__(self, message: str, category: str = "provider") -> None:
+    def __init__(
+        self,
+        message: str,
+        category: str = "provider",
+        retry_after: float | None = None,
+        is_quota_exhausted: bool = False,
+    ) -> None:
         super().__init__(message)
         self.category = category
+        self.retry_after = retry_after
+        self.is_quota_exhausted = is_quota_exhausted
+
+
+def extract_gemini_retry_after(error: Exception) -> float | None:
+    """Extrait le délai Retry-After (en secondes) depuis l'exception, headers ou message."""
+    if error is None:
+        return None
+    if hasattr(error, "retry_after") and isinstance(error.retry_after, (int, float)):
+        return float(error.retry_after)
+
+    # 1. Headers HTTP
+    for holder in (getattr(error, "response", None), error):
+        headers = getattr(holder, "headers", None)
+        if isinstance(headers, dict):
+            for k, v in headers.items():
+                if str(k).lower() in ("retry-after", "retry_after"):
+                    try:
+                        return float(v)
+                    except (ValueError, TypeError):
+                        pass
+
+    # 2. Détails structurés Google RPC
+    details = getattr(error, "details", None) or []
+    if isinstance(details, (list, tuple)):
+        for item in details:
+            if isinstance(item, dict):
+                retry_delay = item.get("retryDelay") or item.get("retry_delay")
+                if retry_delay:
+                    m = re.search(r"([0-9]+(?:\.[0-9]+)?)", str(retry_delay))
+                    if m:
+                        try:
+                            return float(m.group(1))
+                        except ValueError:
+                            pass
+
+    # 3. Regex dans le texte du message
+    msg = str(error)
+    patterns = [
+        r"please retry in\s+([0-9]+(?:\.[0-9]+)?)\s*s",
+        r"retry[-_]after\s*[:=]?\s*([0-9]+(?:\.[0-9]+)?)\s*s?",
+        r"retry in\s+([0-9]+(?:\.[0-9]+)?)\s*s",
+        r"retry_delay\s*\{\s*seconds:\s*([0-9]+)",
+        r"wait\s+([0-9]+(?:\.[0-9]+)?)\s*s",
+        r"retry within\s+([0-9]+(?:\.[0-9]+)?)\s*s",
+    ]
+    for pat in patterns:
+        m = re.search(pat, msg, re.IGNORECASE)
+        if m:
+            try:
+                val = float(m.group(1))
+                if val > 0:
+                    return val
+            except ValueError:
+                pass
+    return None
+
+
+def is_gemini_quota_exhausted(error: Exception) -> bool:
+    """Distingue un quota réellement épuisé (journalier/compte) d'un 429 temporaire (RPM/TPM)."""
+    if error is None:
+        return False
+    if getattr(error, "is_quota_exhausted", False) or getattr(error, "category", "") == "quota_exhausted":
+        return True
+
+    msg = str(error).lower()
+    exhausted_markers = (
+        "perday",
+        "per day",
+        "requests per day",
+        "daily quota",
+        "daily limit",
+        "for the day",
+        "billing not enabled",
+        "free_tier_requests_per_day",
+        "current plan",
+        "plan and billing",
+        "credit balance",
+        "insufficient_quota",
+        "quotas épuisés",
+        "quota réellement épuisé",
+    )
+    return any(marker in msg for marker in exhausted_markers)
 
 
 class GeminiProvider(BaseProvider):
@@ -31,6 +122,7 @@ class GeminiProvider(BaseProvider):
         self._available_models: dict[str, str] = {}
         self.max_output_tokens: int | None = None
         self.max_retries = 2
+        self.base_backoff_seconds = 1.0
         self.stream_callback: Any = None
 
     def _get_client(self):
@@ -85,6 +177,41 @@ class GeminiProvider(BaseProvider):
         if not isinstance(status, int):
             status = getattr(error, "status_code", None)
 
+        msg_str = str(error)
+        msg_lower = msg_str.lower()
+        is_429 = (
+            status == 429
+            or "429" in msg_str
+            or "resource_exhausted" in msg_lower
+            or "resource has been exhausted" in msg_lower
+            or "rate limit" in msg_lower
+            or "ratelimit" in msg_lower
+            or "too many requests" in msg_lower
+            or "quota" in msg_lower
+        )
+
+        if is_429:
+            retry_after = extract_gemini_retry_after(error)
+            quota_exhausted = is_gemini_quota_exhausted(error)
+            if quota_exhausted:
+                print("[GeminiProvider] Quota épuisé", flush=True)
+                return GeminiProviderError(
+                    f"Le quota Gemini est épuisé pendant {phase} (limite journalière ou forfait atteint).",
+                    category="quota_exhausted",
+                    retry_after=None,
+                    is_quota_exhausted=True,
+                )
+            else:
+                print("[GeminiProvider] 429 détecté", flush=True)
+                if retry_after is not None and retry_after > 0:
+                    print(f"[GeminiProvider] Retry dans {retry_after:.1f} secondes", flush=True)
+                return GeminiProviderError(
+                    f"Limite de débit (429) Gemini atteinte pendant {phase}.",
+                    category="rate_limit",
+                    retry_after=retry_after,
+                    is_quota_exhausted=False,
+                )
+
         if status in {400, 404}:
             return GeminiProviderError(
                 "Gemini — configuration invalide : modèle absent ou incompatible "
@@ -95,11 +222,6 @@ class GeminiProvider(BaseProvider):
             return GeminiProviderError(
                 "La clé Gemini a été refusée. Vérifie GEMINI_API_KEY.",
                 category="authentication",
-            )
-        if status == 429:
-            return GeminiProviderError(
-                "La limite ou le quota Gemini est atteint. Réessaie plus tard.",
-                category="quota",
             )
         if status in {408, 500, 502, 503, 504}:
             return GeminiProviderError(
@@ -225,9 +347,30 @@ class GeminiProvider(BaseProvider):
                 return self._client.models.generate_content(**options)
             except Exception as error:
                 mapped = self._api_error(error, phase)
-                if mapped.category != "unavailable" or attempt >= self.max_retries:
+                # Si le provider est encapsulé par RateLimitManager, laisser RateLimitManager
+                # coordonner la file de concurrence et le backoff centralisé
+                if getattr(self, "_has_rate_limit_wrapped", False):
                     raise mapped from None
-                time.sleep(min(0.5 * (2 ** attempt), 2.0))
+
+                # Si quota réellement épuisé, arrêt immédiat sans retries inutiles
+                if getattr(mapped, "is_quota_exhausted", False) or mapped.category == "quota_exhausted":
+                    raise mapped from None
+
+                # Erreur transitoire (429 temporaire ou indisponibilité réseau)
+                if mapped.category in {"unavailable", "rate_limit"}:
+                    if attempt >= self.max_retries:
+                        raise mapped from None
+                    # Calcul du délai exponentiel avec jitter ou respect de Retry-After
+                    if mapped.retry_after and mapped.retry_after > 0:
+                        delay = round(mapped.retry_after + random.uniform(0.1, 0.5), 2)
+                    else:
+                        base = getattr(self, "base_backoff_seconds", 1.0)
+                        delay = round(min(base * (2 ** attempt) + random.uniform(0.1, 0.5), 30.0), 2)
+                    print(f"[GeminiProvider] Retry dans {delay:.1f} secondes", flush=True)
+                    time.sleep(delay)
+                    continue
+
+                raise mapped from None
 
     def generate_structured(self, prompt: str, schema: dict[str, Any]) -> dict[str, Any]:
         """Demande un objet JSON contraint par un schéma Gemini officiel."""
@@ -418,7 +561,7 @@ class GeminiProvider(BaseProvider):
                 phase="la génération avec outils",
             )
         except GeminiProviderError as error:
-            if builtin_google_search and declarations and error.category in {"quota", "configuration"}:
+            if builtin_google_search and declarations and error.category in {"quota", "rate_limit", "quota_exhausted", "configuration"}:
                 fallback_config = dict(config)
                 fallback_config["tools"] = [types.Tool(function_declarations=declarations)]
                 response = self._generate_content(

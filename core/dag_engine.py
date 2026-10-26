@@ -164,10 +164,28 @@ class AsyncDAGEngine:
         self,
         *,
         max_workers: int = 4,
+        execution_mode: str = "multi",
+        max_parallel_agents: int | None = None,
+        rate_limit_manager: Any = None,
         global_timeout: float = 300.0,
         event_sink: Callable[[str, dict[str, Any]], None] | None = None,
     ) -> None:
-        self.max_workers = max(1, max_workers)
+        self.rate_limit_manager = rate_limit_manager
+        if rate_limit_manager is not None:
+            self.execution_mode = getattr(rate_limit_manager.mode, "value", str(rate_limit_manager.mode))
+            self.max_parallel_agents = (
+                1 if self.execution_mode == "mono" else int(rate_limit_manager.max_parallel_agents)
+            )
+        else:
+            self.execution_mode = "mono" if str(execution_mode).lower() == "mono" else "multi"
+            if self.execution_mode == "mono":
+                self.max_parallel_agents = 1
+            elif max_parallel_agents is not None:
+                self.max_parallel_agents = max(1, int(max_parallel_agents))
+            else:
+                self.max_parallel_agents = max(1, int(max_workers))
+
+        self.max_workers = max(1, self.max_parallel_agents)
         self.global_timeout = global_timeout
         self.event_sink = event_sink
 
@@ -214,9 +232,10 @@ class AsyncDAGEngine:
                 # Propagation des blocages
                 dag.propagate_blocking()
 
-                # Soumission des nouveaux nœuds prêts
+                # Soumission des nouveaux nœuds prêts dans la limite des agents autorisés
+                available_slots = max(0, self.max_workers - len(running_futures))
                 ready_nodes = dag.get_ready_nodes()
-                for node in ready_nodes:
+                for node in ready_nodes[:available_slots]:
                     node.status = NodeStatus.RUNNING
                     node.started_at = time.monotonic()
 
@@ -380,6 +399,8 @@ class AsyncDAGEngine:
 
         return {
             "status": overall_status,
+            "success": overall_status == "success",
+            "completed_nodes": [n.id for n in dag.nodes.values() if n.status == NodeStatus.COMPLETED],
             "mission_id": dag.mission_id,
             "dag": dag.to_dict(),
             "artifacts": all_artifacts,

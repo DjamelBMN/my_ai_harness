@@ -120,4 +120,21 @@ class EventTranslator:
             return f"Sous-tâche DAG terminée : [{data.get('agent', '')}] {data.get('status', '')}"
         if name == "dag.completed":
             return f"Graphe multi-agents (DAG) achevé ({data.get('status', 'terminé')})."
+        if name in {"agent_mode.changed", "AGENT_MODE_CHANGED"}:
+            return f"Mode agent : {str(data.get('mode', '')).upper()} (max {data.get('max_parallel_agents', 1)} agent(s) simultané(s))."
+        if name in {"llm.request_queued", "LLM_REQUEST_QUEUED"}:
+            return f"⏳ {data.get('agent', 'Agent')} en attente dans la file ({data.get('queued_calls', 1)} en attente)…"
+        if name in {"llm.request_started", "LLM_REQUEST_STARTED"}:
+            return f"Appel LLM lancé ({data.get('provider', '')}) par {data.get('agent', '')}."
+        if name in {"llm.request_completed", "LLM_REQUEST_COMPLETED"}:
+            return f"Appel LLM achevé avec succès ({data.get('provider', '')})."
+        if name in {"llm.rate_limited", "LLM_RATE_LIMITED"}:
+            return f"Rate limit détecté sur {data.get('provider', '')} (erreur 429)."
+        if name in {"llm.retry_scheduled", "LLM_RETRY_SCHEDULED"}:
+            delay = data.get('delay_seconds', 0)
+            return f"⏳ {data.get('agent', 'Agent')} en attente — Rate limit {data.get('provider', '')} — retry dans {delay:.1f} s"
+        if name in {"llm.circuit_open", "LLM_CIRCUIT_OPEN"}:
+            return f"Circuit Breaker OUVERT sur {data.get('provider', '')} : cooldown de {data.get('cooldown_seconds', 60)} s."
+        if name in {"llm.circuit_closed", "LLM_CIRCUIT_CLOSED"}:
+            return f"Circuit Breaker FERMÉ sur {data.get('provider', '')} : rétablissement normal."
         return name

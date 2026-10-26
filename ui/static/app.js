@@ -12,6 +12,10 @@
   "use strict";
 
   const ICONS = {
+    brain: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.04"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.04"/></svg>',
+    chatMode: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>',
+    monoAgent: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="3"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" y1="16" x2="8.01" y2="16" stroke-width="2.5"></line><line x1="16" y1="16" x2="16.01" y2="16" stroke-width="2.5"></line></svg>',
+    multiAgent: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.04"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.04"/></svg>',
     sun: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>',
     moon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>',
     check: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>',
@@ -255,6 +259,20 @@
           }
           if (parsed.event === "APPROVAL_REQUIRED") {
             refreshApprovals();
+          }
+          if ([
+            "AGENT_MODE_CHANGED", "LLM_REQUEST_QUEUED", "LLM_REQUEST_STARTED",
+            "LLM_REQUEST_COMPLETED", "LLM_RATE_LIMITED", "LLM_RETRY_SCHEDULED",
+            "LLM_CIRCUIT_OPEN", "LLM_CIRCUIT_CLOSED"
+          ].includes(parsed.event)) {
+            apiGet("/api/execution/config").then((cfg) => {
+              if (state.appState && cfg && cfg.mode) {
+                state.appState.execution = cfg;
+                if (state.rightPanelMode === "inspector" && state.inspectorTab === "model") {
+                  renderInspector();
+                }
+              }
+            }).catch(() => {});
           }
           updateTopTaskStatusFromEvent(parsed);
           if (state.rightPanelMode === "inspector" && state.inspectorTab === "activity") {
@@ -1980,6 +1998,42 @@
       skillSel.innerHTML = skillOpts.join("");
     }
 
+    const currentExecMode = (s.execution && s.execution.mode) || state.executionMode || (state.deepReflection ? "multi" : "mono");
+    const isMulti = currentExecMode === "multi";
+    const isChat = currentExecMode === "chat";
+    state.executionMode = currentExecMode;
+    state.deepReflection = isMulti;
+
+    const chatBtn = document.getElementById("btn-direct-chat");
+    if (chatBtn) {
+      chatBtn.classList.toggle("active", isChat);
+      chatBtn.setAttribute("aria-pressed", isChat ? "true" : "false");
+      chatBtn.removeAttribute("title");
+      chatBtn.setAttribute(
+        "data-tooltip",
+        isChat
+          ? "Chat direct actif (Sans agent · 0 surcoût tokens)"
+          : "Activer le chat direct (Sans agent · Économie de tokens)"
+      );
+    }
+
+    const deepBtn = document.getElementById("btn-deep-reflection");
+    if (deepBtn) {
+      deepBtn.classList.toggle("active", isMulti);
+      deepBtn.setAttribute("aria-pressed", isMulti ? "true" : "false");
+      deepBtn.removeAttribute("title");
+      deepBtn.setAttribute(
+        "data-tooltip",
+        isMulti
+          ? "Réflexion approfondie activée (Multi-Agents)"
+          : "Activer la réflexion approfondie (Multi-Agents)"
+      );
+      const iconSpan = deepBtn.querySelector(".deep-reflection-icon");
+      if (iconSpan && !iconSpan.querySelector("svg")) {
+        iconSpan.innerHTML = ICONS.brain;
+      }
+    }
+
     const modeSel = document.getElementById("composer-mode-select");
     if (modeSel && s.mode) {
       modeSel.value = s.mode.current;
@@ -2372,14 +2426,6 @@ function switchRightPanelMode(mode) {
       docObj.companionPdf = `${stem}.pdf`;
       docObj.companionDocx = cleanPath;
       docObj.viewMode = docSpec.viewMode || "word";
-      try {
-        const fileData = await apiGet(`/api/files/content?path=${encodeURIComponent(cleanPath)}`);
-        docObj.size_bytes = fileData.size_bytes;
-      } catch (_) {}
-    } else if (type === "docx") {
-      const stem = cleanPath.replace(/\.docx$/i, "");
-      docObj.companionPdf = `${stem}.pdf`;
-      docObj.companionDocx = cleanPath;
       try {
         const fileData = await apiGet(`/api/files/content?path=${encodeURIComponent(cleanPath)}`);
         docObj.size_bytes = fileData.size_bytes;
@@ -3306,7 +3352,11 @@ function switchRightPanelMode(mode) {
     if (isWordView && htmlFrame) {
       htmlFrame.style.display = "block";
       const targetDocx = doc.companionDocx || doc.path;
-      htmlFrame.src = `/api/preview/workspace/${targetDocx.split("/").map(encodeURIComponent).join("/")}?t=${Date.now()}`;
+      const targetSrc = `/api/preview/workspace/${targetDocx.split("/").map(encodeURIComponent).join("/")}?t=${Date.now()}`;
+      if (htmlFrame.getAttribute("data-doc-path") !== targetDocx) {
+        htmlFrame.setAttribute("data-doc-path", targetDocx);
+        htmlFrame.src = targetSrc;
+      }
     } else if (isPdfView && pdfViewer) {
       pdfViewer.style.display = "flex";
       const targetPdf = doc.companionPdf || doc.path;
@@ -3489,6 +3539,114 @@ function switchRightPanelMode(mode) {
   // -------------------------------------------------------------------------
   // 8. RIGHT INSPECTOR TECHNIQUE (100 % ICÔNES VECTORIELLES & LIGNES ÉPURÉES)
   // -------------------------------------------------------------------------
+  window.toggleDirectChat = async function () {
+    const currentMode = (state.appState && state.appState.execution && state.appState.execution.mode) || state.executionMode || "mono";
+    const newMode = currentMode === "chat" ? "mono" : "chat";
+    state.executionMode = newMode;
+    state.deepReflection = (newMode === "multi");
+
+    // Ouvre et sélectionne immédiatement l'onglet Modèle dans la barre latérale droite
+    state.inspectorTab = "model";
+    switchRightPanelMode("inspector");
+
+    await window.setAgentExecutionMode(newMode);
+    showStatusBanner(
+      newMode === "chat"
+        ? "Mode Chat direct activé (Sans agent — Économie maximale de tokens)."
+        : "Mode Mono-Agent (standard séquentiel) activé.",
+      "info"
+    );
+  };
+
+  window.toggleDeepReflection = async function () {
+    const currentMode = (state.appState && state.appState.execution && state.appState.execution.mode) || state.executionMode || "mono";
+    const newMode = currentMode === "multi" ? "mono" : "multi";
+    state.executionMode = newMode;
+    state.deepReflection = (newMode === "multi");
+
+    // Ouvre et sélectionne immédiatement l'onglet Modèle dans la barre latérale droite
+    state.inspectorTab = "model";
+    switchRightPanelMode("inspector");
+
+    await window.setAgentExecutionMode(newMode);
+    showStatusBanner(
+      newMode === "multi"
+        ? "Mode Réflexion Approfondie (Multi-Agents) activé dans la barre latérale."
+        : "Mode Mono-Agent (prudent) activé.",
+      "info"
+    );
+  };
+
+  window.setAgentExecutionMode = async function (mode) {
+    try {
+      const isMulti = mode === "multi";
+      const isChat = mode === "chat";
+      state.executionMode = mode;
+      state.deepReflection = isMulti;
+
+      // Synchronisation directe des boutons dans le compositeur
+      const deepBtn = document.getElementById("btn-deep-reflection");
+      if (deepBtn) {
+        deepBtn.classList.toggle("active", isMulti);
+        deepBtn.setAttribute("aria-pressed", isMulti ? "true" : "false");
+        deepBtn.removeAttribute("title");
+        deepBtn.setAttribute(
+          "data-tooltip",
+          isMulti
+            ? "Réflexion approfondie activée (Multi-Agents)"
+            : "Activer la réflexion approfondie (Multi-Agents)"
+        );
+      }
+
+      const chatBtn = document.getElementById("btn-direct-chat");
+      if (chatBtn) {
+        chatBtn.classList.toggle("active", isChat);
+        chatBtn.setAttribute("aria-pressed", isChat ? "true" : "false");
+        chatBtn.removeAttribute("title");
+        chatBtn.setAttribute(
+          "data-tooltip",
+          isChat
+            ? "Chat direct actif (Sans agent · 0 surcoût tokens)"
+            : "Activer le chat direct (Sans agent · Économie de tokens)"
+        );
+      }
+
+      const currParallel = (state.appState && state.appState.execution && state.appState.execution.max_parallel_agents) || 2;
+      const targetParallel = isMulti ? (currParallel > 1 ? currParallel : 2) : 1;
+      const res = await apiPost("/api/execution/mode", {
+        mode: mode,
+        max_parallel_agents: targetParallel,
+      });
+      if (res && res.execution && state.appState) {
+        state.appState.execution = res.execution;
+        renderComposerControls();
+        renderInspector();
+      } else {
+        await refreshFullState();
+      }
+    } catch (err) {
+      showStatusBanner(`Erreur changement de mode : ${err.message}`, "error");
+    }
+  };
+
+  window.setAgentConcurrency = async function (count) {
+    try {
+      const num = parseInt(count, 10);
+      if (isNaN(num) || num < 1) return;
+      const res = await apiPost("/api/execution/config", {
+        max_parallel_agents: num,
+      });
+      if (res && res.execution && state.appState) {
+        state.appState.execution = res.execution;
+        renderInspector();
+      } else {
+        await refreshFullState();
+      }
+    } catch (err) {
+      showStatusBanner(`Erreur réglage agents simultanés : ${err.message}`, "error");
+    }
+  };
+
   function renderInspector() {
     const body = document.getElementById("inspector-body");
     if (!body || !state.appState) return;
@@ -3575,6 +3733,31 @@ function switchRightPanelMode(mode) {
     const avail = compat.available_skills || [];
     const unavail = compat.unavailable_skills || [];
 
+    const exec = s.execution || {};
+    const execMode = exec.mode || "mono";
+    const maxParallel = Number(exec.max_parallel_agents || 1);
+    const activeCalls = Number(exec.active_calls || 0);
+    const queuedCalls = Number(exec.queued_calls || 0);
+    const total429 = Number(exec.total_recent_429 || 0);
+    const providerName = (chain.provider || (model ? model.provider : "") || "Gemini").toUpperCase();
+    const modelDisplayName = model ? model.display_name.split(" (")[0] : "Gemini Flash Lite";
+
+    const circuits = exec.provider_circuits || {};
+    let isCoolingDown = false;
+    let cooldownRemaining = 0;
+    let coolingProvider = "";
+    for (const [pname, pinfo] of Object.entries(circuits)) {
+      if (pinfo && pinfo.is_cooling_down) {
+        isCoolingDown = true;
+        cooldownRemaining = Math.max(cooldownRemaining, Math.round(pinfo.cooldown_remaining_seconds || 0));
+        coolingProvider = pname.toUpperCase();
+      }
+    }
+    const cooldownDisplay = isCoolingDown ? `${cooldownRemaining}s` : "aucun";
+    const showWaitingBanner = queuedCalls > 0 || isCoolingDown;
+    const bannerAgentName = coolingProvider || providerName || "LLM";
+    const bannerSeconds = cooldownRemaining > 0 ? cooldownRemaining : 2;
+
     const capsObj = (model && model.capabilities) || {};
     const fmtCtx = capsObj.context
       ? capsObj.context >= 1000000
@@ -3594,6 +3777,112 @@ function switchRightPanelMode(mode) {
     ];
 
     return `
+      <button type="button" class="model-line" data-open-model-modal>
+        <span>Modèle actif</span>
+        <span class="model-line-value">${esc(compat.selection_mode === "auto" ? "Auto" : model ? model.display_name.split(" (")[0] : "—")} ${ICONS.chevronRight}</span>
+      </button>
+
+      <div class="inspector-card execution-cockpit-card">
+        <div class="inspector-card-title">
+          <span>Mode d'exécution & Rate Limiter</span>
+          <span class="meta-chip ${execMode === "chat" ? "neutral" : (execMode === "mono" ? "secondary" : "accent")}">${execMode === "chat" ? "CHAT DIRECT" : (execMode === "mono" ? "MONO-AGENT" : "MULTI-AGENT")}</span>
+        </div>
+
+        <div style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.04em;">MODE D'EXÉCUTION</div>
+        <div class="execution-mode-selector">
+          <label class="execution-mode-option ${execMode === "chat" ? "selected" : ""}" data-set-execution-mode="chat">
+            <input type="radio" name="cockpit_mode_radio" value="chat" ${execMode === "chat" ? "checked" : ""} data-set-execution-mode="chat">
+            <div class="exec-mode-label">
+              <div class="exec-mode-title-row">
+                <div class="exec-mode-title-wrap">
+                  <span class="exec-mode-icon chat-icon-badge">${ICONS.chatMode}</span>
+                  <span class="exec-mode-title">Chat direct (Sans agent)</span>
+                </div>
+                <span class="exec-mode-badge token-eco">Économie tokens</span>
+              </div>
+              <span class="exec-mode-desc">Discussion directe avec Gemini · 0 outil · 0 surcoût</span>
+            </div>
+          </label>
+          <label class="execution-mode-option ${execMode === "mono" ? "selected" : ""}" data-set-execution-mode="mono">
+            <input type="radio" name="cockpit_mode_radio" value="mono" ${execMode === "mono" ? "checked" : ""} data-set-execution-mode="mono">
+            <div class="exec-mode-label">
+              <div class="exec-mode-title-row">
+                <div class="exec-mode-title-wrap">
+                  <span class="exec-mode-icon mono-icon-badge">${ICONS.monoAgent}</span>
+                  <span class="exec-mode-title">Mono-Agent</span>
+                </div>
+                <span class="exec-mode-badge default-pill">Par défaut</span>
+              </div>
+              <span class="exec-mode-desc">1 agent séquentiel complet (Free Tier recommandé)</span>
+            </div>
+          </label>
+          <label class="execution-mode-option ${execMode === "multi" ? "selected" : ""}" data-set-execution-mode="multi">
+            <input type="radio" name="cockpit_mode_radio" value="multi" ${execMode === "multi" ? "checked" : ""} data-set-execution-mode="multi">
+            <div class="exec-mode-label">
+              <div class="exec-mode-title-row">
+                <div class="exec-mode-title-wrap">
+                  <span class="exec-mode-icon multi-icon-badge">${ICONS.multiAgent}</span>
+                  <span class="exec-mode-title">Multi-Agent</span>
+                </div>
+                <span class="exec-mode-badge multi-pill">DAG</span>
+              </div>
+              <span class="exec-mode-desc">DAG asynchrone borné (${maxParallel} agents max)</span>
+            </div>
+          </label>
+        </div>
+
+        <div class="execution-concurrency-row">
+          <div class="concurrency-label-wrap">
+            <span class="concurrency-title">Agents simultanés</span>
+            <span class="concurrency-hint">${execMode === "chat" ? "Désactivé en Chat direct (aucun agent)" : (execMode === "mono" ? "1 = très prudent (verrouillé en Mono)" : "Limite stricte de concurrence")}</span>
+          </div>
+          <select class="concurrency-select" data-set-execution-concurrency ${execMode !== "multi" ? "disabled" : ""}>
+            <option value="1" ${maxParallel === 1 ? "selected" : ""}>1 (très prudent)</option>
+            <option value="2" ${maxParallel === 2 ? "selected" : ""}>2 (Free Tier recommandé)</option>
+            <option value="3" ${maxParallel === 3 ? "selected" : ""}>3 (équilibré)</option>
+            <option value="4" ${maxParallel >= 4 ? "selected" : ""}>4+ (quotas suffisants)</option>
+          </select>
+        </div>
+
+        <div class="cockpit-telemetry-grid">
+          <div class="telemetry-item">
+            <span class="tel-label">Provider</span>
+            <span class="tel-val" title="${esc(providerName)}">${esc(providerName)}</span>
+          </div>
+          <div class="telemetry-item">
+            <span class="tel-label">Modèle</span>
+            <span class="tel-val" title="${esc(modelDisplayName)}">${esc(modelDisplayName)}</span>
+          </div>
+          <div class="telemetry-item">
+            <span class="tel-label">Agents actifs</span>
+            <span class="tel-val ${activeCalls > 0 ? "highlight-active" : ""}">${execMode === "chat" ? "0 / 0 (Chat direct)" : `${activeCalls} / ${execMode === "mono" ? 1 : maxParallel}`}</span>
+          </div>
+          <div class="telemetry-item">
+            <span class="tel-label">Appels en attente</span>
+            <span class="tel-val ${queuedCalls > 0 ? "highlight-queued" : ""}">${queuedCalls}</span>
+          </div>
+          <div class="telemetry-item">
+            <span class="tel-label">429 récents</span>
+            <span class="tel-val ${total429 > 0 ? "highlight-warning" : ""}">${total429}</span>
+          </div>
+          <div class="telemetry-item">
+            <span class="tel-label">Cooldown</span>
+            <span class="tel-val ${isCoolingDown ? "highlight-cooldown" : ""}">${esc(cooldownDisplay)}</span>
+          </div>
+        </div>
+
+        ${
+          showWaitingBanner
+            ? `
+          <div class="telemetry-waiting-banner">
+            <span style="font-size:14px;">⏳</span>
+            <span><strong>[${esc(bannerAgentName)}]</strong> en attente — Rate limit [${esc(providerName)}] — retry dans ${bannerSeconds} s</span>
+          </div>
+        `
+            : ""
+        }
+      </div>
+
       <button type="button" class="model-line" data-open-model-modal>
         <span>Modèle actif</span>
         <span class="model-line-value">${esc(compat.selection_mode === "auto" ? "Auto" : model ? model.display_name.split(" (")[0] : "—")} ${ICONS.chevronRight}</span>
@@ -4410,7 +4699,7 @@ function switchRightPanelMode(mode) {
     }
   }
 
-  function renderModelPickerModal() {
+    function renderModelPickerModal() {
     const body = document.getElementById("modal-model-body");
     if (!body || !state.appState) return;
     const s = state.appState;
@@ -4418,70 +4707,155 @@ function switchRightPanelMode(mode) {
 
     const fmtCtx = (n) => {
       n = Number(n) || 0;
-      return n >= 1e6 ? `${Math.round(n / 1e5) / 10}M` : n >= 1e3 ? `${Math.round(n / 1e3)}k` : "";
-    };
-    const family = (m) => {
-      const t = `${m.id} ${m.display_name}`.toLowerCase();
-      if (/gpt|openai/.test(t)) return "OpenAI";
-      if (/mistral/.test(t)) return "Mistral";
-      if (/ollama|qwen/.test(t)) return "Local";
-      if (/claude/.test(t)) return "Anthropic";
-      return "Google";
-    };
-    const KEEP = {
-      Vision: "Vision",
-      "Function Calling": "Outils",
-      "Google Search Grounding": "Web",
-      Raisonnement: "Raisonnement",
+      if (n >= 1000000) return `${Math.round(n / 100000) / 10}M tokens`;
+      if (n >= 1000) return `${Math.round(n / 1000)}k tokens`;
+      return n > 0 ? `${n} tokens` : "";
     };
 
-    const row = (id, name, sub, selected, warn, tip) => `
-      <div class="mp-row ${selected ? "selected" : ""}" data-pick-model="${esc(id)}" data-q="${esc((name + " " + id).toLowerCase())}" title="${esc(tip || "")}">
-        <span class="mp-main">
-          <span class="mp-name">${esc(name)}</span>
-          ${sub ? `<span class="mp-sub ${warn ? "warn" : ""}">${esc(sub)}</span>` : ""}
-        </span>
-        <span class="mp-check">${selected ? ICONS.check : ""}</span>
-      </div>`;
+    const getProviderFamily = (m) => {
+      const fam = (m.provider_family || "").toLowerCase();
+      const txt = `${m.id} ${m.display_name} ${m.provider_class || ""}`.toLowerCase();
+      if (fam === "gemini" || /gemini|google/.test(txt)) return "Google DeepMind";
+      if (fam === "openai" || /gpt|openai/.test(txt)) return "OpenAI";
+      if (fam === "mistral" || /mistral/.test(txt)) return "Mistral AI";
+      if (fam === "ollama" || /ollama|qwen|local/.test(txt)) return "Modèles Locaux (Ollama)";
+      if (fam === "claude" || /claude|anthropic/.test(txt)) return "Anthropic";
+      return "Autres Modèles";
+    };
+
+    const getProviderIcon = (group) => {
+      if (group === "Google DeepMind") {
+        return `<svg class="cap-svg" style="color:#4285F4;" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 14.93V17a1 1 0 0 1-2 0v-.07A7.003 7.003 0 0 1 5.07 11H7a1 1 0 0 1 0-2H5.07A7.003 7.003 0 0 1 11 5.07V7a1 1 0 0 1 2 0V5.07A7.003 7.003 0 0 1 18.93 11H17a1 1 0 0 1 0 2h1.93A7.003 7.003 0 0 1 13 16.93z"/></svg>`;
+      }
+      if (group === "OpenAI") {
+        return `<svg class="cap-svg" style="color:#10A37F;" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>`;
+      }
+      if (group === "Mistral AI") {
+        return `<svg class="cap-svg" style="color:#F36B28;" viewBox="0 0 24 24"><path d="M3 3h4v18H3zm7 5h4v13h-4zm7-3h4v16h-4z"/></svg>`;
+      }
+      if (group === "Modèles Locaux (Ollama)") {
+        return `<svg class="cap-svg" style="color:#8B5CF6;" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`;
+      }
+      return `<svg class="cap-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>`;
+    };
+
+    const renderCard = (m) => {
+      const isSelected = currentId === m.id;
+      const isConnected = m.connected !== false;
+      const caps = m.capabilities || {};
+      const ctxText = fmtCtx(caps.context);
+      const cleanName = (m.display_name || m.id).split(" (")[0];
+      const modelId = m.model_name || m.id;
+      const groupName = getProviderFamily(m);
+      const searchTerms = `${cleanName} ${modelId} ${groupName} ${ctxText} ${caps.vision ? "vision" : ""} ${caps.tools ? "outils tools" : ""} ${caps.web_grounding ? "web" : ""} ${caps.reasoning ? "raisonnement" : ""}`.toLowerCase();
+
+      return `
+        <div class="mp-model-card ${isSelected ? "is-selected" : ""} ${!isConnected ? "is-disconnected" : ""}" data-pick-model="${esc(m.id)}" data-q="${esc(searchTerms)}">
+          <div class="mp-card-header">
+            <div class="mp-card-title-wrap">
+              <span class="mp-provider-icon">${getProviderIcon(groupName)}</span>
+              <span class="mp-model-display-name">${esc(cleanName)}</span>
+              <span class="mp-model-id mono">${esc(modelId)}</span>
+            </div>
+            <div class="mp-card-badges">
+              ${
+                isConnected
+                  ? `<span class="mp-status-pill online"><span class="dot"></span> ${esc(m.status_label || "Disponible")}</span>`
+                  : `<span class="mp-status-pill offline"><span class="dot"></span> ${esc(m.status_label || "Non configuré")}</span>`
+              }
+              ${isSelected ? `<span class="mp-selected-badge">${ICONS.check} Actif</span>` : ""}
+            </div>
+          </div>
+
+          <div class="mp-caps-strip">
+            ${ctxText ? `<span class="mp-cap-tag mono highlight" title="Fenêtre de contexte maximale">${esc(ctxText)}</span>` : ""}
+            ${caps.reasoning ? `<span class="mp-cap-tag active" title="Raisonnement structuré"><svg class="cap-svg" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.2 1 2.3h6c0-1.1.4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg> Raisonnement</span>` : ""}
+            ${caps.vision ? `<span class="mp-cap-tag active" title="Vision & analyse d'images multimodale"><svg class="cap-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/></svg> Vision</span>` : ""}
+            ${caps.tools ? `<span class="mp-cap-tag active" title="Appel d'outils / Function Calling"><svg class="cap-svg" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg> Outils</span>` : ""}
+            ${caps.web_grounding ? `<span class="mp-cap-tag active" title="Recherche Web Google en temps réel"><svg class="cap-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> Web direct</span>` : ""}
+            ${caps.structured_output ? `<span class="mp-cap-tag passive" title="JSON structuré garanti"><svg class="cap-svg" viewBox="0 0 24 24"><rect width="18" height="18" rx="2"/><path d="M8 7h8M8 12h8M8 17h5"/></svg> JSON</span>` : ""}
+            ${caps.streaming ? `<span class="mp-cap-tag passive" title="Streaming token par token"><svg class="cap-svg" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg> Streaming</span>` : ""}
+          </div>
+          ${!isConnected && m.status_detail ? `<div style="font-size:11px; color:var(--warning); margin-top:1px;">⚠️ ${esc(m.status_detail)}</div>` : ""}
+        </div>
+      `;
+    };
 
     const groups = {};
+    const groupOrder = ["Google DeepMind", "OpenAI", "Mistral AI", "Modèles Locaux (Ollama)", "Anthropic", "Autres Modèles"];
+
     (s.models || []).forEach((m) => {
-      const caps = (m.capability_labels || []).map((c) => KEEP[c]).filter(Boolean);
-      const ctx = fmtCtx(m.capabilities && m.capabilities.context);
-      const parts = [ctx ? `${ctx} tokens` : "", ...caps].filter(Boolean);
-      const sub = m.connected === false ? m.status_label || "Indisponible" : parts.join(" · ");
-      (groups[family(m)] = groups[family(m)] || []).push(
-        row(m.id, m.display_name.split(" (")[0], sub, currentId === m.id, m.connected === false, m.status_detail)
-      );
+      const g = getProviderFamily(m);
+      groups[g] = groups[g] || [];
+      groups[g].push(renderCard(m));
     });
 
-    body.innerHTML = `
-      <input id="model-picker-search" type="search" class="mp-search" placeholder="Rechercher un modèle" autocomplete="off" />
-      ${row("auto", "Auto", "Choisit le meilleur modèle pour chaque tâche", currentId === "auto", false, "")}
-      ${["Google", "OpenAI", "Mistral", "Local", "Anthropic"]
-        .filter((g) => groups[g])
-        .map((g) => `<div class="mp-group">${g}</div>${groups[g].join("")}`)
-        .join("")}
+    const isAutoSelected = currentId === "auto";
+    const autoCardHtml = `
+      <div class="mp-model-card ${isAutoSelected ? "is-selected" : ""}" data-pick-model="auto" data-q="auto automatique routage selection dynamique">
+        <div class="mp-card-header">
+          <div class="mp-card-title-wrap">
+            <span class="mp-provider-icon">✨</span>
+            <span class="mp-model-display-name">Routage Automatique (ModelRouter)</span>
+            <span class="mp-model-id mono">Dynamique</span>
+          </div>
+          <div class="mp-card-badges">
+            <span class="mp-status-pill online"><span class="dot"></span> Recommandé</span>
+            ${isAutoSelected ? `<span class="mp-selected-badge">${ICONS.check} Actif</span>` : ""}
+          </div>
+        </div>
+        <div class="mp-caps-strip">
+          <span class="mp-cap-tag highlight">Multi-Fournisseurs</span>
+          <span class="mp-cap-tag active">Sélectionne le meilleur modèle selon la complexité et les quotas</span>
+        </div>
+      </div>
     `;
 
-    const search = body.querySelector("#model-picker-search");
-    search.addEventListener("input", () => {
-      const q = search.value.trim().toLowerCase();
-      let header = null;
-      let seen = false;
-      Array.from(body.children).forEach((el) => {
-        if (el.classList.contains("mp-group")) {
-          if (header) header.style.display = seen ? "" : "none";
-          header = el;
-          seen = false;
-        } else if (el.classList.contains("mp-row")) {
-          const ok = !q || el.dataset.q.includes(q);
-          el.style.display = ok ? "" : "none";
-          if (ok) seen = true;
-        }
+    body.innerHTML = `
+      <div class="mp-modal-container">
+        <div class="mp-search-wrap">
+          <svg class="mp-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input id="model-picker-search" type="search" class="mp-search-input" placeholder="Rechercher par modèle, fournisseur ou capacité (ex: vision, web, 1M)..." autocomplete="off" />
+        </div>
+
+        ${autoCardHtml}
+
+        ${groupOrder
+          .filter((g) => groups[g] && groups[g].length > 0)
+          .map((g) => `
+            <div class="mp-group-title">${esc(g)} (${groups[g].length})</div>
+            ${groups[g].join("")}
+          `)
+          .join("")}
+      </div>
+    `;
+
+    const searchInput = body.querySelector("#model-picker-search");
+    if (searchInput) {
+      searchInput.addEventListener("input", () => {
+        const query = searchInput.value.trim().toLowerCase();
+        const cards = body.querySelectorAll(".mp-model-card");
+        cards.forEach((card) => {
+          const qData = card.getAttribute("data-q") || "";
+          card.style.display = !query || qData.includes(query) ? "" : "none";
+        });
+
+        // Hide empty group headers
+        const groupTitles = body.querySelectorAll(".mp-group-title");
+        groupTitles.forEach((header) => {
+          let next = header.nextElementSibling;
+          let hasVisible = false;
+          while (next && !next.classList.contains("mp-group-title")) {
+            if (next.classList.contains("mp-model-card") && next.style.display !== "none") {
+              hasVisible = true;
+              break;
+            }
+            next = next.nextElementSibling;
+          }
+          header.style.display = hasVisible ? "" : "none";
+        });
       });
-      if (header) header.style.display = seen ? "" : "none";
-    });
+    }
   }
 
   async function runGlobalSearch(query) {
@@ -4703,10 +5077,14 @@ function switchRightPanelMode(mode) {
 
       const activeCid =
         (state.appState && state.appState.active_conversation && state.appState.active_conversation.id) || "";
+      const currentExecMode = (state.appState && state.appState.execution && state.appState.execution.mode) || state.executionMode || (state.deepReflection ? "multi" : "mono");
+      const effectiveMode = currentExecMode === "chat" ? "chat" : (currentExecMode === "multi" || state.deepReflection ? "multi" : "mono");
       const runData = await apiPost("/api/tasks/run", {
         prompt: promptText.trim(),
         attachments: attachments,
         conversation_id: activeCid,
+        deep_reflection: effectiveMode === "multi",
+        execution_mode: effectiveMode,
       });
       await drainTypewriter(1500);
       const scKeep = document.getElementById("workspace-scroll");
@@ -5135,6 +5513,14 @@ openDocumentPreview({
     }
 
     // Supprimer TOUS les fichiers du workspace (onglet Fichiers)
+    
+    document.body.addEventListener("change", (e) => {
+      const target = e.target;
+      if (target && target.hasAttribute("data-set-execution-concurrency")) {
+        window.setAgentConcurrency(target.value);
+      }
+    });
+
     document.body.addEventListener("click", async (e) => {
       const btn = e.target.closest("[data-clear-workspace-files]");
       if (!btn || btn.disabled) return;
@@ -5485,6 +5871,24 @@ openDocumentPreview({
       await refreshFullState();
     });
 
+    const deepReflectionBtnEl = document.getElementById("btn-deep-reflection");
+    if (deepReflectionBtnEl) {
+      deepReflectionBtnEl.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        await window.toggleDeepReflection();
+      });
+    }
+
+    const directChatBtnEl = document.getElementById("btn-direct-chat");
+    if (directChatBtnEl) {
+      directChatBtnEl.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        await window.toggleDirectChat();
+      });
+    }
+
     document.getElementById("global-search-input").addEventListener("input", (e) => {
       runGlobalSearch(e.target.value || "");
     });
@@ -5499,10 +5903,44 @@ openDocumentPreview({
     });
 
     document.body.addEventListener("click", async (e) => {
+      const deepBtnClick = e.target.closest("#btn-deep-reflection, .deep-reflection-btn");
+      if (deepBtnClick) {
+        e.preventDefault();
+        e.stopPropagation();
+        await window.toggleDeepReflection();
+        return;
+      }
+
+      const chatBtnClick = e.target.closest("#btn-direct-chat, .direct-chat-btn");
+      if (chatBtnClick) {
+        e.preventDefault();
+        e.stopPropagation();
+        await window.toggleDirectChat();
+        return;
+      }
+
       const target = e.target.closest(
-        "[data-slash-pick], [data-open-doc-preview], [data-compile-tex-path], [data-close-modal], [data-toggle-section], [data-inspector-tab], [data-open-inspector-tab], [data-select-model], [data-pick-model], [data-composer-skill], [data-search-pick-skill], [data-quick-prompt], [data-select-conv], [data-pin-conv], [data-rename-conv], [data-delete-conv], [data-approve-id], [data-preview-file], [data-attach-ws-file], [data-remove-attachment], [data-copy-msg], [data-edit-msg], [data-regen-msg], [data-show-msg-tools], [data-show-msg-sources], [data-export-last], [data-inspect-tool], #btn-close-file-preview, #btn-add-memory, #btn-clear-session-mem, #btn-run-rag-search, #btn-save-settings, #btn-toggle-devmode"
+        "[data-set-execution-mode], #btn-deep-reflection, #btn-direct-chat, .deep-reflection-btn, .direct-chat-btn, [data-slash-pick], [data-open-doc-preview], [data-compile-tex-path], [data-close-modal], [data-toggle-section], [data-inspector-tab], [data-open-inspector-tab], [data-select-model], [data-pick-model], [data-composer-skill], [data-search-pick-skill], [data-quick-prompt], [data-select-conv], [data-pin-conv], [data-rename-conv], [data-delete-conv], [data-approve-id], [data-preview-file], [data-attach-ws-file], [data-remove-attachment], [data-copy-msg], [data-edit-msg], [data-regen-msg], [data-show-msg-tools], [data-show-msg-sources], [data-export-last], [data-inspect-tool], #btn-close-file-preview, #btn-add-memory, #btn-clear-session-mem, #btn-run-rag-search, #btn-save-settings, #btn-toggle-devmode"
       );
       if (!target) return;
+
+      if (target.id === "btn-deep-reflection" || target.closest("#btn-deep-reflection")) {
+        await window.toggleDeepReflection();
+        return;
+      }
+
+      if (target.id === "btn-direct-chat" || target.closest("#btn-direct-chat")) {
+        await window.toggleDirectChat();
+        return;
+      }
+
+      if (target.hasAttribute("data-set-execution-mode")) {
+        const mode = target.getAttribute("data-set-execution-mode");
+        if (mode) {
+          window.setAgentExecutionMode(mode);
+          return;
+        }
+      }
 
       if (target.hasAttribute("data-slash-pick")) {
         const skName = target.getAttribute("data-slash-pick");

@@ -53,6 +53,14 @@ NORMALIZED_EVENT_TYPES = (
     "DAG_NODE_STARTED",
     "DAG_NODE_COMPLETED",
     "DAG_COMPLETED",
+    "AGENT_MODE_CHANGED",
+    "LLM_REQUEST_QUEUED",
+    "LLM_REQUEST_STARTED",
+    "LLM_REQUEST_COMPLETED",
+    "LLM_RATE_LIMITED",
+    "LLM_RETRY_SCHEDULED",
+    "LLM_CIRCUIT_OPEN",
+    "LLM_CIRCUIT_CLOSED",
 )
 
 
@@ -307,6 +315,32 @@ class NormalizedEventBus:
         elif name == "dag.completed":
             norm_type = "DAG_COMPLETED"
             status = "completed" if data.get("status") == "success" else "warning"
+        elif name in {"agent_mode.changed", "AGENT_MODE_CHANGED"}:
+            norm_type = "AGENT_MODE_CHANGED"
+            status = "completed"
+        elif name in {"llm.request_queued", "LLM_REQUEST_QUEUED"}:
+            norm_type = "LLM_REQUEST_QUEUED"
+            status = "running"
+        elif name in {"llm.request_started", "LLM_REQUEST_STARTED"}:
+            norm_type = "LLM_REQUEST_STARTED"
+            status = "running"
+        elif name in {"llm.request_completed", "LLM_REQUEST_COMPLETED"}:
+            norm_type = "LLM_REQUEST_COMPLETED"
+            status = "completed"
+        elif name in {"llm.rate_limited", "LLM_RATE_LIMITED"}:
+            norm_type = "LLM_RATE_LIMITED"
+            status = "warning"
+            error_text = str(data.get("error", "Rate limit 429"))
+        elif name in {"llm.retry_scheduled", "LLM_RETRY_SCHEDULED"}:
+            norm_type = "LLM_RETRY_SCHEDULED"
+            status = "warning"
+        elif name in {"llm.circuit_open", "LLM_CIRCUIT_OPEN"}:
+            norm_type = "LLM_CIRCUIT_OPEN"
+            status = "error"
+            error_text = f"Cooldown {data.get('cooldown_seconds', 60)}s"
+        elif name in {"llm.circuit_closed", "LLM_CIRCUIT_CLOSED"}:
+            norm_type = "LLM_CIRCUIT_CLOSED"
+            status = "completed"
         elif name == "task.stopped":
             norm_type = "TASK_STOPPED"
             status = "cancelled"

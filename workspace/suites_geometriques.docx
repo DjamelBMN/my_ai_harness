@@ -1,0 +1,81 @@
+Cours et Exercices : Les Suites Géométriques
+1. Définition et Vocabulaire
+1.1 Définition par Récurrence
+Une suite réelle  est dite géométrique s’il existe un nombre réel non nul , appelé raison de la suite, tel que chaque terme s’obtienne en multipliant le terme précédent par .
+Formellement, pour tout entier naturel  :
+Le premier terme de la suite est généralement noté  (ou  selon le contexte de l’énoncé).
+1.2 Caractérisation
+Lorsque tous les termes sont non nuls, une suite  est géométrique si et seulement si le quotient de deux termes consécutifs est constant :
+2. Expression Explicite du Terme Général
+2.1 Théorème Fondamental
+Soit  une suite géométrique de premier terme  et de raison . Pour tout entier naturel , le terme général  s’exprime explicitement par :
+Plus généralement, pour tous entiers naturels  et  avec  :
+2.2 Démonstration par Récurrence
+Soit la propriété  définie pour tout .
+Initialisation : Pour , . Donc  est vraie.
+Hérédité : Soit . Supposons  vraie, c’est-à-dire . D’après la relation de récurrence :
+Donc  est vraie.
+Conclusion : Par le principe de récurrence, pour tout entier naturel , . 
+3. Sens de Variation
+Le sens de variation d’une suite géométrique dépend conjointement du signe de son premier terme  et de la position de la raison  par rapport à  et .
+Pour tout  :
+3.1 Synthèse des Variations
+Premier terme 
+Raison 
+Sens de variation de 
+Strictement croissante ()
+Strictement décroissante ()
+Strictement décroissante
+Strictement croissante
+Quelconque
+Constante ()
+Quelconque
+Non monotone (alternée) : le signe change à chaque rang
+4. Comportement Asymptotique et Limites
+4.1 Théorème de la Limite de 
+Soit  un nombre réel :
+Si  :
+Si  :
+Si  (c’est-à-dire ) :
+Si  : La suite  n’admet aucune limite (divergente par oscillation).
+4.2 Limite de la Suite Géométrique 
+Comme , on en déduit immédiatement : - Si , alors  (suite convergente vers 0). - Si  et , alors . - Si  et , alors .
+5. Somme des Termes Consécutifs
+5.1 Théorème de la Somme
+Pour tout réel  et pour tout entier naturel , la somme des puissances consécutives de  est donnée par :
+Par conséquent, pour une suite géométrique  de premier terme  et de raison  :
+5.2 Règle Mnémonique Universelle
+5.3 Démonstration Télescopique
+Écrivons la somme  et multiplions-la par  :
+Soustrayons membre à membre :
+Comme , nous pouvons diviser par  :
+6. Séries Géométriques (Somme Infinie)
+Lorsque , nous avons . La somme infinie (série géométrique convergente) vaut :
+Exemple :
+Soit la somme  Ici  et .
+7. Exercices d’Application Corrigés
+Exercice 1 : Détermination des Caractéristiques
+Soit  une suite géométrique de termes strictement positifs telle que :
+Déterminer la raison  et le premier terme .
+Exprimer  en fonction de .
+Calculer la somme des 10 premiers termes : .
+Corrigé Détaillé :
+Recherche de la raison  : D’après la formule , nous avons :
+Comme , .
+Recherche de  :
+Expression de  :
+Calcul de la somme  : La somme comporte  termes.
+Exercice 2 : Modélisation d’une Décroissance et Seuil
+Un traitement médical administré par injection a une concentration sanguine initiale de . À chaque heure écoulée, l’organisme élimine  de la substance présente dans le sang.
+Montrer que la concentration  au bout de  heures est modélisée par une suite géométrique dont on précisera la raison.
+Exprimer  en fonction de .
+Le traitement cesse d’être efficace lorsque la concentration devient inférieure à . Déterminer le nombre d’heures au bout duquel ce seuil est franchi.
+Corrigé Détaillé :
+Une diminution de  correspond à multiplier par le coefficient multiplicateur :
+Pour tout , .  est donc une suite géométrique de premier terme  et de raison .
+Expression explicite :
+Recherche du seuil  :
+En appliquant la fonction logarithme népérien  (strictement croissante sur ) :
+Or , donc . En divisant par ce nombre négatif, le sens de l’inégalité s’inverse :
+À l’aide d’une calculatrice :
+Le plus petit entier vérifiant cette condition est . Conclusion : Le traitement cessera d’être efficace au bout de 13 heures.

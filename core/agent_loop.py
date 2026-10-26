@@ -205,6 +205,11 @@ class AgentLoop:
                 "ÉVIDENCE INITIALE ISSUE DES OUTILS:\n"
                 + json.dumps(evidence, ensure_ascii=False),
                 (
+                    "MODE RÉFLEXION APPROFONDIE (MULTI-AGENTS) ACTIVÉ :\n"
+                    "- Tu disposes d'un mandat d'orchestrateur. Décompose les problèmes complexes en sous-tâches coordonnées et utilise activement la délégation multi-agents (delegate_to_agent ou delegate_dag) pour confier des sous-missions spécialisées (recherche, conception, implémentation, revue).\n"
+                    "- Synthétise les résultats de chaque agent pour fournir une réponse complète, rigoureuse et de haut niveau."
+                ) if getattr(task, "deep_reflection", False) else "",
+                (
                     "DIRECTIVE STRICTE SUR LA RÉPONSE AU CHAT :\n"
                     "- Réponds UNIQUEMENT et DIRECTEMENT au sujet de la demande de l'utilisateur (l'exercice mathématique complet avec questions et corrigé, ou l'explication demandée).\n"
                     "- NE PARLE JAMAIS de fichiers générés, de noms ou chemins ('workspace/...', '.docx', '.tex', '.pdf'), de compilateur, d'outils appelés (generate_docx, tectonic, pandoc...) ni de vérifications ou d'erreurs.\n"
@@ -403,6 +408,7 @@ class AgentLoop:
                 and (
                     state.intent in ("workflow", "pipeline", "multi_agent")
                     or getattr(task, "enable_dag", False)
+                    or getattr(task, "deep_reflection", False)
                     or any(k in desc_lower for k in ("dag", "graphe", "pipeline", "workflow multi-agents", "décompose en agents"))
                 )
             ):
@@ -638,6 +644,7 @@ class AgentLoop:
                         if hasattr(next_prov, "get_name"):
                             failed_providers_in_turn.add(next_prov.get_name().lower())
 
+                        print("[Orchestrator] Fallback provider utilisé", flush=True)
                         self._emit(
                             f"[PROVIDER FAILOVER] Échec de {provider_name}. "
                             f"Bascule automatique vers le provider disponible : {next_key} ({next_prov.get_name()})."
@@ -1275,4 +1282,3 @@ class AgentLoop:
             {"status": "failed", "checks": [], "summary": message},
             status="failed",
         )
-
