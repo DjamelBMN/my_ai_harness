@@ -1,0 +1,47 @@
+[
+  {
+    "id": "mem-a1d81e82",
+    "category": "rule",
+    "content": "pour les prochaines fois : Toujours répondre en français avec vouvoiement.",
+    "source": "user",
+    "created_at": "2026-10-26T18:05:00.800171+00:00",
+    "linked_resource_id": null,
+    "active": true
+  },
+  {
+    "id": "mem-44caf266",
+    "category": "context",
+    "content": "c'est ma référence principale pour ce projet : derivatives.pdf",
+    "source": "user",
+    "created_at": "2026-10-26T18:05:00.824156+00:00",
+    "linked_resource_id": "lib-f73be546",
+    "active": true
+  },
+  {
+    "id": "mem-8476de2e",
+    "category": "rule",
+    "content": "Toujours structurer les réponses mathématiques avec KaTeX.",
+    "source": "user",
+    "created_at": "2026-10-26T18:27:57.358186+00:00",
+    "linked_resource_id": null,
+    "active": true
+  },
+  {
+    "id": "mem-0a6087a6",
+    "category": "rule",
+    "content": "pour les prochaines fois : Toujours répondre en français avec vouvoiement.",
+    "source": "user",
+    "created_at": "2026-10-26T18:39:59.048482+00:00",
+    "linked_resource_id": null,
+    "active": true
+  },
+  {
+    "id": "mem-77b329f7",
+    "category": "context",
+    "content": "c'est ma référence principale pour ce projet : derivatives.pdf",
+    "source": "user",
+    "created_at": "2026-10-26T18:39:59.058782+00:00",
+    "linked_resource_id": "lib-03792902",
+    "active": true
+  }
+]

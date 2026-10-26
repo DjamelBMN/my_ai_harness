@@ -1,0 +1,76 @@
+% Compiler avec XeLaTeX ou LuaLaTeX
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{amsmath,amssymb}
+\usepackage{fontspec}
+\usepackage{unicode-math}
+\usepackage{polyglossia}
+\setmainlanguage{french}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage[margin=2cm,headheight=16pt,headsep=22pt]{geometry}
+\usepackage{enumitem}
+
+\IfFontExistsTF{Libertinus Serif}
+  {\setmainfont{Libertinus Serif}}
+  {\IfFontExistsTF{Latin Modern Roman}{\setmainfont{Latin Modern Roman}}{\setmainfont{lmroman10-regular.otf}}}
+
+\IfFontExistsTF{Libertinus Math}
+  {\setmathfont{Libertinus Math}}
+  {\IfFontExistsTF{Latin Modern Math}{\setmathfont{Latin Modern Math}}{\setmathfont{latinmodern-math.otf}}}
+
+\linespread{1.07}
+\setlength{\parindent}{0pt}
+\AtBeginDocument{\setlength{\parindent}{0pt}}
+\setlength{\parskip}{0.35em}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Djamel BENMAKHLOUF}
+\rhead{Terminale Spécialité Maths}
+\usepackage{lastpage}
+\cfoot{Page \thepage\ / \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\headrule}{\vskip 5pt\hrule width\headwidth height\headrulewidth \vskip-\headrulewidth}
+
+\setlist[enumerate,1]{itemsep=0.45em, topsep=0.3em, label=\textbf{\arabic*.}}
+\setlist[enumerate,2]{itemsep=0.25em, topsep=0.2em, label=\textbf{\alph*.}}
+
+\newcommand{\exo}[2]{%
+  \vspace{1.5em}%
+  \noindent{\large\textbf{Exercice #1. -- #2}}%
+  \par\vspace{0.35em}%
+  \hrule height 0.5pt%
+  \vspace{0.7em}%
+}
+
+\newcommand{\partie}[1]{%
+  \vspace{0.9em}%
+  \noindent\textbf{#1}%
+  \par\vspace{0.3em}%
+}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE \textbf{Présentation de NeoHarness AI}}\\[0.5em]
+  {\large Terminale Spécialité Mathématiques}
+\end{center}
+
+\exo{1}{Conception et Architecture de NeoHarness AI}
+
+\partie{Partie A -- Origine et Conception}
+
+\begin{enumerate}
+  \item Rappeler qui est le concepteur de NeoHarness AI.
+  \item Expliquer le rôle du système d'orchestration et la distinction entre le concepteur et le modèle moteur utilisé.
+\end{enumerate}
+
+\partie{Partie B -- Correction détaillée}
+
+\begin{enumerate}
+  \item NeoHarness AI a été conçu et développé par Djamel BENMAKHLOUF, professeur de mathématiques, assisté par IA.
+  \item Le harness orchestre différents modèles d'intelligence artificielle utilisés comme moteurs pour faire fonctionner l'agent, sans que le modèle moteur ne soit le concepteur du système.
+\end{enumerate}
+
+\end{document}

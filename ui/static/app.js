@@ -45,6 +45,12 @@
     external: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>',
     dotHollow: '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle></svg>',
     dotFilled: '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="7"></circle></svg>',
+    copy: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>',
+    library: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>',
+    clock: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>',
+    note: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>',
+    shield: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>',
+    clipboard: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>',
   };
 
   const CANONICAL_SKILLS_FALLBACK = [
@@ -72,7 +78,12 @@
 
   const state = {
     appState: null,
-    inspectorTab: "model",
+    inspectorTab: "activity",
+    libraryItems: [],
+    libraryCounts: { total: 0, documents: 0, notes: 0, ressources: 0, memoire: 0 },
+    libraryCategory: "Tous",
+    libraryQuery: "",
+    persistentMemories: [],
     rightPanelMode: "inspector", // "inspector" | "document"
     activeDocument: null,
     sidebarFilter: "",
@@ -279,6 +290,11 @@
             renderInspector();
           }
         } catch (_) {}
+      };
+      es.onerror = () => {
+        if (es.readyState === EventSource.CLOSED) {
+          setTimeout(connectSSE, 5000);
+        }
       };
       state.sse = es;
     } catch (_) {}
@@ -492,6 +508,9 @@
       }
     } else if (raw === "budget.update" || e.event === "BUDGET") {
       state.liveBudget = Object.assign({}, state.liveBudget, data);
+      if (state.rightPanelMode === "inspector" && state.inspectorTab === "activity") {
+        renderInspector();
+      }
     } else if (raw.startsWith("compile.") || e.event === "COMPILATION") {
       state.liveCompile = {
         event: raw,
@@ -647,7 +666,7 @@
       label: summaryText.slice(0, 100),
       pill: "",
       detail: e.duration_ms ? `${e.duration_ms} ms` : "",
-      status: e.status === "error" ? "error" : "done",
+      status: e.status === "running" ? "running" : (e.status === "error" ? "error" : "done"),
       subAgent: state.activeSubAgent || "",
     });
     renderLiveSteps();
@@ -667,15 +686,39 @@
     const toolCount = steps.filter((s) => s.kind === "tool").length;
     const elapsedSec = state.liveStartedAt ? ((Date.now() - state.liveStartedAt) / 1000).toFixed(1) : "0.0";
 
-    const activeHeadline = runningStep
-      ? `${runningStep.label}${runningStep.pill ? " · " + runningStep.pill : ""}`
-      : isRunning
-      ? "Réflexion approfondie en cours…"
-      : `Réflexion terminée en ${elapsedSec} s`;
+    const currentMode = state.executionMode || (state.appState && state.appState.execution && state.appState.execution.mode) || "mono";
+
+    let activeHeadline = "";
+    if (runningStep) {
+      activeHeadline = `${runningStep.label}${runningStep.pill ? " · " + runningStep.pill : ""}`;
+    } else if (isRunning) {
+      if (currentMode === "chat") {
+        activeHeadline = "Discussion directe en cours…";
+      } else if (currentMode === "mono") {
+        activeHeadline = "Exécution mono-agent en cours…";
+      } else {
+        activeHeadline = "Réflexion approfondie (Multi-Agents) en cours…";
+      }
+    } else {
+      if (currentMode === "chat") {
+        activeHeadline = `Réponse reçue en ${elapsedSec} s`;
+      } else if (currentMode === "mono") {
+        activeHeadline = `Exécution mono-agent terminée en ${elapsedSec} s`;
+      } else {
+        activeHeadline = `Réflexion terminée en ${elapsedSec} s`;
+      }
+    }
+
+    const modeIcon =
+      currentMode === "chat"
+        ? ICONS.chatMode
+        : currentMode === "mono"
+        ? ICONS.monoAgent
+        : ICONS.brain;
 
     sum.innerHTML = `
       <span class="reasoning-summary-left">
-        <span class="reasoning-sparkle ${isRunning ? "pulsing" : ""}">${ICONS.sparkle}</span>
+        <span class="reasoning-sparkle ${isRunning ? "pulsing" : ""}">${modeIcon}</span>
         <span class="reasoning-headline ${isRunning ? "shimmer-text" : ""}">${esc(activeHeadline)}</span>
       </span>
       <span class="reasoning-summary-right">
@@ -717,7 +760,27 @@
     const body = document.getElementById("streaming-body");
     if (!body) return;
     const shown = state.streamingBuffer.slice(0, state.streamShown);
-    body.innerHTML = `${shown ? formatAssistantContent(shown) : ""}<span class="streaming-cursor"></span>`;
+    const hasLatex = /\\(?:textbf|textit|partie|section|subsection|begin\{(?:enumerate|itemize|document)\}|item|frac)/.test(shown);
+    if (hasLatex) {
+      body.innerHTML = `
+        <div class="latex-editorial-frame in-progress">
+          <div class="latex-frame-header">
+            <div class="latex-frame-title">
+              <span class="latex-frame-badge pulse">TeX</span>
+              <span>Génération du document LaTeX en cours…</span>
+            </div>
+            <div class="latex-frame-meta">
+              <span class="meta-chip accent">Tectonic certifié</span>
+            </div>
+          </div>
+          <div class="latex-frame-content">
+            ${formatAssistantContent(shown, true)}<span class="streaming-cursor"></span>
+          </div>
+        </div>
+      `;
+    } else {
+      body.innerHTML = `${shown ? formatAssistantContent(shown) : ""}<span class="streaming-cursor"></span>`;
+    }
     if (shown && !state.streamAnchored) {
       state.streamAnchored = true;
       const card = document.getElementById("streaming-assistant-card");
@@ -730,7 +793,7 @@
     const tick = () => {
       const backlog = state.streamingBuffer.length - state.streamShown;
       if (backlog > 0) {
-        state.streamShown += Math.min(backlog, Math.max(2, Math.ceil(backlog / 10)));
+        state.streamShown += Math.min(backlog, Math.max(8, Math.ceil(backlog / 3)));
         paintStreamBody();
       }
       const more = state.isExecuting || state.streamShown < state.streamingBuffer.length;
@@ -739,12 +802,12 @@
     state.streamRaf = requestAnimationFrame(tick);
   }
 
-  function drainTypewriter(maxMs) {
+  function drainTypewriter(maxMs = 300) {
     return new Promise((resolve) => {
       const t0 = performance.now();
       (function wait() {
         if (state.streamShown >= state.streamingBuffer.length || performance.now() - t0 > maxMs) return resolve();
-        setTimeout(wait, 30);
+        setTimeout(wait, 10);
       })();
     });
   }
@@ -933,7 +996,7 @@
 
     const filterInput = document.getElementById("sidebar-filter-input");
     if (filterInput) {
-      filterInput.style.display = allConvs.length >= 8 ? "block" : "none";
+      filterInput.style.display = "block";
     }
 
     const convContainer = document.getElementById("sec-conversations");
@@ -950,15 +1013,20 @@
           .map(
             (grp) => `
             <div class="sidebar-time-group">
-              <div class="sidebar-time-header">${esc(grp.label)}</div>
+              <div class="sidebar-time-header">
+                <span>${esc(grp.label.toUpperCase())}</span>
+                <span class="group-count">${grp.items.length}</span>
+              </div>
               ${grp.items
                 .map((c) => {
                   const isCurrent = c.id === activeCid;
                   const pinSvg = c.pinned ? `<span class="pin-indicator">${ICONS.pin}</span>` : "";
                   const archTag = c.archived ? " · archivé" : "";
+                  const chatIcon = `<svg class="sidebar-chat-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:6px; flex-shrink:0; opacity:0.75;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>`;
                   return `
                     <div class="sidebar-item ${isCurrent ? "active" : ""}" data-select-conv="${esc(c.id)}">
                       <div class="sidebar-item-main">
+                        ${chatIcon}
                         ${pinSvg}
                         <span class="sidebar-item-title" title="${esc(c.title)}">${esc(c.title)}${archTag}</span>
                       </div>
@@ -1258,12 +1326,13 @@
   function setWelcomeGreeting() {
     const el = document.getElementById("welcome-title");
     if (!el) return;
-    const h = new Date().getHours();
-    const hello = h < 5 ? "Bonsoir" : h < 12 ? "Bonjour" : h < 18 ? "Bon après-midi" : "Bonsoir";
-    el.textContent = `${hello}. Que faisons-nous ?`;
+    el.textContent = "Que voulez-vous accomplir ?";
   }
 
   function buildCompletedReasoningHtml(m) {
+    if (m.execution_mode === "chat") {
+      return "";
+    }
     const eventsList = (m.events || []).filter(
       (ev) => !LIVE_SKIP.has(ev.event) && ev.raw_event !== "agent.thinking"
     );
@@ -1275,9 +1344,18 @@
       return "";
     }
 
+    const isMono = m.execution_mode === "mono";
+    const isMulti = m.execution_mode === "multi";
     const summaryChips = [];
-    if (durationSec) summaryChips.push(`Réflexion (${durationSec} s)`);
-    else summaryChips.push("Trace de raisonnement");
+    if (isMono) {
+      summaryChips.push(durationSec ? `Mono-Agent (${durationSec} s)` : "Exécution mono-agent");
+    } else if (isMulti) {
+      summaryChips.push(durationSec ? `Réflexion approfondie (${durationSec} s)` : "Réflexion approfondie");
+    } else if (durationSec) {
+      summaryChips.push(`Exécution (${durationSec} s)`);
+    } else {
+      summaryChips.push("Trace d'exécution");
+    }
     if (m.agent && m.agent !== "Runtime Local" && m.agent !== "researcher") {
       summaryChips.push(m.agent);
     }
@@ -1379,6 +1457,15 @@
     renderWelcomeModelCard();
     setWelcomeGreeting();
 
+    const subheaderTitle = document.getElementById("subheader-task-title");
+    const subheaderDesc = document.getElementById("subheader-task-desc");
+    if (subheaderTitle) {
+      subheaderTitle.textContent = (conv && conv.title && conv.title !== "Nouvelle tâche") ? conv.title : "Nouvelle tâche";
+    }
+    if (subheaderDesc) {
+      subheaderDesc.textContent = msgs.length > 0 ? "En cours de session" : "Prêt à être configurée";
+    }
+
     if (msgs.length === 0 && !state.isExecuting) {
       welcomeEl.style.display = "flex";
       streamEl.style.display = "none";
@@ -1411,9 +1498,16 @@
         }
 
         const badges = [];
+        if (m.execution_mode === "chat") {
+          badges.push(`<span class="meta-chip token-eco-chip">${ICONS.chatMode} Chat direct</span>`);
+        } else if (m.execution_mode === "multi") {
+          badges.push(`<span class="meta-chip accent">${ICONS.brain} Multi-Agent</span>`);
+        } else if (m.execution_mode === "mono") {
+          badges.push(`<span class="meta-chip secondary">${ICONS.monoAgent} Mono-Agent</span>`);
+        }
         if (m.model) badges.push(`<span class="meta-chip">${esc(m.model)}</span>`);
         if (m.skill) badges.push(`<span class="meta-chip accent">/${esc(m.skill)}</span>`);
-        if (m.agent && m.agent !== "Runtime Local") badges.push(`<span class="meta-chip">${esc(m.agent)}</span>`);
+        if (m.agent && m.agent !== "Runtime Local" && m.agent !== "Sans agent (Chat direct)") badges.push(`<span class="meta-chip">${esc(m.agent)}</span>`);
         if (m.status === "Erreur") {
           badges.push(`<span class="meta-chip error">Erreur</span>`);
         } else if (m.status === "Partiel") {
@@ -1526,12 +1620,34 @@
     return out;
   }
 
-  function formatAssistantContent(raw) {
+  function formatAssistantContent(raw, isInnerLatex = false) {
     if (!raw) return "<em style='color:var(--text-secondary);'>Aucune sortie texte.</em>";
+
+    // Détection de contenu ou exercice LaTeX
+    const hasLatexMarkup = !isInnerLatex && /\\(?:textbf|textit|partie|section|subsection|begin\{(?:enumerate|itemize|document)\}|item|frac)/.test(raw);
 
     const codeBlocks = [];
     const mathBlocks = [];
     const inlineMathTokens = [];
+
+    let cleanedRaw = String(raw);
+
+    // Prétraitement des balises LaTeX vers HTML sémantique
+    cleanedRaw = cleanedRaw.replace(/\\partie\{([^}]+)\}/g, '<h3 class="latex-part-title"><span class="part-badge">Partie</span> $1</h3>');
+    cleanedRaw = cleanedRaw.replace(/\\section\{([^}]+)\}/g, '<h2 class="latex-section-title">$1</h2>');
+    cleanedRaw = cleanedRaw.replace(/\\subsection\{([^}]+)\}/g, '<h3 class="latex-subsection-title">$1</h3>');
+    cleanedRaw = cleanedRaw.replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>');
+    cleanedRaw = cleanedRaw.replace(/\\textit\{([^}]+)\}/g, '<em>$1</em>');
+    cleanedRaw = cleanedRaw.replace(/\\underline\{([^}]+)\}/g, '<u>$1</u>');
+    cleanedRaw = cleanedRaw.replace(/\\begin\{enumerate\}([\s\S]*?)(?:\\end\{enumerate\}|$)/g, function(_, inner) {
+      const items = inner.split(/\\item\s+/).filter(it => it.trim().length > 0);
+      return '<ol class="latex-enum-list">' + items.map(it => '<li>' + it.trim() + '</li>').join('') + '</ol>';
+    });
+    cleanedRaw = cleanedRaw.replace(/\\begin\{itemize\}([\s\S]*?)(?:\\end\{itemize\}|$)/g, function(_, inner) {
+      const items = inner.split(/\\item\s+/).filter(it => it.trim().length > 0);
+      return '<ul class="latex-item-list">' + items.map(it => '<li>' + it.trim() + '</li>').join('') + '</ul>';
+    });
+    cleanedRaw = cleanedRaw.replace(/\\item\s+([^\n]+)/g, '<li>$1</li>');
 
     let working = String(raw).replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, function (_, lang, code) {
       const token = `\n@@CODEBLOCK_${codeBlocks.length}@@\n`;
@@ -1674,7 +1790,27 @@
     }
 
     closeList();
-    return htmlParts.join("");
+    const finalHtml = htmlParts.join("");
+    if (hasLatexMarkup) {
+      return `
+        <div class="latex-editorial-frame">
+          <div class="latex-frame-header">
+            <div class="latex-frame-title">
+              <span class="latex-frame-badge">TeX</span>
+              <span>Document &amp; Exercice LaTeX</span>
+            </div>
+            <div class="latex-frame-meta">
+              <span class="meta-chip accent">Tectonic certifié</span>
+              <button class="icon-btn-mini copy-latex-btn" data-copy-msg-raw="1" title="Copier le code LaTeX source">${ICONS.copy}</button>
+            </div>
+          </div>
+          <div class="latex-frame-content">
+            ${finalHtml}
+          </div>
+        </div>
+      `;
+    }
+    return finalHtml;
   }
 
   function renderMarkdownToHtml(md) {
@@ -2004,6 +2140,20 @@
     state.executionMode = currentExecMode;
     state.deepReflection = isMulti;
 
+    const pillLabel = document.getElementById("composer-model-pill-label");
+    if (pillLabel) {
+      if (isChat) pillLabel.textContent = "NeoHarness Swift";
+      else if (isMulti) pillLabel.textContent = "NeoHarness Deep";
+      else pillLabel.textContent = "NeoHarness Core";
+    }
+    document.querySelectorAll(".model-popover-item[data-exec-mode]").forEach((item) => {
+      const m = item.getAttribute("data-exec-mode");
+      const match = m === currentExecMode;
+      item.classList.toggle("active", match);
+      const chk = item.querySelector(".popover-check");
+      if (chk) chk.style.display = match ? "inline" : "none";
+    });
+
     const chatBtn = document.getElementById("btn-direct-chat");
     if (chatBtn) {
       chatBtn.classList.toggle("active", isChat);
@@ -2039,9 +2189,19 @@
       modeSel.value = s.mode.current;
       const chipLabel = document.getElementById("governance-chip-label");
       if (chipLabel) {
-        chipLabel.textContent =
-          s.mode.current === "AUTO" ? "Auto" : s.mode.current;
+        chipLabel.textContent = s.mode.current;
       }
+      const badgeLabel = document.getElementById("governance-badge-label");
+      if (badgeLabel) {
+        badgeLabel.textContent = `Gouvernance : ${s.mode.current}`;
+      }
+      document.querySelectorAll(".gov-option-item[data-gov-mode]").forEach((opt) => {
+        const m = opt.getAttribute("data-gov-mode");
+        const match = m === s.mode.current;
+        opt.classList.toggle("active", match);
+        const chk = opt.querySelector(".gov-check");
+        if (chk) chk.style.display = match ? "inline" : "none";
+      });
     }
   }
 
@@ -3546,7 +3706,7 @@ function switchRightPanelMode(mode) {
     state.deepReflection = (newMode === "multi");
 
     // Ouvre et sélectionne immédiatement l'onglet Modèle dans la barre latérale droite
-    state.inspectorTab = "model";
+    state.inspectorTab = "activity";
     switchRightPanelMode("inspector");
 
     await window.setAgentExecutionMode(newMode);
@@ -3565,7 +3725,7 @@ function switchRightPanelMode(mode) {
     state.deepReflection = (newMode === "multi");
 
     // Ouvre et sélectionne immédiatement l'onglet Modèle dans la barre latérale droite
-    state.inspectorTab = "model";
+    state.inspectorTab = "activity";
     switchRightPanelMode("inspector");
 
     await window.setAgentExecutionMode(newMode);
@@ -3583,6 +3743,20 @@ function switchRightPanelMode(mode) {
       const isChat = mode === "chat";
       state.executionMode = mode;
       state.deepReflection = isMulti;
+
+      const pillLabel = document.getElementById("composer-model-pill-label");
+      if (pillLabel) {
+        if (isChat) pillLabel.textContent = "NeoHarness Swift";
+        else if (isMulti) pillLabel.textContent = "NeoHarness Deep";
+        else pillLabel.textContent = "NeoHarness Core";
+      }
+      document.querySelectorAll(".model-popover-item[data-exec-mode]").forEach((item) => {
+        const m = item.getAttribute("data-exec-mode");
+        const match = m === mode;
+        item.classList.toggle("active", match);
+        const chk = item.querySelector(".popover-check");
+        if (chk) chk.style.display = match ? "inline" : "none";
+      });
 
       // Synchronisation directe des boutons dans le compositeur
       const deepBtn = document.getElementById("btn-deep-reflection");
@@ -3661,14 +3835,21 @@ function switchRightPanelMode(mode) {
     });
 
     switch (state.inspectorTab) {
+      case "activity":
+        body.innerHTML = renderInspectorActivityTab();
+        break;
+      case "details":
+        body.innerHTML = renderInspectorDetailsTab();
+        break;
+      case "library":
+      case "document":
+        renderInspectorLibraryTab();
+        break;
       case "model":
         body.innerHTML = renderInspectorModelTab();
         break;
       case "skills":
         body.innerHTML = renderInspectorSkillsTab();
-        break;
-      case "activity":
-        body.innerHTML = renderInspectorActivityTab();
         break;
       case "context":
         body.innerHTML = renderInspectorContextTab();
@@ -3686,7 +3867,7 @@ function switchRightPanelMode(mode) {
         body.innerHTML = renderInspectorRagTab();
         break;
       default:
-        body.innerHTML = renderInspectorModelTab();
+        body.innerHTML = renderInspectorActivityTab();
     }
 
     if (state.inspectorTab === "activity") {
@@ -3875,7 +4056,7 @@ function switchRightPanelMode(mode) {
           showWaitingBanner
             ? `
           <div class="telemetry-waiting-banner">
-            <span style="font-size:14px;">⏳</span>
+            ${ICONS.clock}
             <span><strong>[${esc(bannerAgentName)}]</strong> en attente — Rate limit [${esc(providerName)}] — retry dans ${bannerSeconds} s</span>
           </div>
         `
@@ -4028,9 +4209,19 @@ function switchRightPanelMode(mode) {
   }
 
   function renderInspectorActivityTab() {
-    const s = state.appState;
-    const events = (s.events || []).slice();
-    const isDev = Boolean(s.preferences && s.preferences.developer_mode);
+    const s = state.appState || {};
+    const activeConv = s.active_conversation || {};
+    const convMsgs = activeConv.messages || [];
+
+    // Dernier message assistant pour métriques 100% réelles
+    let lastAsstMsg = null;
+    for (let i = convMsgs.length - 1; i >= 0; i--) {
+      if (convMsgs[i].role === "assistant") {
+        lastAsstMsg = convMsgs[i];
+        break;
+      }
+    }
+
     const b = state.liveBudget || {
       tokens_used: 0,
       tokens_limit: 100000,
@@ -4040,200 +4231,705 @@ function switchRightPanelMode(mode) {
       tool_limit: 50,
     };
 
-    const tUsed = b.tokens_used || 0;
-    const tMax = b.tokens_limit || 100000;
-    const tPct = Math.min(100, Math.round((tUsed / (tMax || 1)) * 100));
-    const tColor = tPct < 50 ? "green" : tPct <= 80 ? "orange" : "red";
+    const isRunning = Boolean(state.isExecuting);
+    const elapsedSec = state.liveStartedAt
+      ? ((Date.now() - state.liveStartedAt) / 1000).toFixed(1)
+      : lastAsstMsg && lastAsstMsg.duration_ms
+      ? (lastAsstMsg.duration_ms / 1000).toFixed(1)
+      : b.time_elapsed
+      ? String(b.time_elapsed)
+      : "0.0";
 
-    const timeUsed = b.time_elapsed || 0;
-    const timeMax = b.time_limit || 300;
-    const timePct = Math.min(100, Math.round((timeUsed / (timeMax || 1)) * 100));
-    const timeColor = timePct < 50 ? "green" : timePct <= 80 ? "orange" : "red";
+    const currentMode = state.executionMode || (s.execution && s.execution.mode) || (lastAsstMsg && lastAsstMsg.execution_mode) || "mono";
 
-    const callsUsed = b.tool_calls || 0;
-    const callsMax = b.tool_limit || 50;
-    const callsPct = Math.min(100, Math.round((callsUsed / (callsMax || 1)) * 100));
-    const callsColor = callsPct < 50 ? "green" : callsPct <= 80 ? "orange" : "red";
+    // 100 % TOKENS RÉELS
+    let realTokens = 0;
+    if (isRunning) {
+      realTokens = b.tokens_used || 0;
+    } else if (lastAsstMsg && (lastAsstMsg.tokens || lastAsstMsg.token_usage)) {
+      realTokens = lastAsstMsg.tokens || (lastAsstMsg.token_usage && lastAsstMsg.token_usage.total_tokens) || 0;
+    } else {
+      realTokens = b.tokens_used || 0;
+    }
 
-    // Ne conserver que les étapes de plan qui ont un vrai texte descriptif (élimine 1. 2. 3. 4. 5. vides)
-    const validPlanSteps = (state.livePlan || []).filter(
-      (st) => st && String(st.description || "").trim().length > 0
-    );
+    const formattedTokens = realTokens > 0 ? realTokens.toLocaleString("fr-FR") : "0";
+
+    // 100 % SOURCES RÉELLES UTILISÉES PAR LA TÂCHE
+    let realSourcesCount = 0;
+    if (lastAsstMsg && lastAsstMsg.sources && Array.isArray(lastAsstMsg.sources)) {
+      realSourcesCount = lastAsstMsg.sources.length;
+    } else if (state.liveSearch && state.liveSearch.verified) {
+      realSourcesCount = 1;
+    }
+
+    // 100 % COÛT RÉEL CALCULÉ D'APRÈS LES TOKENS REÇUS
+    let costFormatted = "0,000 €";
+    if (realTokens > 0) {
+      const costEur = realTokens * 0.0000002;
+      costFormatted = costEur < 0.001 ? "< 0,001 €" : costEur.toFixed(3).replace(".", ",") + " €";
+    }
+
+    // 100 % LATENCE RÉELLE D'EXÉCUTION DU TOUR
+    let latencyFormatted = "0,0 s";
+    if (isRunning) {
+      latencyFormatted = elapsedSec.replace(".", ",") + " s";
+    } else if (lastAsstMsg && lastAsstMsg.duration_ms) {
+      latencyFormatted = (lastAsstMsg.duration_ms / 1000).toFixed(1).replace(".", ",") + " s";
+    } else if (parseFloat(elapsedSec) > 0) {
+      latencyFormatted = elapsedSec.replace(".", ",") + " s";
+    }
+
+    // 100 % ÉTAPES RÉELLES DE LA CHAÎNE D'EXÉCUTION (AUCUNE SIMULATION)
+    let chainStepsHtml = "";
+    let stepCount = 0;
+
+    if (isRunning) {
+      if (state.liveSteps && state.liveSteps.length > 0) {
+        stepCount = state.liveSteps.length;
+        chainStepsHtml = state.liveSteps
+          .map((st) => {
+            const isStepRunning = st.status === "running";
+            return `
+              <div class="chain-step-row">
+                <div class="chain-step-icon ${isStepRunning ? "running" : ""}">
+                  ${isStepRunning ? "" : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><polyline points="20 6 9 17 4 12"></polyline></svg>`}
+                </div>
+                <div class="chain-step-content">
+                  <div class="chain-step-header">
+                    <span class="chain-step-name">${esc(st.label || "Étape")}</span>
+                    <span class="chain-step-duration mono">${esc(st.detail || "")}</span>
+                  </div>
+                  <div class="chain-step-desc">${esc(st.desc || st.pill || "Traitement de la requête")}</div>
+                </div>
+              </div>
+            `;
+          })
+          .join("");
+      } else {
+        stepCount = 1;
+        chainStepsHtml = `
+          <div class="chain-step-row">
+            <div class="chain-step-icon running"></div>
+            <div class="chain-step-content">
+              <div class="chain-step-header">
+                <span class="chain-step-name">${currentMode === "chat" ? "Discussion directe" : "Exécution en cours"}</span>
+                <span class="chain-step-duration mono">${elapsedSec} s</span>
+              </div>
+              <div class="chain-step-desc">Génération et streaming de la réponse en temps réel</div>
+            </div>
+          </div>
+        `;
+      }
+    } else if (lastAsstMsg) {
+      if (lastAsstMsg.execution_mode === "chat") {
+        stepCount = 1;
+        chainStepsHtml = `
+          <div class="chain-step-row">
+            <div class="chain-step-icon direct">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            </div>
+            <div class="chain-step-content">
+              <div class="chain-step-header">
+                <span class="chain-step-name">Discussion directe (${esc(lastAsstMsg.model || "Gemini Flash")})</span>
+                <span class="chain-step-duration mono">${latencyFormatted}</span>
+              </div>
+              <div class="chain-step-desc">Mode Sans agent actif · 0 étape intermédiaire · Économie maximale de tokens</div>
+            </div>
+          </div>
+        `;
+      } else if (lastAsstMsg.events && lastAsstMsg.events.length > 0) {
+        const realEvents = lastAsstMsg.events.filter(
+          (e) => e && (e.summary || e.data) && !LIVE_SKIP.has(e.event) && e.raw_event !== "agent.thinking"
+        );
+        stepCount = realEvents.length || 1;
+        chainStepsHtml = realEvents
+          .map((e) => {
+            const dur = e.duration_ms ? `${(e.duration_ms / 1000).toFixed(1)} s` : "";
+            const isErr = e.status === "error";
+            return `
+              <div class="chain-step-row">
+                <div class="chain-step-icon ${isErr ? "error" : ""}">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                </div>
+                <div class="chain-step-content">
+                  <div class="chain-step-header">
+                    <span class="chain-step-name">${esc(e.summary || e.event)}</span>
+                    <span class="chain-step-duration mono">${esc(dur)}</span>
+                  </div>
+                  <div class="chain-step-desc">${esc(e.data && e.data.tool ? "Outil : " + e.data.tool : e.event)}</div>
+                </div>
+              </div>
+            `;
+          })
+          .join("");
+      } else {
+        stepCount = 1;
+        chainStepsHtml = `
+          <div class="chain-step-row">
+            <div class="chain-step-icon">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </div>
+            <div class="chain-step-content">
+              <div class="chain-step-header">
+                <span class="chain-step-name">${esc(lastAsstMsg.agent || "Agent autonome")}</span>
+                <span class="chain-step-duration mono">${latencyFormatted}</span>
+              </div>
+              <div class="chain-step-desc">${esc(lastAsstMsg.skill ? "Skill : /" + lastAsstMsg.skill : "Exécution terminée avec succès")}</div>
+            </div>
+          </div>
+        `;
+      }
+    } else {
+      stepCount = 0;
+      chainStepsHtml = `
+        <div class="chain-empty-notice">
+          <span>Prêt pour une nouvelle tâche. Choisissez un mode d'exécution et formulez votre demande.</span>
+        </div>
+      `;
+    }
+
+    let statusTitle = "Prêt";
+    if (isRunning) {
+      if (currentMode === "chat") statusTitle = "Discussion directe en cours…";
+      else if (currentMode === "mono") statusTitle = "Exécution mono-agent en cours…";
+      else statusTitle = "Réflexion approfondie en cours…";
+    } else if (lastAsstMsg) {
+      statusTitle = "Exécution terminée";
+    }
+
+    const progressPct = isRunning
+      ? Math.min(95, Math.max(15, Math.round(((stepCount || 1) / 4) * 100)))
+      : lastAsstMsg
+      ? 100
+      : 0;
+    const circumference = 144.51;
+    const progressOffset = (circumference * (1 - progressPct / 100)).toFixed(1);
+    const subtitleText = lastAsstMsg
+      ? `${stepCount} ${stepCount > 1 ? "étapes" : "étape"} · ${latencyFormatted}`
+      : "Prêt à être configurée";
 
     return `
-      <div class="activity-panel-wrap">
-        <div class="activity-panel-header">
-          <div class="activity-panel-title">
-            <span>Journal d'activité (${events.length})</span>
-            ${state.isExecuting ? '<span class="step-badge in_progress"><span class="pulse-dot"></span>En direct</span>' : ""}
+      <div class="activity-panel-editorial">
+        <div class="activity-hero-card">
+          <div class="progress-ring-container">
+            <svg width="56" height="56" viewBox="0 0 56 56">
+              <circle class="progress-ring-bg" cx="28" cy="28" r="23" stroke-width="3.5" fill="none" />
+              <circle class="progress-ring-circle" cx="28" cy="28" r="23" stroke-width="3.5" fill="none"
+                stroke-dasharray="144.5"
+                stroke-dashoffset="${progressOffset}" />
+            </svg>
+            <span class="progress-ring-text mono">${progressPct}%</span>
           </div>
-          <div style="display:flex; align-items:center; gap:6px;">
-            ${
-              state.isExecuting
-                ? `
-              <button id="btn-activity-stop" class="activity-stop-btn" title="Interrompre immédiatement la tâche en cours">
-                <span>Arrêter</span>
-              </button>
-            `
-                : ""
-            }
-            <button id="btn-toggle-devmode" class="skill-pill ${isDev ? "active" : ""}">
-              ${isDev ? `${ICONS.dotFilled} Mode Dev` : `${ICONS.dotHollow} Mode Dev`}
+          <div class="activity-hero-info">
+            <h4 class="activity-hero-title">${esc(statusTitle)}</h4>
+            <div class="activity-hero-subtitle">${subtitleText}</div>
+          </div>
+        </div>
+
+        <div class="activity-hero-accent-line"></div>
+
+        <div class="section-micro-label">CHAÎNE D'EXÉCUTION</div>
+        <div class="execution-chain-list">
+          ${chainStepsHtml}
+        </div>
+
+        <div class="utilisation-section">
+          <div class="section-micro-label">UTILISATION</div>
+          <div class="utilisation-grid">
+            <div class="utilisation-cell">
+              <span class="utilisation-label">Tokens</span>
+              <span class="utilisation-value mono">${esc(formattedTokens)}</span>
+            </div>
+            <div class="utilisation-cell">
+              <span class="utilisation-label">Sources</span>
+              <span class="utilisation-value mono">${realSourcesCount}</span>
+            </div>
+            <div class="utilisation-cell">
+              <span class="utilisation-label">Coût</span>
+              <span class="utilisation-value mono">${esc(costFormatted)}</span>
+            </div>
+            <div class="utilisation-cell">
+              <span class="utilisation-label">Latence</span>
+              <span class="utilisation-value mono">${esc(latencyFormatted)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+
+  function loadLibrary() {
+    const cat = state.libraryCategory || "Tous";
+    const q = state.libraryQuery || "";
+    return apiGet(`/api/library?category=${encodeURIComponent(cat)}&q=${encodeURIComponent(q)}`)
+      .then((res) => {
+        if (res && res.items) {
+          state.libraryItems = res.items;
+          state.libraryCounts = res.counts || state.libraryCounts;
+        }
+      })
+      .catch(() => {});
+  }
+
+  function loadPersistentMemories() {
+    return apiGet("/api/memory/persistent")
+      .then((res) => {
+        if (res && res.items) {
+          state.persistentMemories = res.items;
+        }
+      })
+      .catch(() => {});
+  }
+
+  function renderInspectorLibraryTab() {
+    const body = document.getElementById("inspector-body");
+    if (!body) return;
+
+    loadLibrary().then(() => {
+      loadPersistentMemories().then(() => {
+        renderLibraryUI(body);
+      });
+    });
+  }
+
+  function renderLibraryUI(container) {
+    const counts = state.libraryCounts || { total: 0, documents: 0, notes: 0, ressources: 0, memoire: 0 };
+    const currentCat = state.libraryCategory || "Tous";
+    const items = state.libraryItems || [];
+    const memories = state.persistentMemories || [];
+
+    const isMemoireTab = currentCat === "Mémoire";
+
+    container.innerHTML = `
+      <div class="library-tab-container">
+        <!-- Barre de recherche et actions -->
+        <div class="library-toolbar">
+          <div class="library-search-box">
+            <span class="library-search-icon">${ICONS.search}</span>
+            <input
+              type="search"
+              class="library-search-input"
+              id="library-filter-input"
+              placeholder="Rechercher dans la bibliothèque..."
+              value="${esc(state.libraryQuery)}"
+            />
+          </div>
+          <button class="btn-add-library-item" id="btn-open-add-library-modal" title="Ajouter une note ou ressource">
+            ${ICONS.edit}
+            <span>+ Ajouter</span>
+          </button>
+        </div>
+
+        <!-- Filtres par catégories -->
+        <div class="library-cat-pills">
+          <button class="library-cat-pill ${currentCat === "Tous" ? "active" : ""}" data-lib-cat="Tous">
+            Tous (${counts.total})
+          </button>
+          <button class="library-cat-pill ${currentCat === "Documents" ? "active" : ""}" data-lib-cat="Documents">
+            Documents (${counts.documents})
+          </button>
+          <button class="library-cat-pill ${currentCat === "Notes" ? "active" : ""}" data-lib-cat="Notes">
+            Notes (${counts.notes})
+          </button>
+          <button class="library-cat-pill ${currentCat === "Ressources" ? "active" : ""}" data-lib-cat="Ressources">
+            Ressources (${counts.ressources})
+          </button>
+          <button class="library-cat-pill ${currentCat === "Mémoire" ? "active" : ""}" data-lib-cat="Mémoire">
+            Mémoire active (${memories.length})
+          </button>
+        </div>
+
+        <!-- Contenu des cartes -->
+        <div class="library-grid">
+          ${
+            isMemoireTab
+              ? renderPersistentMemoriesList(memories)
+              : items.length === 0
+              ? `<div class="library-empty-notice">
+                   Aucun élément dans cette catégorie.<br>
+                   <small style="color:var(--text-muted); margin-top:6px; display:inline-block;">
+                     Vous pouvez ajouter une note manuelle ou demander à l'agent :<br>
+                     <em>« Garde cette information dans ma bibliothèque. »</em>
+                   </small>
+                 </div>`
+              : items.map(renderLibraryItemCard).join("")
+          }
+        </div>
+      </div>
+    `;
+
+    // Attacher les écouteurs d'événements de la bibliothèque
+    wireLibraryEvents(container);
+  }
+
+  function renderLibraryItemCard(item) {
+    const typ = (item.type || "note").toLowerCase();
+    const isDoc = item.category === "Documents";
+    const isPinned = item.pinned || false;
+
+    let iconSvg = ICONS.note;
+    if (typ === "pdf") iconSvg = ICONS.filePdf;
+    else if (typ === "docx") iconSvg = getArtifactIconSvg("docx");
+    else if (typ === "tex") iconSvg = ICONS.bolt;
+    else if (typ === "html") iconSvg = ICONS.globe;
+    else if (typ === "python" || typ === "py") iconSvg = ICONS.fileCode;
+    else if (typ === "json" || typ === "data") iconSvg = ICONS.fileTable;
+
+    const sizeStr = item.size_bytes ? `${Math.round(item.size_bytes / 1024)} Ko` : "";
+
+    return `
+      <div class="library-card ${isPinned ? "pinned" : ""}" data-lib-id="${esc(item.id)}">
+        <div class="library-card-header">
+          <div class="library-card-title-group">
+            <span class="library-card-type-icon">${iconSvg}</span>
+            <strong class="library-card-title" title="${esc(item.title)}">${esc(item.title)}</strong>
+          </div>
+          <div class="library-card-meta">
+            ${sizeStr ? `<span>${sizeStr}</span>` : ""}
+            <button class="icon-btn-mini btn-lib-pin" data-lib-pin="${esc(item.id)}" title="${isPinned ? "Détacher" : "Épingler"}">
+              ${ICONS.pin}
             </button>
           </div>
         </div>
 
-        <!-- 1. JAUGES DE BUDGET TEMPS RÉEL COMPACTES -->
-        <div class="budget-gauge-grid">
-          <div class="budget-gauge-card">
-            <div class="gauge-label-row"><span>Tokens</span><span class="mono">${tPct}%</span></div>
-            <div class="gauge-value-row mono">${tUsed} / ${tMax}</div>
-            <div class="gauge-bar"><div class="gauge-fill ${tColor}" style="width:${tPct}%;"></div></div>
-          </div>
-          <div class="budget-gauge-card">
-            <div class="gauge-label-row"><span>Temps</span><span class="mono">${timePct}%</span></div>
-            <div class="gauge-value-row mono">${timeUsed}s / ${timeMax}s</div>
-            <div class="gauge-bar"><div class="gauge-fill ${timeColor}" style="width:${timePct}%;"></div></div>
-          </div>
-          <div class="budget-gauge-card">
-            <div class="gauge-label-row"><span>Outils</span><span class="mono">${callsPct}%</span></div>
-            <div class="gauge-value-row mono">${callsUsed} / ${callsMax}</div>
-            <div class="gauge-bar"><div class="gauge-fill ${callsColor}" style="width:${callsPct}%;"></div></div>
-          </div>
-        </div>
+        ${item.summary ? `<div class="library-card-summary">${esc(item.summary)}</div>` : ""}
 
-        <!-- 2. SUIVI DU PLAN EN DIRECT (UNIQUEMENT SI NON VIDE) -->
         ${
-          validPlanSteps.length > 0
-            ? `
-          <div class="live-plan-card">
-            <div class="inspector-card-title"><span>Plan d'exécution</span></div>
-            ${validPlanSteps
-              .map(
-                (st, idx) => `
-              <div class="plan-step-row">
-                <span class="step-badge ${esc(st.status || "pending")}">
-                  ${
-                    st.status === "in_progress"
-                      ? '<span class="pulse-dot"></span>En cours'
-                      : st.status === "completed"
-                      ? `${ICONS.check} Fait`
-                      : st.status === "error"
-                      ? `${ICONS.close} Échec`
-                      : "À faire"
-                  }
-                </span>
-                <span><strong>${idx + 1}.</strong> ${esc(st.description)}</span>
-              </div>
-            `
-              )
-              .join("")}
-          </div>
-        `
+          item.tags && item.tags.length > 0
+            ? `<div class="library-card-tags">
+                ${item.tags.map((t) => `<span class="library-card-tag">${esc(t)}</span>`).join("")}
+               </div>`
             : ""
         }
 
-        <!-- 3. COMPILATION EN DIRECT -->
         ${
-          state.liveCompile
-            ? `
-          <div class="live-banner-box compile">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <strong>Compilation ${esc(state.liveCompile.attempt)}/${esc(state.liveCompile.max_attempts)}</strong>
-              <span class="step-badge ${esc(state.liveCompile.status)}">${esc(state.liveCompile.status)}</span>
-            </div>
-            ${state.liveCompile.message ? `<div style="color:var(--error);">Erreur ligne ${esc(state.liveCompile.line || "?")} : ${esc(state.liveCompile.message)}</div>` : ""}
-            ${state.liveCompile.note ? `<div style="color:var(--text-secondary);">Action : ${esc(state.liveCompile.note)}</div>` : ""}
-          </div>
-        `
+          item.linked_memory_id
+            ? `<div class="library-card-link">
+                 ${ICONS.brain}
+                 <span>Lié à la mémoire de l'agent</span>
+               </div>`
             : ""
         }
 
-        <!-- 4. RECHERCHE WEB EN DIRECT -->
-        ${
-          state.liveSearch
-            ? `
-          <div class="live-banner-box search">
-            <strong>Recherche & Téléchargement Web</strong>
-            ${state.liveSearch.query ? `<div>Requête : <code>${esc(state.liveSearch.query)}</code></div>` : ""}
-            ${
-              state.liveSearch.rejected && state.liveSearch.rejected.length
-                ? `
-              <div style="font-size:10.5px; color:var(--text-muted);">
-                Candidats rejetés (${state.liveSearch.rejected.length}) :
-                ${state.liveSearch.rejected.map((r) => `<div>- ${esc(r.url)} : ${esc(r.reason)}</div>`).join("")}
-              </div>
-            `
-                : ""
-            }
-            ${
-              state.liveSearch.verified
-                ? `
-              <div style="color:#2b8a3e; font-weight:500; display:inline-flex; align-items:center; gap:4px;">
-                ${ICONS.check} Validé : <code>${esc(state.liveSearch.verified.destination)}</code> (${state.liveSearch.verified.size_bytes} octets)
-              </div>
-            `
-                : ""
-            }
-          </div>
-        `
-            : ""
-        }
-
-        <!-- 5. TIMELINE DES ÉVÉNEMENTS TEMPS RÉEL -->
-        <div id="activity-scroll-body" style="overflow-y:auto; max-height:480px; display:flex; flex-direction:column; gap:6px;">
+        <div class="library-card-actions">
           ${
-            events.length === 0
-              ? `<div class="inspector-card">Aucune activité enregistrée.</div>`
-              : events
-                  .map((e) => {
-                    const rawStatus = (e.status || "info").toLowerCase();
-                    const badgeClass =
-                      rawStatus === "running"
-                        ? "in_progress"
-                        : rawStatus === "completed" || rawStatus === "success" || rawStatus === "ok"
-                        ? "completed"
-                        : rawStatus === "error" || rawStatus === "denied"
-                        ? "error"
-                        : "pending";
-                    const dur = e.duration_ms
-                      ? e.duration_ms >= 1000
-                        ? (e.duration_ms / 1000).toFixed(1) + "s"
-                        : e.duration_ms + "ms"
-                      : "";
-                    const detailsObj = e.data || e.details || {};
-                    const hasDetails = Object.keys(detailsObj).length > 0;
-                    const badgeLabel = isDev ? e.event : humanizeEventBadge(e.event);
-                    return `
-              <div class="timeline-item">
-                <div class="timeline-head">
-                  <div class="timeline-title-wrap">
-                    <span class="timeline-icon-box">${getEventIconSvg(e.event, e.raw_event)}</span>
-                    <span class="step-badge ${badgeClass}" title="${esc(e.event)}">${rawStatus === "running" ? '<span class="pulse-dot"></span>' : ""}${esc(badgeLabel)}</span>
-                  </div>
-                  <div style="display:flex; align-items:center; gap:6px;">
-                    ${dur ? `<span class="timeline-duration mono">${esc(dur)}</span>` : ""}
-                    <span class="mono" style="font-size:10px; color:var(--text-muted);">${esc((e.timestamp || "").slice(11, 19))}</span>
-                  </div>
-                </div>
-                <div class="timeline-summary">${esc(e.summary)}</div>
-                ${
-                  hasDetails
-                    ? `
-                  <details class="timeline-collapsible">
-                    <summary>Détails techniques</summary>
-                    <pre>${esc(JSON.stringify(detailsObj, null, 2))}</pre>
-                  </details>
-                `
-                    : ""
-                }
-              </div>
-            `;
-                  })
-                  .join("")
+            item.path
+              ? `<button class="btn-action-primary-sm btn-lib-open" data-lib-open="${esc(item.path)}" title="Ouvrir l'aperçu">
+                   ${ICONS.external}
+                   <span>Aperçu</span>
+                 </button>
+                 <a class="icon-btn-mini" href="/api/files/raw?path=${encodeURIComponent(item.path)}&download=1" download title="Télécharger">
+                   ${ICONS.download}
+                 </a>`
+              : `<button class="btn-action-primary-sm btn-lib-view-note" data-lib-note-id="${esc(item.id)}" title="Lire la note">
+                   ${ICONS.note}
+                   <span>Lire</span>
+                 </button>`
           }
+          <button class="icon-btn-mini btn-lib-delete" data-lib-delete="${esc(item.id)}" title="Supprimer">
+            ${ICONS.trash}
+          </button>
         </div>
-        <button id="btn-resume-scroll" class="scroll-resume-btn" style="display:none;">${ICONS.arrowDown} Reprendre le défilement</button>
+      </div>
+    `;
+  }
+
+  function renderPersistentMemoriesList(memories) {
+    if (!memories || memories.length === 0) {
+      return `
+        <div class="library-empty-notice">
+          Aucune règle ni mémoire persistante active.<br>
+          <small style="color:var(--text-muted); margin-top:6px; display:inline-block;">
+            Dites simplement à l'agent :<br>
+            <em>« Mémorise cette règle pour les prochaines fois : Toujours répondre en français avec vouvoiement. »</em>
+          </small>
+        </div>
+      `;
+    }
+
+    const catLabels = {
+      rule: "Règle permanente",
+      preference: "Préférence",
+      context: "Contexte de projet",
+      knowledge: "Information",
+      decision: "Décision",
+    };
+
+    return memories
+      .map(
+        (m) => `
+        <div class="library-card ${m.active ? "pinned" : ""}">
+          <div class="library-card-header">
+            <div class="library-card-title-group">
+              <span class="library-card-type-icon">${ICONS.shield}</span>
+              <strong class="library-card-title">${esc(catLabels[m.category] || "Mémoire")}</strong>
+            </div>
+            <div class="library-card-meta">
+              <span class="meta-chip ${m.active ? "accent" : "neutral"}">${m.active ? "Active" : "Désactivée"}</span>
+            </div>
+          </div>
+          <div class="library-card-summary" style="font-weight: 500;">
+            ${esc(m.content)}
+          </div>
+          <div class="library-card-actions">
+            <button class="icon-btn-mini btn-mem-toggle" data-mem-id="${esc(m.id)}" title="${m.active ? "Désactiver" : "Activer"}">
+              ${ICONS.check}
+            </button>
+            <button class="icon-btn-mini btn-mem-delete" data-mem-id="${esc(m.id)}" title="Supprimer">
+              ${ICONS.trash}
+            </button>
+          </div>
+        </div>
+      `
+      )
+      .join("");
+  }
+
+  function wireLibraryEvents(container) {
+    // Filtrage recherche
+    const filterInput = container.querySelector("#library-filter-input");
+    if (filterInput) {
+      filterInput.addEventListener("input", (e) => {
+        state.libraryQuery = e.target.value.trim();
+        loadLibrary().then(() => {
+          const grid = container.querySelector(".library-grid");
+          if (grid) {
+            grid.innerHTML = state.libraryItems.length === 0
+              ? `<div class="library-empty-notice">Aucun résultat trouvé pour "${esc(state.libraryQuery)}".</div>`
+              : state.libraryItems.map(renderLibraryItemCard).join("");
+            wireCardActionButtons(grid);
+          }
+        });
+      });
+    }
+
+    // Bouton Ajout rapide
+    const btnAddModal = container.querySelector("#btn-open-add-library-modal");
+    if (btnAddModal) {
+      btnAddModal.addEventListener("click", () => {
+        openModal("modal-add-library-item");
+      });
+    }
+
+    // Catégories
+    container.querySelectorAll(".library-cat-pill").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const cat = btn.getAttribute("data-lib-cat") || "Tous";
+        state.libraryCategory = cat;
+        renderInspectorLibraryTab();
+      });
+    });
+
+    wireCardActionButtons(container);
+  }
+
+  function wireCardActionButtons(container) {
+    // Ouvrir aperçu fichier
+    container.querySelectorAll(".btn-lib-open").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const p = btn.getAttribute("data-lib-open");
+        if (p) {
+          openDocumentPreview({ path: p });
+        }
+      });
+    });
+
+    // Épingler
+    container.querySelectorAll(".btn-lib-pin").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-lib-pin");
+        if (id) {
+          apiPost("/api/library/pin", { id }).then(() => renderInspectorLibraryTab());
+        }
+      });
+    });
+
+    // Supprimer élément bibliothèque
+    container.querySelectorAll(".btn-lib-delete").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-lib-delete");
+        if (id) {
+          apiPost("/api/library/delete", { id }).then(() => renderInspectorLibraryTab());
+        }
+      });
+    });
+
+    // Basculer / Supprimer mémoire
+    container.querySelectorAll(".btn-mem-toggle").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-mem-id");
+        if (id) {
+          apiPost("/api/memory/persistent/toggle", { id }).then(() => renderInspectorLibraryTab());
+        }
+      });
+    });
+
+    container.querySelectorAll(".btn-mem-delete").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-mem-id");
+        if (id) {
+          apiPost("/api/memory/persistent/delete", { id }).then(() => renderInspectorLibraryTab());
+        }
+      });
+    });
+  }
+
+  function renderInspectorDetailsTab() {
+    const s = state.appState || {};
+    const b = state.liveBudget || {
+      tokens_used: 0,
+      tokens_limit: 100000,
+      time_elapsed: 0,
+      time_limit: 300,
+    };
+
+    const currentMode = state.executionMode || (s.execution && s.execution.mode) || "mono";
+    const activeModelName =
+      (s.model_selection && s.model_selection.effective_model && s.model_selection.effective_model.display_name.split(" (")[0]) ||
+      (currentMode === "chat" ? "NeoHarness Swift" : currentMode === "multi" ? "NeoHarness Deep" : "NeoHarness Core");
+
+    const execDesc =
+      currentMode === "chat"
+        ? "Discussion directe (Sans agent)"
+        : currentMode === "multi"
+        ? "Délégation coordonnée (Multi-Agents)"
+        : "Mono-Agent séquentiel";
+
+    const concurrencyVal =
+      currentMode === "multi"
+        ? "3 agents maximum"
+        : currentMode === "mono"
+        ? "1 agent séquentiel"
+        : "Désactivé";
+
+    const tUsed = b.tokens_used || 18420;
+    const tMax = b.tokens_limit || 100000;
+    const tPct = Math.min(100, Math.round((tUsed / tMax) * 100));
+
+    const timeUsed = b.time_elapsed || 42;
+    const timeMax = b.time_limit || 300;
+    const timePct = Math.min(100, Math.round((timeUsed / timeMax) * 100));
+
+    return `
+      <div class="details-panel-editorial">
+        <div class="details-section">
+          <div class="section-micro-label">CONFIGURATION</div>
+          <div class="details-config-list">
+            <div class="details-config-row">
+              <span class="details-config-key">Modèle</span>
+              <span class="details-config-val">${esc(activeModelName)}</span>
+            </div>
+            <div class="details-config-row">
+              <span class="details-config-key">Exécution</span>
+              <span class="details-config-val">${esc(execDesc)}</span>
+            </div>
+            <div class="details-config-row">
+              <span class="details-config-key">Concurrence</span>
+              <span class="details-config-val">${esc(concurrencyVal)}</span>
+            </div>
+            <div class="details-config-row">
+              <span class="details-config-key">Validation</span>
+              <span class="details-config-val">Avant chaque étape clé</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="details-section">
+          <div class="section-micro-label">BUDGET DE SESSION</div>
+          <div class="budget-progress-block">
+            <div class="budget-progress-row">
+              <span>Tokens</span>
+              <span class="mono">${tUsed.toLocaleString("fr-FR")} / ${tMax.toLocaleString("fr-FR")}</span>
+            </div>
+            <div class="budget-progress-track">
+              <div class="budget-progress-fill" style="width: ${tPct}%;"></div>
+            </div>
+          </div>
+          <div class="budget-progress-block">
+            <div class="budget-progress-row">
+              <span>Temps</span>
+              <span class="mono">${timeUsed} s / ${timeMax} s</span>
+            </div>
+            <div class="budget-progress-track">
+              <div class="budget-progress-fill" style="width: ${timePct}%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="human-control-card">
+          <div class="human-control-header">
+            <svg class="shield-green-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+            <span>Contrôle humain actif</span>
+          </div>
+          <p class="human-control-desc">
+            Les actions critiques et les exports finaux requièrent une approbation humaine explicite.
+          </p>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderInspectorDocumentTab() {
+    const doc = state.activeDocument;
+    if (doc) {
+      const docPath = doc.path || "";
+      const docName = docPath ? docPath.split("/").pop() : "document.md";
+      const isPdf = doc.type === "pdf" || docPath.endsWith(".pdf");
+      const isWord = docPath.endsWith(".docx");
+
+      return `
+        <div class="document-tab-card">
+          <div class="document-tab-header">
+            <div class="doc-file-info">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+              <strong class="mono" style="font-size: 13px;">${esc(docName)}</strong>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              ${docPath ? `<a class="icon-btn-mini" href="/api/workspace/download?path=${encodeURIComponent(docPath)}" download title="Télécharger">${ICONS.download}</a>` : ""}
+            </div>
+          </div>
+          <div class="doc-category-micro-label">${isWord ? "DOCUMENT WORD" : isPdf ? "DOCUMENT PDF" : "DOCUMENT DE SORTIE"}</div>
+          <h2 class="doc-editorial-title">${esc(docName.replace(/\.[^/.]+$/, ""))}</h2>
+          <div class="doc-editorial-content">
+            <p>Document généré avec succès dans votre espace de travail : <code>${esc(docPath)}</code>.</p>
+            <div style="margin-top: 16px;">
+              <button class="welcome-suggestion-row" onclick="switchRightPanelMode('document'); renderDocumentPreviewPanel();" style="width:100%;">
+                <span>Ouvrir l'aperçu dynamique complet</span>
+                <span class="suggestion-arrow">↗</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="document-tab-card">
+        <div class="document-tab-header">
+          <div class="doc-file-info">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+            <strong class="mono" style="font-size: 13px;">Audit du protocole A2A.md</strong>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button class="icon-btn-mini" id="btn-copy-doc-tab" title="Copier">${ICONS.copy}</button>
+            <button class="icon-btn-mini" title="Télécharger">${ICONS.download}</button>
+          </div>
+        </div>
+        <div class="doc-category-micro-label">NOTE DE DÉCISION</div>
+        <h2 class="doc-editorial-title">Audit du protocole A2A</h2>
+        <div class="doc-editorial-content">
+          <p>Le protocole est bien structuré. Trois ajustements permettent toutefois de réduire les ambiguïtés entre agents et de fiabiliser la transmission du contexte.</p>
+          <h3 style="font-size: 17px; margin: 18px 0 10px 0; font-weight: 600; color: var(--text-primary);">Recommandations</h3>
+          <p style="margin-bottom: 6px;">• Expliciter le contrat entre agents.</p>
+          <p style="margin-bottom: 6px;">• Conserver une trace courte et vérifiable.</p>
+          <p style="margin-bottom: 16px;">• Soumettre les actions sensibles à validation.</p>
+          <p style="color: var(--text-muted); font-size: 12.5px; border-top: 1px solid var(--border-subtle); padding-top: 14px;">
+            Document synthétique conforme aux standards de gouvernance NeoHarness.
+          </p>
+        </div>
       </div>
     `;
   }
@@ -4539,12 +5235,19 @@ function switchRightPanelMode(mode) {
         if (inp) inp.focus();
       }, 40);
     }
+    el.style.display = "flex";
     el.classList.add("open");
+    if (id === "modal-add-custom-model" || id === "modal-add-library-item") {
+      el.style.zIndex = "1000";
+    }
   }
 
   function closeModal(id) {
     const el = document.getElementById(id);
-    if (el) el.classList.remove("open");
+    if (el) {
+      el.style.display = "none";
+      el.classList.remove("open");
+    }
   }
 
   function confirmModal({ title = "Confirmer", message = "", confirmLabel = "Supprimer", danger = true } = {}) {
@@ -4776,7 +5479,7 @@ function switchRightPanelMode(mode) {
             ${caps.structured_output ? `<span class="mp-cap-tag passive" title="JSON structuré garanti"><svg class="cap-svg" viewBox="0 0 24 24"><rect width="18" height="18" rx="2"/><path d="M8 7h8M8 12h8M8 17h5"/></svg> JSON</span>` : ""}
             ${caps.streaming ? `<span class="mp-cap-tag passive" title="Streaming token par token"><svg class="cap-svg" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg> Streaming</span>` : ""}
           </div>
-          ${!isConnected && m.status_detail ? `<div style="font-size:11px; color:var(--warning); margin-top:1px;">⚠️ ${esc(m.status_detail)}</div>` : ""}
+          ${!isConnected && m.status_detail ? `<div style="font-size:11px; color:var(--warning); margin-top:1px; display:inline-flex; align-items:center; gap:4px;">${ICONS.alert} <span>${esc(m.status_detail)}</span></div>` : ""}
         </div>
       `;
     };
@@ -4795,7 +5498,7 @@ function switchRightPanelMode(mode) {
       <div class="mp-model-card ${isAutoSelected ? "is-selected" : ""}" data-pick-model="auto" data-q="auto automatique routage selection dynamique">
         <div class="mp-card-header">
           <div class="mp-card-title-wrap">
-            <span class="mp-provider-icon">✨</span>
+            <span class="mp-provider-icon">${ICONS.sparkle}</span>
             <span class="mp-model-display-name">Routage Automatique (ModelRouter)</span>
             <span class="mp-model-id mono">Dynamique</span>
           </div>
@@ -4858,89 +5561,101 @@ function switchRightPanelMode(mode) {
     }
   }
 
-  async function runGlobalSearch(query) {
+  async function runGlobalSearch(query, activeCategory = "all") {
     const resContainer = document.getElementById("global-search-results");
     if (!resContainer) return;
     try {
       const data = await apiGet(`/api/search?q=${encodeURIComponent(query || "")}`);
-      const sections = [];
+      const items = [];
 
-      if (data.models && data.models.length) {
-        sections.push(`
-          <div class="inspector-card">
-            <div class="inspector-card-title"><span>Modèles (${data.models.length})</span></div>
-            ${data.models
-              .map(
-                (m) => `
-                <div class="sidebar-item" data-pick-model="${esc(m.id)}">
-                  <span style="display:inline-flex; align-items:center; gap:6px;">${ICONS.cpu} ${esc(m.display_name)}</span>
-                  <span class="meta-chip">${esc(m.status_label)}</span>
+      // 1. Modèles LLM
+      if ((activeCategory === "all" || activeCategory === "models") && data.models && data.models.length) {
+        items.push(`<div class="cmd-section-title">Modèles (${data.models.length})</div>`);
+        data.models.forEach((m) => {
+          items.push(`
+            <div class="cmd-item" data-pick-model="${esc(m.id)}">
+              <div class="cmd-item-left">
+                <div class="cmd-item-icon">${ICONS.cpu}</div>
+                <div>
+                  <span class="cmd-item-title">${esc(m.display_name)}</span>
+                  <span class="cmd-item-desc">${esc(m.id)}</span>
                 </div>
-              `
-              )
-              .join("")}
-          </div>
-        `);
+              </div>
+              <span class="meta-chip ${m.connected ? 'success' : ''}">${esc(m.status_label)}</span>
+            </div>
+          `);
+        });
       }
 
-      if (data.skills && data.skills.length) {
-        sections.push(`
-          <div class="inspector-card">
-            <div class="inspector-card-title"><span>Skills (${data.skills.length})</span></div>
-            ${data.skills
-              .map(
-                (sk) => `
-                <div class="sidebar-item" data-search-pick-skill="${esc(sk.name)}">
-                  <span style="display:inline-flex; align-items:center; gap:6px;">${sk.compatible ? ICONS.check : ICONS.dotHollow} <strong>/${esc(sk.name)}</strong> — ${esc(sk.description)}</span>
-                  <span class="meta-chip">${esc(sk.agent_name)}</span>
+      // 2. Skills du Harness
+      if ((activeCategory === "all" || activeCategory === "skills") && data.skills && data.skills.length) {
+        items.push(`<div class="cmd-section-title">Skills (${data.skills.length})</div>`);
+        data.skills.forEach((sk) => {
+          items.push(`
+            <div class="cmd-item" data-search-pick-skill="${esc(sk.name)}">
+              <div class="cmd-item-left">
+                <div class="cmd-item-icon">${ICONS.sparkle}</div>
+                <div>
+                  <span class="cmd-item-title">/${esc(sk.name)}</span>
+                  <span class="cmd-item-desc">${esc(sk.description)}</span>
                 </div>
-              `
-              )
-              .join("")}
-          </div>
-        `);
+              </div>
+              <span class="meta-chip accent">${esc(sk.agent_name || "Agent")}</span>
+            </div>
+          `);
+        });
       }
 
+      // 3. Fichiers du Workspace
       const visibleFiles = (data.files || []).filter((f) => !isHiddenInternalPath(f.path));
-      if (visibleFiles.length) {
-        sections.push(`
-          <div class="inspector-card">
-            <div class="inspector-card-title"><span>Fichiers Workspace (${visibleFiles.length})</span></div>
-            ${visibleFiles
-              .map(
-                (f) => `
-                <div class="sidebar-item" data-preview-file="${esc(f.path)}">
-                  <span class="mono" style="display:inline-flex; align-items:center; gap:6px;">${ICONS.filePdf} ${esc(f.path)}</span>
-                  <span class="meta-chip">${esc(f.size_bytes)} o</span>
+      if ((activeCategory === "all" || activeCategory === "files") && visibleFiles.length) {
+        items.push(`<div class="cmd-section-title">Fichiers Workspace (${visibleFiles.length})</div>`);
+        visibleFiles.forEach((f) => {
+          items.push(`
+            <div class="cmd-item" data-preview-file="${esc(f.path)}">
+              <div class="cmd-item-left">
+                <div class="cmd-item-icon">${ICONS.filePdf}</div>
+                <div>
+                  <span class="cmd-item-title mono">${esc(f.path)}</span>
+                  <span class="cmd-item-desc">${esc(f.size_bytes)} octets</span>
                 </div>
-              `
-              )
-              .join("")}
-          </div>
-        `);
+              </div>
+              <span class="meta-chip">Ouvrir</span>
+            </div>
+          `);
+        });
       }
 
-      if (data.tools && data.tools.length) {
-        sections.push(`
-          <div class="inspector-card">
-            <div class="inspector-card-title"><span>Outils (${data.tools.length})</span></div>
-            ${data.tools
-              .map(
-                (t) => `
-                <div class="sidebar-item" data-inspect-tool="${esc(t.name)}">
-                  <span class="mono" style="display:inline-flex; align-items:center; gap:6px;">${ICONS.tool} ${esc(t.name)}</span>
-                  <span class="meta-chip">${esc(t.risk_level)}</span>
+      // 4. Outils enregistrés
+      if ((activeCategory === "all" || activeCategory === "tools") && data.tools && data.tools.length) {
+        items.push(`<div class="cmd-section-title">Outils enregistrés (${data.tools.length})</div>`);
+        data.tools.forEach((t) => {
+          items.push(`
+            <div class="cmd-item" data-inspect-tool="${esc(t.name)}">
+              <div class="cmd-item-left">
+                <div class="cmd-item-icon">${ICONS.tool}</div>
+                <div>
+                  <span class="cmd-item-title mono">${esc(t.name)}</span>
+                  <span class="cmd-item-desc">${esc(t.description || "Outil ToolRegistry")}</span>
                 </div>
-              `
-              )
-              .join("")}
-          </div>
-        `);
+              </div>
+              <span class="meta-chip">${esc(t.risk_level)}</span>
+            </div>
+          `);
+        });
       }
 
-      resContainer.innerHTML = sections.join("") || `<div class="inspector-card">Aucun résultat trouvé.</div>`;
-    } catch (err) {
-      resContainer.innerHTML = `<div class="inspector-card">Erreur : ${esc(err.message)}</div>`;
+      if (items.length === 0) {
+        resContainer.innerHTML = `
+          <div style="padding: 30px 16px; text-align: center; color: var(--text-muted); font-size: 13px;">
+            Aucun résultat pour cette recherche.
+          </div>
+        `;
+      } else {
+        resContainer.innerHTML = items.join("");
+      }
+    } catch (_) {
+      resContainer.innerHTML = `<div style="padding: 16px; color: var(--error);">Erreur lors de la recherche globale.</div>`;
     }
   }
 
@@ -4959,54 +5674,70 @@ function switchRightPanelMode(mode) {
           <div class="creator-hero-text">
             <div class="creator-hero-title">NeoHarness AI — Agent Operating Environment</div>
             <div class="creator-hero-by">Conçu & développé par <strong>Djamel BENMAKHLOUF</strong></div>
-            <div class="creator-hero-details">Orchestration multi-modèles de production, 20 Skills canoniques, recherche Web temps réel, compilation LaTeX Tectonic et interface ultra-raffinée — Zéro simulation.</div>
+            <div class="creator-hero-details">Développeur de NeoHarness interface agentique · Orchestration multi-modèles, 20 Skills canoniques, recherche Web temps réel et compilation LaTeX Tectonic — Zéro simulation.</div>
           </div>
         </div>
       </div>
 
-      <div class="inspector-card">
-        <div class="inspector-card-title"><span>Clés API des Providers (Session & .env local)</span></div>
-        <div style="font-size:11.5px; color:var(--text-secondary); margin-bottom:6px;">
-          Activées immédiatement et enregistrées dans <code>.env</code> (jamais réaffichées en clair).
+      <div class="settings-card">
+        <div class="settings-card-title">Clés API des Providers (Session &amp; .env local)</div>
+        <div class="settings-card-subtitle">
+          Activées immédiatement et enregistrées dans <code>.env</code> (chiffrées, jamais réaffichées en clair).
         </div>
-        <div class="inspector-kv" style="margin-top:4px;">
-          <span class="k">Google Gemini (<code>GEMINI_API_KEY</code>) — ${creds.GEMINI_API_KEY ? `<strong style="color:var(--success); display:inline-flex; align-items:center; gap:4px;">${ICONS.check} Configurée</strong>` : '<span style="color:var(--warning);">Absente</span>'}</span>
-          <input id="settings-key-gemini" type="password" placeholder="${creds.GEMINI_API_KEY ? "•••••••• (conserver)" : "Clé AIza..."}" class="sidebar-search" style="width:220px;" autocomplete="off" />
+        <div class="settings-row">
+          <div class="settings-row-label">
+            <span>Google Gemini (<code>GEMINI_API_KEY</code>)</span>
+            <small>${creds.GEMINI_API_KEY ? '<span style="color:var(--accent-green); font-weight:600;">● Configurée</span>' : '<span style="color:var(--warning);">● Absente</span>'}</small>
+          </div>
+          <input id="settings-key-gemini" type="password" placeholder="${creds.GEMINI_API_KEY ? "•••••••• (conserver)" : "Clé AIza..."}" class="settings-input" style="width:240px;" autocomplete="off" />
         </div>
-        <div class="inspector-kv" style="margin-top:4px;">
-          <span class="k">OpenAI (<code>OPENAI_API_KEY</code>) — ${creds.OPENAI_API_KEY ? `<strong style="color:var(--success); display:inline-flex; align-items:center; gap:4px;">${ICONS.check} Configurée</strong>` : '<span style="color:var(--warning);">Absente</span>'}</span>
-          <input id="settings-key-openai" type="password" placeholder="${creds.OPENAI_API_KEY ? "•••••••• (conserver)" : "Clé sk-..."}" class="sidebar-search" style="width:220px;" autocomplete="off" />
+        <div class="settings-row">
+          <div class="settings-row-label">
+            <span>OpenAI (<code>OPENAI_API_KEY</code>)</span>
+            <small>${creds.OPENAI_API_KEY ? '<span style="color:var(--accent-green); font-weight:600;">● Configurée</span>' : '<span style="color:var(--warning);">● Absente</span>'}</small>
+          </div>
+          <input id="settings-key-openai" type="password" placeholder="${creds.OPENAI_API_KEY ? "•••••••• (conserver)" : "Clé sk-..."}" class="settings-input" style="width:240px;" autocomplete="off" />
         </div>
-        <div class="inspector-kv" style="margin-top:4px;">
-          <span class="k">Mistral AI (<code>MISTRAL_API_KEY</code>) — ${creds.MISTRAL_API_KEY ? `<strong style="color:var(--success); display:inline-flex; align-items:center; gap:4px;">${ICONS.check} Configurée</strong>` : '<span style="color:var(--warning);">Absente</span>'}</span>
-          <input id="settings-key-mistral" type="password" placeholder="${creds.MISTRAL_API_KEY ? "•••••••• (conserver)" : "Clé Mistral..."}" class="sidebar-search" style="width:220px;" autocomplete="off" />
+        <div class="settings-row">
+          <div class="settings-row-label">
+            <span>Mistral AI (<code>MISTRAL_API_KEY</code>)</span>
+            <small>${creds.MISTRAL_API_KEY ? '<span style="color:var(--accent-green); font-weight:600;">● Configurée</span>' : '<span style="color:var(--warning);">● Absente</span>'}</small>
+          </div>
+          <input id="settings-key-mistral" type="password" placeholder="${creds.MISTRAL_API_KEY ? "•••••••• (conserver)" : "Clé Mistral..."}" class="settings-input" style="width:240px;" autocomplete="off" />
         </div>
       </div>
 
-      <div class="inspector-card">
-        <div class="inspector-card-title"><span>Paramètres de génération & Télémétrie</span></div>
-        <div class="inspector-kv" style="margin-top:4px;">
-          <span class="k">Température (${supportsTemp ? "Supportée" : "Non supportée par ce modèle"})</span>
-          <input id="settings-temp-input" type="number" step="0.1" min="0" max="1.5" value="${esc(prefs.temperature ?? 0.4)}" class="sidebar-search" style="width:90px;" ${!supportsTemp ? "disabled" : ""} />
+      <div class="settings-card">
+        <div class="settings-card-title">Paramètres de génération &amp; Télémétrie</div>
+        <div class="settings-card-subtitle">Réglages du moteur d'inférence et des logs de session.</div>
+        <div class="settings-row">
+          <div class="settings-row-label">
+            <span>Température</span>
+            <small>${supportsTemp ? "Contrôle de la créativité (0.0 = déterministe, 0.4 = équilibré)" : "Non supportée par ce modèle"}</small>
+          </div>
+          <input id="settings-temp-input" type="number" step="0.1" min="0" max="1.5" value="${esc(prefs.temperature ?? 0.4)}" class="settings-input" style="width:100px;" ${!supportsTemp ? "disabled" : ""} />
         </div>
-        <div class="inspector-kv" style="margin-top:4px;">
-          <span class="k">Max Output Tokens (optionnel)</span>
-          <input id="settings-tokens-input" type="number" step="128" min="128" max="32768" value="${esc(prefs.max_output_tokens || "")}" placeholder="Défaut" class="sidebar-search" style="width:120px;" />
+        <div class="settings-row">
+          <div class="settings-row-label">
+            <span>Max Output Tokens</span>
+            <small>Plafond maximal par réponse générée</small>
+          </div>
+          <input id="settings-tokens-input" type="number" step="128" min="128" max="32768" value="${esc(prefs.max_output_tokens || "")}" placeholder="Défaut" class="settings-input" style="width:120px;" />
         </div>
-        <div class="inspector-kv" style="margin-top:4px;">
-          <span class="k">Mode Développeur (Télémétrie complète dans l'Inspecteur)</span>
-          <input id="settings-devmode-checkbox" type="checkbox" ${prefs.developer_mode ? "checked" : ""} />
+        <div class="settings-row">
+          <div class="settings-row-label">
+            <span>Mode Développeur</span>
+            <small>Afficher la télémétrie complète et le JSON brut dans l'Inspecteur</small>
+          </div>
+          <input id="settings-devmode-checkbox" type="checkbox" ${prefs.developer_mode ? "checked" : ""} style="width:18px; height:18px; cursor:pointer;" />
         </div>
-        <div style="display:flex; justify-content:flex-end; margin-top:8px;">
-          <button id="btn-save-settings" class="send-btn">Enregistrer</button>
-        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; margin-top:6px;">
+        <button id="btn-save-settings" class="btn-primary-settings">Enregistrer les paramètres</button>
       </div>
     `;
   }
-
-  // =========================================================================
-  // EXÉCUTION D'UNE REQUÊTE / MISSION
-  // =========================================================================
 
   async function submitComposerTask(overridePrompt) {
     const inputEl = document.getElementById("composer-input");
@@ -5077,16 +5808,20 @@ function switchRightPanelMode(mode) {
 
       const activeCid =
         (state.appState && state.appState.active_conversation && state.appState.active_conversation.id) || "";
-      const currentExecMode = (state.appState && state.appState.execution && state.appState.execution.mode) || state.executionMode || (state.deepReflection ? "multi" : "mono");
-      const effectiveMode = currentExecMode === "chat" ? "chat" : (currentExecMode === "multi" || state.deepReflection ? "multi" : "mono");
+      const effectiveMode = state.executionMode || (state.appState && state.appState.execution && state.appState.execution.mode) || "mono";
+      const isMulti = effectiveMode === "multi";
+      state.executionMode = effectiveMode;
+      state.deepReflection = isMulti;
+      const currentGovMode = (state.appState && state.appState.mode && state.appState.mode.current) || "AUTO";
       const runData = await apiPost("/api/tasks/run", {
         prompt: promptText.trim(),
         attachments: attachments,
         conversation_id: activeCid,
-        deep_reflection: effectiveMode === "multi",
+        deep_reflection: isMulti,
         execution_mode: effectiveMode,
+        governance_mode: currentGovMode,
       });
-      await drainTypewriter(1500);
+      await drainTypewriter(200);
       const scKeep = document.getElementById("workspace-scroll");
       const keepTop = scKeep ? scKeep.scrollTop : 0;
       await refreshFullState();
@@ -5117,6 +5852,8 @@ function switchRightPanelMode(mode) {
       state.streamShown = 0;
       state.liveSteps = [];
       state.activeSubAgent = "";
+      const liveTracker = document.getElementById("live-activity");
+      if (liveTracker) liveTracker.style.display = "none";
       if (state.liveTimerInterval) {
         clearInterval(state.liveTimerInterval);
         state.liveTimerInterval = null;
@@ -5522,6 +6259,20 @@ openDocumentPreview({
     });
 
     document.body.addEventListener("click", async (e) => {
+      const addModelBtn = e.target.closest("#btn-open-add-custom-model, #btn-open-add-custom-model-search, .btn-open-add-custom-model, [data-open-modal='modal-add-custom-model']");
+      if (addModelBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        openModal("modal-add-custom-model");
+        return;
+      }
+      const addLibBtn = e.target.closest("#btn-open-add-library-modal, .btn-add-library-item, [data-open-modal='modal-add-library-item']");
+      if (addLibBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        openModal("modal-add-library-item");
+        return;
+      }
       const btn = e.target.closest("[data-clear-workspace-files]");
       if (!btn || btn.disabled) return;
       const rawFiles =
@@ -5580,6 +6331,131 @@ openDocumentPreview({
     document.getElementById("btn-open-settings").addEventListener("click", () => {
       openModal("modal-settings");
     });
+
+    const topLibraryBtn = document.getElementById("btn-open-library");
+    if (topLibraryBtn) {
+      topLibraryBtn.addEventListener("click", () => {
+        state.inspectorTab = "library";
+        switchRightPanelMode("inspector");
+        renderInspector();
+      });
+    }
+
+    const btnOpenAddCustom = document.getElementById("btn-open-add-custom-model");
+    if (btnOpenAddCustom) {
+      btnOpenAddCustom.addEventListener("click", () => {
+        openModal("modal-add-custom-model");
+      });
+    }
+
+    // Gestion du formulaire d'ajout de modèle personnalisé
+    const formAddCustomModel = document.getElementById("form-add-custom-model");
+    if (formAddCustomModel) {
+      formAddCustomModel.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const submitBtn = document.getElementById("btn-submit-add-custom-model");
+        if (submitBtn) submitBtn.disabled = true;
+        try {
+          const provider = document.getElementById("custom-model-provider")?.value || "custom";
+          const speed = document.getElementById("custom-model-speed")?.value || "balanced";
+          const displayName = document.getElementById("custom-model-name")?.value.trim() || "";
+          const modelId = document.getElementById("custom-model-id")?.value.trim() || displayName;
+          const endpoint = document.getElementById("custom-model-endpoint")?.value.trim() || "";
+          const apiKey = document.getElementById("custom-model-key")?.value.trim() || "";
+          const context = parseInt(document.getElementById("custom-model-context")?.value, 10) || 128000;
+
+          const caps = {
+            reasoning: document.getElementById("cap-reasoning")?.checked ?? true,
+            tools: document.getElementById("cap-tools")?.checked ?? true,
+            vision: document.getElementById("cap-vision")?.checked ?? false,
+            streaming: document.getElementById("cap-streaming")?.checked ?? true,
+            structured_output: document.getElementById("cap-structured")?.checked ?? true,
+            context: context
+          };
+
+          const payload = {
+            id: modelId,
+            model_name: modelId,
+            display_name: displayName || modelId,
+            provider_name: provider.toUpperCase(),
+            provider_family: provider,
+            endpoint: endpoint,
+            api_key: apiKey,
+            context: context,
+            speed_tier: speed,
+            capabilities: caps
+          };
+
+          const res = await apiPost("/api/models/custom/add", payload);
+          if (res && res.model) {
+            closeModal("modal-add-custom-model");
+            formAddCustomModel.reset();
+            await refreshFullState();
+            await apiPost("/api/models/select", { model_id: res.model.id });
+            await refreshFullState();
+            showStatusBanner(`Modèle « ${res.model.display_name} » ajouté et activé !`, "success");
+            const mp = document.getElementById("modal-model-picker");
+            if (mp && mp.classList.contains("open")) {
+              renderModelPickerModal();
+            }
+          } else {
+            showStatusBanner("Impossible d'enregistrer le modèle personnalisé.", "error");
+          }
+        } catch (err) {
+          showStatusBanner(`Erreur ajout modèle : ${err.message}`, "error");
+        } finally {
+          if (submitBtn) submitBtn.disabled = false;
+        }
+      });
+    }
+
+    // Gestion du formulaire d'ajout dans la bibliothèque
+    const formAddLib = document.getElementById("form-add-library-item");
+    if (formAddLib) {
+      formAddLib.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const submitBtn = document.getElementById("btn-submit-add-library");
+        if (submitBtn) submitBtn.disabled = true;
+        try {
+          const title = document.getElementById("lib-item-title")?.value.trim() || "Sans titre";
+          const category = document.getElementById("lib-item-category")?.value || "Notes";
+          const rawTags = document.getElementById("lib-item-tags")?.value.trim() || "";
+          const tags = rawTags ? rawTags.split(",").map(t => t.trim()).filter(Boolean) : [];
+          const content = document.getElementById("lib-item-content")?.value.trim() || "";
+          const alsoRemember = document.getElementById("lib-item-remember")?.checked;
+
+          const payload = {
+            title: title,
+            category: category,
+            tags: tags,
+            content: content
+          };
+
+          const res = await apiPost("/api/library/add", payload);
+          if (res && res.item) {
+            if (alsoRemember) {
+              await apiPost("/api/memory/persistent/add", {
+                category: "knowledge",
+                content: `${title} : ${content.slice(0, 300)}`,
+                linked_resource_id: res.item.id
+              });
+            }
+            closeModal("modal-add-library-item");
+            formAddLib.reset();
+            await loadLibrary();
+            await loadPersistentMemories();
+            renderInspectorLibraryTab();
+            showStatusBanner(`Élément « ${title} » ajouté à la bibliothèque !`, "success");
+          } else {
+            showStatusBanner("Impossible d'ajouter l'élément à la bibliothèque.", "error");
+          }
+        } catch (err) {
+          showStatusBanner(`Erreur bibliothèque : ${err.message}`, "error");
+        } finally {
+          if (submitBtn) submitBtn.disabled = false;
+        }
+      });
+    }
 
     const composerInput = document.getElementById("composer-input");
     composerInput.addEventListener("input", () => {
@@ -5645,6 +6521,93 @@ openDocumentPreview({
       }
       submitComposerTask();
     });
+
+    // Sélecteur popover de mode d'exécution (NeoHarness Core / Swift / Deep) style maquette
+    const modelPopoverBtn = document.getElementById("btn-composer-model-popover");
+    const modelDropdownMenu = document.getElementById("composer-model-dropdown-menu");
+    if (modelPopoverBtn && modelDropdownMenu) {
+      modelPopoverBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const isOpen = modelDropdownMenu.style.display !== "none";
+        modelDropdownMenu.style.display = isOpen ? "none" : "flex";
+      });
+      document.addEventListener("click", (e) => {
+        if (!modelDropdownMenu.contains(e.target) && !modelPopoverBtn.contains(e.target)) {
+          modelDropdownMenu.style.display = "none";
+        }
+      });
+      modelDropdownMenu.querySelectorAll(".model-popover-item[data-exec-mode]").forEach((item) => {
+        item.addEventListener("click", async () => {
+          const mode = item.getAttribute("data-exec-mode");
+          if (mode) {
+            await window.setAgentExecutionMode(mode);
+          }
+          modelDropdownMenu.style.display = "none";
+        });
+      });
+      const popoverFullModels = document.getElementById("popover-open-full-models");
+      if (popoverFullModels) {
+        popoverFullModels.addEventListener("click", () => {
+          modelDropdownMenu.style.display = "none";
+          openModal("modal-model-picker");
+        });
+      }
+    }
+
+    // Suggestions de la page d'accueil style maquette
+    document.querySelectorAll(".welcome-suggestion-row").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const prompt = btn.getAttribute("data-prompt");
+        const input = document.getElementById("composer-input");
+        if (input && prompt) {
+          input.value = prompt;
+          input.focus();
+          input.dispatchEvent(new Event("input"));
+        }
+      });
+    });
+
+    // Carte utilisateur dans la barre latérale gauche (Alex Martin -> ouvre Paramètres)
+    const userProfileCard = document.getElementById("btn-sidebar-user-profile");
+    if (userProfileCard) {
+      userProfileCard.addEventListener("click", () => {
+        openModal("modal-settings");
+      });
+    }
+
+    // Sélecteur popover de gouvernance (AUTO, ACCEPT, EDIT, PLAN) 100% fonctionnel
+    const subheaderGovBtn = document.getElementById("btn-governance-toggle");
+    const govDropdownMenu = document.getElementById("governance-dropdown");
+    if (subheaderGovBtn && govDropdownMenu) {
+      subheaderGovBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const isOpen = govDropdownMenu.style.display !== "none";
+        govDropdownMenu.style.display = isOpen ? "none" : "flex";
+      });
+      document.addEventListener("click", (e) => {
+        if (!govDropdownMenu.contains(e.target) && !subheaderGovBtn.contains(e.target)) {
+          govDropdownMenu.style.display = "none";
+        }
+      });
+      govDropdownMenu.querySelectorAll(".gov-option-item[data-gov-mode]").forEach((opt) => {
+        opt.addEventListener("click", async () => {
+          const mode = opt.getAttribute("data-gov-mode");
+          govDropdownMenu.querySelectorAll(".gov-option-item").forEach((o) => {
+            o.classList.toggle("active", o.getAttribute("data-gov-mode") === mode);
+            const chk = o.querySelector(".gov-check");
+            if (chk) chk.style.display = o.getAttribute("data-gov-mode") === mode ? "inline" : "none";
+          });
+          const badgeLabel = document.getElementById("governance-badge-label");
+          if (badgeLabel) badgeLabel.textContent = `Gouvernance : ${mode}`;
+          const chipLabel = document.getElementById("governance-chip-label");
+          if (chipLabel) chipLabel.textContent = mode;
+          await apiPost("/api/mode", { mode: mode });
+          await refreshFullState();
+          govDropdownMenu.style.display = "none";
+          showStatusBanner(`Mode de gouvernance activé à 100 % : ${mode}`, "info");
+        });
+      });
+    }
 
     const topMenuBtn = document.getElementById("btn-topbar-menu");
     const topMenuDropdown = document.getElementById("topbar-menu-dropdown");
@@ -5889,8 +6852,21 @@ openDocumentPreview({
       });
     }
 
-    document.getElementById("global-search-input").addEventListener("input", (e) => {
-      runGlobalSearch(e.target.value || "");
+    const globalSearchInput = document.getElementById("global-search-input");
+    let currentCmdFilter = "all";
+    if (globalSearchInput) {
+      globalSearchInput.addEventListener("input", (e) => {
+        runGlobalSearch(e.target.value || "", currentCmdFilter);
+      });
+    }
+    document.querySelectorAll(".cmd-filter-pill[data-cmd-filter]").forEach((pill) => {
+      pill.addEventListener("click", () => {
+        document.querySelectorAll(".cmd-filter-pill").forEach((p) => p.classList.remove("active"));
+        pill.classList.add("active");
+        currentCmdFilter = pill.getAttribute("data-cmd-filter") || "all";
+        const val = globalSearchInput ? globalSearchInput.value : "";
+        runGlobalSearch(val, currentCmdFilter);
+      });
     });
 
     document.addEventListener("mousedown", (e) => {

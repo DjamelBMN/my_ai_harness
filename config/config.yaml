@@ -44,7 +44,7 @@ providers:
     model: "qwen3:1.7b"
   gemini:
     enabled: true
-    model: "gemini-3.8-flash"
+    model: "gemini-3.6-flash"
   mistral:
     enabled: true
     model: "mistral-small-latest"

@@ -1,0 +1,92 @@
+% Compiler avec XeLaTeX ou LuaLaTeX
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{amsmath,amssymb}
+\usepackage{fontspec}
+\usepackage{unicode-math}
+\usepackage{polyglossia}
+\setmainlanguage{french}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage[margin=2cm,headheight=16pt,headsep=22pt]{geometry}
+\usepackage{enumitem}
+
+% Police principale et police mathématique : Libertinus
+\IfFontExistsTF{Libertinus Serif}
+  {\setmainfont{Libertinus Serif}}
+  {\IfFontExistsTF{Latin Modern Roman}{\setmainfont{Latin Modern Roman}}{\setmainfont{lmroman10-regular.otf}}}
+
+\IfFontExistsTF{Libertinus Math}
+  {\setmathfont{Libertinus Math}}
+  {\IfFontExistsTF{Latin Modern Math}{\setmathfont{Latin Modern Math}}{\setmathfont{latinmodern-math.otf}}}
+
+\linespread{1.07}
+\setlength{\parindent}{0pt}
+\AtBeginDocument{\setlength{\parindent}{0pt}}
+\setlength{\parskip}{0.35em}
+
+% En-tête
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Mathématiques}
+\rhead{Première Générale -- Spécialité}
+% Pagination : « Page X / Y » centrée en pied de page
+\usepackage{lastpage}
+\cfoot{Page \thepage\ / \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.5pt}
+% Trait de séparation éloigné du texte de l'en-tête (modifier 5pt pour ajuster)
+\renewcommand{\headrule}{\vskip 5pt\hrule width\headwidth height\headrulewidth \vskip-\headrulewidth}
+
+% Configuration des listes
+\setlist[enumerate,1]{itemsep=0.45em, topsep=0.3em, label=\textbf{\arabic*.}}
+\setlist[enumerate,2]{itemsep=0.25em, topsep=0.2em, label=\textbf{\alph*.}}
+
+% Commande exercice
+\newcommand{\exo}[2]{%
+  \vspace{1.5em}%
+  \noindent{\large\textbf{Exercice #1. -- #2}}%
+  \par\vspace{0.35em}%
+  \hrule height 0.5pt%
+  \vspace{0.7em}%
+}
+
+\newcommand{\partie}[1]{%
+  \vspace{0.9em}%
+  \noindent\textbf{#1}%
+  \par\vspace{0.3em}%
+}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE \textbf{Dérivation et applications}}\\[0.5em]
+  {\large Première Spécialité Mathématiques}
+\end{center}
+
+% ---------------------- EXERCICE 1 ----------------------
+\exo{1}{Étude d'une fonction polynôme du troisième degré et recherche de tangentes}
+
+Soit $f$ la fonction définie et dérivable sur $\mathbb{R}$ par :
+\[
+f(x) = 2x^3 - 3x^2 - 12x + 5
+\]
+On note $\mathcal{C}_f$ sa courbe représentative dans un repère orthonormé $(O; \vec{i}, \vec{j})$.
+
+\partie{Partie A -- Étude des variations de la fonction $f$}
+
+\begin{enumerate}
+  \item Justifier que $f$ est dérivable sur $\mathbb{R}$ et déterminer sa fonction dérivée $f'$.
+  \item Étudier le signe du trinôme $f'(x)$ selon les valeurs du réel $x$.
+  \item Dresser le tableau de variations complet de la fonction $f$ sur l'intervalle $[-3\,;\,4]$, en précisant les valeurs remarquables et les extremums locaux.
+  \item Préciser le nombre de solutions de l'équation $f(x) = 0$ sur l'intervalle $[-3\,;\,4]$. Justifier.
+\end{enumerate}
+
+\partie{Partie B -- Tangentes remarquables à la courbe $\mathcal{C}_f$}
+
+\begin{enumerate}
+  \item Déterminer l'équation réduite de la tangente $T_0$ à la courbe $\mathcal{C}_f$ au point d'abscisse $x = 0$.
+  \item Déterminer les abscisses des éventuels points de $\mathcal{C}_f$ où la tangente est parallèle à la droite d'équation $y = 24x - 7$.
+  \item Existe-t-il des points de $\mathcal{C}_f$ où la tangente est horizontale ? Si oui, préciser leurs coordonnées.
+\end{enumerate}
+
+\end{document}

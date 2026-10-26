@@ -110,19 +110,23 @@ def is_gemini_quota_exhausted(error: Exception) -> bool:
 
 
 class GeminiProvider(BaseProvider):
+    _cached_models: list[dict[str, str]] | None = None
+    _cached_models_time: float = 0.0
+
     def __init__(self, model: str | None = None) -> None:
         if model is not None and (not isinstance(model, str) or not model.strip()):
             raise GeminiProviderError(
                 "Gemini — configuration invalide : modèle vide.",
                 category="configuration",
             )
-        self.model = model.strip() if model else None
+        self.model = model.strip() if model else "gemini-3.6-flash"
         self._client = None
         self._verified = False
         self._available_models: dict[str, str] = {}
         self.max_output_tokens: int | None = None
         self.max_retries = 2
-        self.base_backoff_seconds = 1.0
+        self.base_backoff_seconds = 0.5
+        self.enable_extended_thinking = False
         self.stream_callback: Any = None
 
     def _get_client(self):
@@ -236,7 +240,14 @@ class GeminiProvider(BaseProvider):
         )
 
     def list_available_models(self) -> list[dict[str, str]]:
-        """Liste les modèles accessibles qui prennent en charge generateContent."""
+        """Liste les modèles accessibles qui prennent en charge generateContent (mise en cache 5 min pour zéro latence)."""
+        now = time.monotonic()
+        if GeminiProvider._cached_models and (now - GeminiProvider._cached_models_time < 300.0):
+            self._available_models = {
+                item["model"]: item["display_name"] for item in GeminiProvider._cached_models
+            }
+            return list(GeminiProvider._cached_models)
+
         client = self._get_client()
         try:
             discovered = []
@@ -269,6 +280,8 @@ class GeminiProvider(BaseProvider):
                 "prend en charge la génération de texte.",
                 category="configuration",
             )
+        GeminiProvider._cached_models = list(discovered)
+        GeminiProvider._cached_models_time = now
         self._available_models = {
             item["model"]: item["display_name"] for item in discovered
         }
@@ -338,39 +351,65 @@ class GeminiProvider(BaseProvider):
         return answer.strip()
 
     def _generate_content(self, contents: Any, *, config: Any = None, phase: str):
-        """Appelle l'API avec délai borné et reprise seulement sur erreur transitoire."""
-        for attempt in range(self.max_retries + 1):
+        """Appelle l'API avec délai borné, thinking optimisé (0s de réflexion inutile en mode rapide) et bascule immédiate sur modèle rapide en cas de surcharge."""
+        candidate_models = [self.model] if self.model else []
+        for fast_m in ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3-flash-preview"]:
+            if fast_m not in candidate_models:
+                candidate_models.append(fast_m)
+
+        if config is None:
             try:
-                options = {"model": self.model, "contents": contents}
-                if config is not None:
-                    options["config"] = config
-                return self._client.models.generate_content(**options)
-            except Exception as error:
-                mapped = self._api_error(error, phase)
-                # Si le provider est encapsulé par RateLimitManager, laisser RateLimitManager
-                # coordonner la file de concurrence et le backoff centralisé
-                if getattr(self, "_has_rate_limit_wrapped", False):
-                    raise mapped from None
+                from google.genai import types
+                tb = 0 if not getattr(self, "enable_extended_thinking", False) else None
+                tc = types.ThinkingConfig(thinking_budget=tb) if tb is not None else None
+                config = types.GenerateContentConfig(
+                    thinking_config=tc,
+                    http_options=types.HttpOptions(timeout=25_000),
+                )
+            except Exception:
+                pass
 
-                # Si quota réellement épuisé, arrêt immédiat sans retries inutiles
-                if getattr(mapped, "is_quota_exhausted", False) or mapped.category == "quota_exhausted":
-                    raise mapped from None
+        last_error = None
+        for current_model in candidate_models:
+            for attempt in range(self.max_retries + 1):
+                try:
+                    options = {"model": current_model, "contents": contents}
+                    if config is not None:
+                        options["config"] = config
+                    res = self._client.models.generate_content(**options)
+                    if current_model != self.model:
+                        self.model = current_model
+                    return res
+                except Exception as error:
+                    last_error = error
+                    mapped = self._api_error(error, phase)
+                    err_str = str(error).lower()
+                    # Si le modèle est surchargé (503 / 504 / 404), basculer immédiatement sur le candidat suivant sans perdre 30s de retries
+                    if "503" in err_str or "unavailable" in err_str or "504" in err_str or "deadline" in err_str or "404" in err_str:
+                        break
 
-                # Erreur transitoire (429 temporaire ou indisponibilité réseau)
-                if mapped.category in {"unavailable", "rate_limit"}:
-                    if attempt >= self.max_retries:
+                    if getattr(self, "_has_rate_limit_wrapped", False):
                         raise mapped from None
-                    # Calcul du délai exponentiel avec jitter ou respect de Retry-After
-                    if mapped.retry_after and mapped.retry_after > 0:
-                        delay = round(mapped.retry_after + random.uniform(0.1, 0.5), 2)
-                    else:
-                        base = getattr(self, "base_backoff_seconds", 1.0)
-                        delay = round(min(base * (2 ** attempt) + random.uniform(0.1, 0.5), 30.0), 2)
-                    print(f"[GeminiProvider] Retry dans {delay:.1f} secondes", flush=True)
-                    time.sleep(delay)
-                    continue
 
-                raise mapped from None
+                    if getattr(mapped, "is_quota_exhausted", False) or mapped.category == "quota_exhausted":
+                        raise mapped from None
+
+                    if mapped.category in {"unavailable", "rate_limit"}:
+                        if attempt >= self.max_retries:
+                            break
+                        if mapped.retry_after and mapped.retry_after > 0:
+                            delay = round(mapped.retry_after + random.uniform(0.1, 0.4), 2)
+                        else:
+                            base = getattr(self, "base_backoff_seconds", 0.5)
+                            delay = round(min(base * (2 ** attempt) + random.uniform(0.05, 0.2), 4.0), 2)
+                        print(f"[GeminiProvider] Retry dans {delay:.1f} secondes", flush=True)
+                        time.sleep(delay)
+                        continue
+
+                    raise mapped from None
+
+        if last_error is not None:
+            raise self._api_error(last_error, phase) from None
 
     def generate_structured(self, prompt: str, schema: dict[str, Any]) -> dict[str, Any]:
         """Demande un objet JSON contraint par un schéma Gemini officiel."""

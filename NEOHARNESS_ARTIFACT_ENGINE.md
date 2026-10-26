@@ -16,9 +16,11 @@ $$\text{Générer} \longrightarrow \text{Écrire} \longrightarrow \text{Compiler
 
 ### Principes directeurs :
 1. **Zéro simulation** : chaque script est exécuté par un runtime réel (Python, Node.js, Tectonic) ; chaque fichier binaire ou vectoriel est validé par des parsers stricts.
-2. **Auto-réparation déterministe & cognitive** : en cas d'erreur de syntaxe (balise XML non fermée, préambule LaTeX incomplet, virgule JSON résiduelle), le système tente une réparation déterministe immédiate, puis peut solliciter le LLM pour correction autonome avant livraison.
-3. **Expérience unifiée à la Claude** : génération en direct dans le chat $\rightarrow$ détection immédiate de l'artefact $\rightarrow$ ouverture automatique du panneau latéral droit avec le rendu réel opérationnel.
-4. **Contrôle total par l'utilisateur** : 4 vues contextuelles (**Aperçu**, **Code source**, **Fichiers générés**, **Console & Logs**) avec édition en place et ré-exécution instantanée.
+2. **Intelligence de production : `Chat ≠ Artefact`** : répondre dans le chat ne produit jamais d'artefact documentaire parasite. Les salutations, questions d'analyse, explications conceptuelles et modifications de code n'engendrent aucun fichier PDF, LaTeX ou Word. Un artefact n'est forgé que si l'utilisateur le demande explicitement ou si un skill de livrable est engagé.
+3. **Auto-réparation déterministe & cognitive** : en cas d'erreur de syntaxe (balise XML non fermée, préambule LaTeX incomplet, virgule JSON résiduelle), le système tente une réparation déterministe immédiate, puis peut solliciter le LLM pour correction autonome avant livraison.
+4. **Expérience unifiée à la Claude** : génération en direct dans le chat $\rightarrow$ détection immédiate de l'artefact $\rightarrow$ ouverture automatique du panneau latéral droit avec le rendu réel opérationnel.
+5. **Contrôle total par l'utilisateur** : 4 vues contextuelles (**Aperçu**, **Code source**, **Fichiers générés**, **Console & Logs**) avec édition en place et ré-exécution instantanée.
+6. **Synchronisation avec la Bibliothèque Intelligente** : tout artefact validé ou produit est instantanément catalogué dans la Bibliothèque (`workspace/.harness/library.json`), avec métadonnées, résumé, tags et lien mémoire persistant.
 
 ---
 
@@ -123,6 +125,12 @@ Chaque mise à jour d'un artefact capture :
 ## 5. Expérience Utilisateur & Panneau Droit Unifié
 
 Le panneau droit unifié de NeoHarness (`#right-inspector`) s'adapte dynamiquement à la nature de l'artefact actif :
+
+### Boutons d'Action & En-tête Redesignés
+- **« Compiler avec Tectonic » (`.btn-doc-primary`)** : bouton d'action principale surélevé en bleu profond (`#0969da`), pictogramme vectoriel `play`, micro-transition active `scale(0.98)` et état `disabled` propre.
+- **« Fermer » (`.btn-doc-secondary-close`)** : bouton d'action secondaire neutre avec icône vectorielle `close`, parfaitement intégré au design system.
+- **Bandeau Document Word** : en-tête bleu Word pleine largeur (*edge-to-edge*), titre du document centré avec suppression des actions redondantes.
+- **Bouton Copier** : icône vectorielle SVG dédiée (`ICONS.copy`), éliminant tout affichage `undefined`.
 
 ### Les 4 Onglets Contextuels
 1. **Aperçu (`#btn-doc-view-render`)** :

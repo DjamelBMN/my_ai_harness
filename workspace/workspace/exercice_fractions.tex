@@ -1,0 +1,132 @@
+% Compiler avec XeLaTeX ou LuaLaTeX
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{amsmath,amssymb}
+\usepackage{fontspec}
+\usepackage{unicode-math}
+\usepackage{polyglossia}
+\setmainlanguage{french}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage[margin=2cm,headheight=16pt,headsep=22pt]{geometry}
+\usepackage{enumitem}
+
+% Police principale et police mathématique : Libertinus
+\IfFontExistsTF{Libertinus Serif}
+  {\setmainfont{Libertinus Serif}}
+  {\IfFontExistsTF{Latin Modern Roman}{\setmainfont{Latin Modern Roman}}{\setmainfont{lmroman10-regular.otf}}}
+
+\IfFontExistsTF{Libertinus Math}
+  {\setmathfont{Libertinus Math}}
+  {\IfFontExistsTF{Latin Modern Math}{\setmathfont{Latin Modern Math}}{\setmathfont{latinmodern-math.otf}}}
+
+\linespread{1.07}
+\setlength{\parindent}{0pt}
+\AtBeginDocument{\setlength{\parindent}{0pt}}
+\setlength{\parskip}{0.35em}
+
+% En-tête
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Professeur de Mathématiques}
+\rhead{Classe de Seconde}
+% Pagination : « Page X / Y » centrée en pied de page
+\usepackage{lastpage}
+\cfoot{Page \thepage\ / \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\headrule}{\vskip 5pt\hrule width\headwidth height\headrulewidth \vskip-\headrulewidth}
+
+% Configuration des listes
+\setlist[enumerate,1]{itemsep=0.45em, topsep=0.3em, label=\textbf{\arabic*.}}
+\setlist[enumerate,2]{itemsep=0.25em, topsep=0.2em, label=\textbf{\alph*.}}
+
+% Commande exercice
+\newcommand{\exo}[2]{%
+  \vspace{1.5em}%
+  \noindent{\large\textbf{Exercice #1. -- #2}}%
+  \par\vspace{0.35em}%
+  \hrule height 0.5pt%
+  \vspace{0.7em}%
+}
+
+\newcommand{\partie}[1]{%
+  \vspace{0.9em}%
+  \noindent\textbf{#1}%
+  \par\vspace{0.3em}%
+}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE \textbf{Exercice d'entraînement sur les fractions}}\\[0.5em]
+  {\large Classe de Seconde}
+\end{center}
+
+% ---------------------- EXERCICE 1 ----------------------
+\exo{1}{Calculs et simplifications sur les fractions}
+
+Cet exercice propose d'étudier des enchaînements d'opérations sur les fractions algébriques et numériques, en insistant sur les règles de réduction au même dénominateur, de factorisation et de simplification.
+
+\partie{Partie A -- Calculs numériques}
+
+Calculer les expressions suivantes et donner le résultat sous forme d'une fraction irréductible :
+\begin{enumerate}
+  \item $A = \frac{3}{4} + \frac{5}{6} \times \frac{2}{15}$
+  \item $B = \left( \frac{7}{3} - \frac{1}{2} \right) \div \frac{5}{6}$
+  \item $C = \frac{\frac{2}{3} + \frac{3}{4}}{\frac{5}{6} - \frac{1}{2}}$
+\end{enumerate}
+
+\partie{Partie B -- Simplification d'une expression littérale}
+
+On considère l'expression $D$ définie pour tout réel $x \neq 0$ et $x \neq 2$ par :
+$$D(x) = \frac{x^2 - 4}{x^2} \times \frac{x}{x - 2}$$
+
+\begin{enumerate}
+  \item Factoriser le numérateur $x^2 - 4$.
+  \item En déduire que l'expression $D(x)$ peut s'écrire sous la forme simplifiée :
+  $$D(x) = \frac{x + 2}{x}$$
+  \item Calculer la valeur exacte de $D\left(\frac{1}{3}\right)$ sous forme de fraction irréductible.
+\end{enumerate}
+
+\vspace{1.5em}
+\hrule height 0.5pt
+\vspace{1em}
+\noindent{\large\textbf{Corrigé détaillé}}
+
+\partie{Correction de la Partie A}
+\begin{enumerate}
+  \item \textbf{Calcul de $A$ :}
+  On effectue d'abord la multiplication en priorisant les opérations :
+  $$\frac{5}{6} \times \frac{2}{15} = \frac{5 \times 2}{6 \times 15} = \frac{10}{90} = \frac{1}{9}$$
+  Ensuite, on additionne avec $\frac{3}{4}$ en réduisant au même dénominateur ($36$) :
+  $$A = \frac{3}{4} + \frac{1}{9} = \frac{3 \times 9}{4 \times 9} + \frac{1 \times 4}{9 \times 4} = \frac{27}{36} + \frac{4}{36} = \frac{31}{36}$$
+
+  \item \textbf{Calcul de $B$ :}
+  On calcule d'abord la différence entre parenthèses en réduisant au même dénominateur ($6$) :
+  $$\frac{7}{3} - \frac{1}{2} = \frac{14}{6} - \frac{3}{6} = \frac{11}{6}$$
+  Puis on divise par $\frac{5}{6}$ en multipliant par son inverse :
+  $$B = \frac{11}{6} \div \frac{5}{6} = \frac{11}{6} \times \frac{6}{5} = \frac{11}{5}$$
+
+  \item \textbf{Calcul de $C$ :}
+  On calcule séparément le numérateur et le dénominateur :
+  $$\text{Numérateur : } \frac{2}{3} + \frac{3}{4} = \frac{8}{12} + \frac{9}{12} = \frac{17}{12}$$
+  $$\text{Dénominateur : } \frac{5}{6} - \frac{1}{2} = \frac{5}{6} - \frac{3}{6} = \frac{2}{6} = \frac{1}{3}$$
+  On effectue ensuite la division des deux fractions :
+  $$C = \frac{\frac{17}{12}}{\frac{1}{3}} = \frac{17}{12} \times \frac{3}{1} = \frac{51}{12} = \frac{17}{4}$$
+\end{enumerate}
+
+\partie{Correction de la Partie B}
+\begin{enumerate}
+  \item D'après l'identité remarquable $a^2 - b^2 = (a-b)(a+b)$, on a :
+  $$x^2 - 4 = (x - 2)(x + 2)$$
+
+  \item En remplaçant au numérateur par la forme factorisée :
+  $$D(x) = \frac{(x - 2)(x + 2)}{x^2} \times \frac{x}{x - 2}$$
+  En simplifiant par $(x - 2)$ (valide car $x \neq 2$) et en simplifiant $x$ au numérateur et au dénominateur (valide car $x \neq 0$) :
+  $$D(x) = \frac{(x + 2) \times x \times (x - 2)}{x^2 \times (x - 2)} = \frac{x + 2}{x}$$
+
+  \item Pour $x = \frac{1}{3}$ :
+  $$D\left(\frac{1}{3}\right) = \frac{\frac{1}{3} + 2}{\frac{1}{3}} = \frac{\frac{1}{3} + \frac{6}{3}}{\frac{1}{3}} = \frac{\frac{7}{3}}{\frac{1}{3}} = \frac{7}{3} \times \frac{3}{1} = 7$$
+\end{enumerate}
+
+\end{document}

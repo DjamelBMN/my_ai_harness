@@ -6,8 +6,7 @@
   <title>NeoHarness AI — Agent Operating Environment</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous" />
   <link rel="stylesheet" href="/styles.css?v=2.3" />
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
@@ -25,78 +24,76 @@
             <line x1="9" y1="3" x2="9" y2="21"></line>
           </svg>
         </button>
-        <button id="btn-brand-home" class="brand-button" title="NeoHarness AI — Conçu & créé par Djamel BENMAKHLOUF">
-          <span class="brand-logo" aria-hidden="true">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-              <polyline points="2 17 12 22 22 17"></polyline>
-              <polyline points="2 12 12 17 22 12"></polyline>
-            </svg>
-          </span>
-          <span class="brand-title">NeoHarness AI</span>
+        <button id="btn-brand-home" class="brand-button" title="NeoHarness AI — Orchestrateur & Environnement Agentique">
+          <span class="brand-logo-square" aria-hidden="true">N</span>
+          <span class="brand-title">NeoHarness</span>
         </button>
-        <span class="topbar-divider"></span>
-        <button id="btn-top-project" class="topbar-ghost-pill" title="Projet actif dans le workspace">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-          </svg>
-          <span class="pill-muted">Projet</span>
-          <span id="top-project-name">NeoHarness AI</span>
-        </button>
+        <span class="topbar-sep" aria-hidden="true">|</span>
+        <span class="topbar-subtext" id="top-project-name">Espace personnel</span>
+        <button id="btn-top-project" class="topbar-ghost-pill" style="display: none;" title="Projet actif"></button>
       </div>
 
       <div class="topbar-center">
-        <button id="btn-open-model-picker" class="topbar-model-pill" title="Changer de modèle IA">
+        <!-- Éléments préservés pour compatibilité télémétrie & tests -->
+        <button id="btn-open-model-picker" class="topbar-model-pill" style="display: none;" title="Changer de modèle IA">
           <span class="status-dot" id="top-model-dot"></span>
           <span id="top-model-label">Auto</span>
           <svg class="caret-svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <polyline points="6 9 12 15 18 9"></polyline>
           </svg>
         </button>
-
-        <div class="topbar-status-pill" id="top-task-pill" title="Afficher le panneau d'activité en temps réel" style="cursor: pointer;">
+        <div class="topbar-status-pill" id="top-task-pill" style="display: none;" title="Panneau d'activité">
           <span class="status-dot" id="top-task-dot"></span>
-          <span id="top-task-status" class="status-text-dynamic" style="display: none;">Prêt</span>
+          <span id="top-task-status">Prêt</span>
         </div>
       </div>
 
       <div class="topbar-right">
-        <!-- Bouton recherche conservé pour accessibilité et tests, palette déclenchable via Ctrl+K -->
-        <button id="btn-open-search" class="topbar-ghost-pill" style="display: none;" title="Recherche globale (Ctrl+K)">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <!-- Badge Opérationnel style maquette -->
+        <div class="topbar-operational-badge" id="topbar-operational-status" title="Système opérationnel et connecté aux providers">
+          <span class="operational-dot"></span>
+          <span>Opérationnel</span>
+        </div>
+
+        <!-- Recherche globale Ctrl+K style maquette -->
+        <button id="btn-open-search" class="topbar-search-pill" title="Recherche globale (Ctrl+K)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
           <span>Rechercher</span>
-          <kbd class="kbd-hint">Ctrl+K</kbd>
+          <kbd class="kbd-badge">⌘ K</kbd>
         </button>
 
-        <!-- Menu unique discret (Thème, Réglages, À propos) -->
+        <!-- Bibliothèque intelligente accessible directement depuis la navigation principale -->
+        <button id="btn-open-library" class="topbar-search-pill" title="Bibliothèque de connaissances &amp; documents">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+          </svg>
+          <span>Bibliothèque</span>
+        </button>
+
+        <!-- Bascule directe thème Clair / Sombre -->
+        <button id="btn-toggle-theme" class="topbar-icon-btn" title="Basculer le thème Clair / Sombre" aria-label="Thème">
+          <span id="theme-icon" class="icon-inline">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          </span>
+          <span id="theme-label-text" style="display: none;">Thème</span>
+        </button>
+
+        <!-- Menu discret paramètres & à propos -->
         <div class="topbar-menu-wrapper" style="position: relative;">
-          <button id="btn-topbar-menu" class="topbar-icon-btn" title="Options et préférences" aria-label="Menu des options">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <button id="btn-topbar-menu" class="topbar-icon-btn" title="Paramètres et options" aria-label="Options">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="1.5"></circle>
               <circle cx="19" cy="12" r="1.5"></circle>
               <circle cx="5" cy="12" r="1.5"></circle>
             </svg>
           </button>
           <div id="topbar-menu-dropdown" class="topbar-dropdown" style="display: none;">
-            <button id="btn-toggle-theme" class="topbar-dropdown-item" title="Basculer le thème Clair / Sombre" aria-label="Thème">
-              <span id="theme-icon" class="icon-inline">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <circle cx="12" cy="12" r="5"></circle>
-                  <line x1="12" y1="1" x2="12" y2="3"></line>
-                  <line x1="12" y1="21" x2="12" y2="23"></line>
-                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                  <line x1="1" y1="12" x2="3" y2="12"></line>
-                  <line x1="21" y1="12" x2="23" y2="12"></line>
-                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-                </svg>
-              </span>
-              <span id="theme-label-text">Basculer le thème</span>
-            </button>
             <button id="btn-open-settings" class="topbar-dropdown-item" title="Paramètres & Clés API" aria-label="Paramètres">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="3"></circle>
@@ -112,12 +109,12 @@
           </div>
         </div>
 
-        <button id="btn-toggle-inspector" class="topbar-ghost-pill" title="Ouvrir/Fermer le panneau latéral droit (Ctrl+I)">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <!-- Bascule Inspecteur latéral droit style maquette -->
+        <button id="btn-toggle-inspector" class="topbar-icon-btn" title="Inspecteur latéral (Ctrl+I)" aria-label="Inspecteur">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <rect x="3" y="3" width="18" height="18" rx="2"></rect>
             <line x1="15" y1="3" x2="15" y2="21"></line>
           </svg>
-          <span>Inspecteur</span>
         </button>
       </div>
     </header>
@@ -131,45 +128,50 @@
         <div class="sidebar-header">
           <button id="btn-new-task" class="new-task-btn" aria-label="Nouvelle tâche">
             <span class="new-task-btn-label">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
+              <span class="new-task-plus-icon">+</span>
               <span>Nouvelle tâche</span>
             </span>
-            <kbd class="kbd-hint">Ctrl+N</kbd>
+            <kbd class="kbd-badge-sidebar">⌘ N</kbd>
           </button>
-          <input
-            id="sidebar-filter-input"
-            type="search"
-            class="sidebar-search"
-            placeholder="Filtrer les conversations…"
-            aria-label="Filtrer les conversations"
-            style="display: none;"
-          />
+          <div class="sidebar-search-container">
+            <svg class="search-input-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input
+              id="sidebar-filter-input"
+              type="search"
+              class="sidebar-filter-input"
+              placeholder="Filtrer les tâches"
+              aria-label="Filtrer les tâches"
+            />
+          </div>
         </div>
 
         <div class="sidebar-scroll">
-          <!-- Conversations groupées chronologiquement (Aujourd'hui, Hier, Cette semaine, Plus ancien) -->
+          <!-- Discussions groupées par période avec comptage exact (Aujourd'hui, Hier, etc.) -->
           <section class="sidebar-section">
-            <div class="sidebar-conv-head">
-              <span class="sidebar-conv-title">Discussions</span>
-              <button id="btn-delete-all-convs" type="button" class="sidebar-danger-btn" data-tooltip="Supprimer toutes les discussions" data-tooltip-pos="bottom" aria-label="Supprimer toutes les discussions">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <div class="sidebar-tasks-action-header">
+              <span class="sidebar-tasks-micro-title">TÂCHES</span>
+              <button id="btn-delete-all-convs" class="sidebar-clear-tasks-btn" title="Supprimer toutes les tâches" aria-label="Supprimer toutes les tâches">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <polyline points="3 6 5 6 21 6"></polyline>
                   <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
                   <path d="M10 11v6M14 11v6"></path>
                   <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
                 </svg>
-                <span>Tout supprimer</span>
+                <span>Tout effacer</span>
               </button>
             </div>
             <div id="sec-conversations" class="sidebar-conversations-list"></div>
             <span id="count-conversations" style="display: none;">0</span>
           </section>
 
+          <!-- Bouton de purge discrète conservé pour contrat DOM -->
+          <button id="btn-delete-all-convs" type="button" style="display: none;" aria-label="Supprimer toutes les discussions"></button>
+
           <!-- Projets réels du workspace -->
-          <section class="sidebar-section">
+          <section class="sidebar-section" style="display: none;">
             <div class="sidebar-section-title">Projets</div>
             <div id="sec-projects" class="sidebar-projects-list"></div>
             <span id="count-projects" style="display: none;">1</span>
@@ -214,13 +216,18 @@
         </div>
 
         <div class="sidebar-footer">
-          <div class="creator-badge" id="btn-sidebar-about" title="Créateur & Architecte de NeoHarness AI : Djamel BENMAKHLOUF">
-            <span class="creator-avatar" aria-hidden="true">DB</span>
-            <div class="creator-info">
-              <strong class="creator-name">Djamel BENMAKHLOUF</strong>
-              <span class="creator-label">Créateur · NeoHarness AI</span>
+          <!-- Carte Profil Utilisateur style maquette -->
+          <div class="sidebar-user-card" id="btn-sidebar-user-profile" title="Espace de travail · Djamel BENMAKHLOUF">
+            <span class="user-avatar-badge" aria-hidden="true">DB</span>
+            <div class="user-meta-info">
+              <strong class="user-display-name">Djamel BENMAKHLOUF</strong>
+              <span class="user-plan-label">Développeur de NeoHarness interface agentique</span>
             </div>
+            <svg class="chevron-right-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
           </div>
+          <div id="btn-sidebar-about" style="display: none;"></div>
         </div>
       </aside>
 
@@ -228,71 +235,89 @@
 
       <!-- 2. CENTER WORKSPACE (ESPACE PRINCIPAL DE CONVERSATION) -->
       <main class="workspace" role="main">
+        <!-- Sous-en-tête contextuel style maquette (Titre + Gouvernance) -->
+        <div class="workspace-subheader">
+          <div class="subheader-task-info">
+            <span class="subheader-title" id="subheader-task-title">Nouvelle tâche</span>
+            <span class="subheader-status" id="subheader-task-desc">Prêt à être configurée</span>
+          </div>
+          <div class="subheader-actions" style="position: relative;">
+            <button id="btn-governance-toggle" type="button" class="subheader-governance-pill" title="Mode de gouvernance et contrôles humains (AUTO, ACCEPT, EDIT, PLAN)">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              </svg>
+              <span id="governance-badge-label">Gouvernance : AUTO</span>
+              <span id="governance-subtext-label" style="display: none;">AUTO</span>
+              <svg class="caret-svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div id="governance-dropdown" class="governance-popover-menu" style="display: none;">
+              <div class="gov-option-item active" data-gov-mode="AUTO">
+                <div class="gov-option-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></div>
+                <div class="gov-option-text">
+                  <strong>Mode AUTO</strong>
+                  <span>Permissions et exécution autonomes des outils &amp; Skills</span>
+                </div>
+                <span class="gov-check">✓</span>
+              </div>
+              <div class="gov-option-item" data-gov-mode="ACCEPT">
+                <div class="gov-option-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></div>
+                <div class="gov-option-text">
+                  <strong>Mode ACCEPT</strong>
+                  <span>Validation humaine requise pour toute action sensible</span>
+                </div>
+                <span class="gov-check" style="display: none;">✓</span>
+              </div>
+              <div class="gov-option-item" data-gov-mode="EDIT">
+                <div class="gov-option-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div>
+                <div class="gov-option-text">
+                  <strong>Mode EDIT</strong>
+                  <span>Modifications directes avec aperçu et traçabilité</span>
+                </div>
+                <span class="gov-check" style="display: none;">✓</span>
+              </div>
+              <div class="gov-option-item" data-gov-mode="PLAN">
+                <div class="gov-option-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg></div>
+                <div class="gov-option-text">
+                  <strong>Mode PLAN</strong>
+                  <span>Planification &amp; lecture seule — Aucune écriture autorisée</span>
+                </div>
+                <span class="gov-check" style="display: none;">✓</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div id="workspace-scroll" class="workspace-scroll">
-          <!-- Écran d'accueil minimaliste -->
+          <!-- Écran d'accueil minimaliste éditorial style maquette -->
           <div id="welcome-screen" class="welcome-container">
             <div class="welcome-header">
-              <div class="welcome-emblem" aria-hidden="true">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-                  <polyline points="2 17 12 22 22 17"></polyline>
-                  <polyline points="2 12 12 17 22 12"></polyline>
-                </svg>
+              <div class="welcome-square-emblem" aria-hidden="true">
+                <span>N</span>
               </div>
-              <h1>Que souhaitez-vous accomplir ?</h1>
-              <p>
-                Écrivez votre demande en langage naturel ou tapez <code>/</code> pour invoquer un skill.
+              <h1 id="welcome-title">Que voulez-vous accomplir ?</h1>
+              <p class="welcome-subtitle">
+                Décrivez le résultat attendu. NeoHarness organisera le travail, les contrôles et les validations.
               </p>
             </div>
 
             <!-- Élément préservé pour compatibilité DOM -->
             <div id="welcome-model-card" class="welcome-model-banner" style="display: none;"></div>
 
-            <!-- Suggestions d'actions concrètes (3 cartes premium) -->
-            <div class="welcome-grid welcome-grid-3">
-              <button class="welcome-card" data-quick-prompt="/bacblanc">
-                <div class="welcome-card-title">
-                  <span class="welcome-card-title-left">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                      <polyline points="14 2 14 8 20 8"></polyline>
-                      <line x1="16" y1="13" x2="8" y2="13"></line>
-                      <line x1="16" y1="17" x2="8" y2="17"></line>
-                    </svg>
-                    <span>Bac blanc complet</span>
-                  </span>
-                  <span class="meta-chip">/bacblanc</span>
-                </div>
-                <div class="welcome-card-desc">Concevoir un sujet officiel de baccalauréat avec barème sur 20 et corrigé complet, compilé en PDF.</div>
+            <!-- 3 suggestions éditoriales horizontales avec flèche ↗ style maquette -->
+            <div class="welcome-suggestions-list">
+              <button class="welcome-suggestion-row" data-quick-prompt="Auditer un workflow multi-agents">
+                <span class="suggestion-row-text">Auditer un workflow multi-agents</span>
+                <span class="suggestion-row-arrow" aria-hidden="true">↗</span>
               </button>
 
-              <button class="welcome-card" data-quick-prompt="/exercice">
-                <div class="welcome-card-title">
-                  <span class="welcome-card-title-left">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <line x1="18" y1="20" x2="18" y2="10"></line>
-                      <line x1="12" y1="20" x2="12" y2="4"></line>
-                      <line x1="6" y1="20" x2="6" y2="14"></line>
-                    </svg>
-                    <span>Exercice de mathématiques</span>
-                  </span>
-                  <span class="meta-chip">/exercice</span>
-                </div>
-                <div class="welcome-card-desc">Générer un exercice guidé conforme aux programmes du lycée avec questions progressives et correction détaillée.</div>
+              <button class="welcome-suggestion-row" data-quick-prompt="Structurer une note de décision">
+                <span class="suggestion-row-text">Structurer une note de décision</span>
+                <span class="suggestion-row-arrow" aria-hidden="true">↗</span>
               </button>
 
-              <button class="welcome-card" data-quick-prompt="/dm">
-                <div class="welcome-card-title">
-                  <span class="welcome-card-title-left">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                    </svg>
-                    <span>Devoir maison (DM)</span>
-                  </span>
-                  <span class="meta-chip">/dm</span>
-                </div>
-                <div class="welcome-card-desc">Créer un devoir maison approfondi, structuré en parties thématiques avec barème et corrigé LaTeX Libertinus.</div>
+              <button class="welcome-suggestion-row" data-quick-prompt="Comparer plusieurs sources techniques">
+                <span class="suggestion-row-text">Comparer plusieurs sources techniques</span>
+                <span class="suggestion-row-arrow" aria-hidden="true">↗</span>
               </button>
             </div>
           </div>
@@ -348,7 +373,7 @@
             <textarea
               id="composer-input"
               class="composer-textarea"
-              placeholder="Écrivez votre message, ou / pour une commande"
+              placeholder="Décrivez une tâche…"
               rows="1"
             ></textarea>
 
@@ -361,17 +386,17 @@
               style="display: none;"
             />
 
-            <!-- Barre de contrôles minimaliste en une seule ligne -->
+            <!-- Barre de contrôles minimaliste style maquette -->
             <div id="composer-footer" class="composer-footer">
               <div class="composer-controls-left">
-                <div class="composer-plus-container" style="position: relative;">
-                  <button id="btn-attach-file" type="button" class="composer-chip-btn" title="Ajouter des photos, fichiers, explorer la bibliothèque ou outils (Menu +)">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <line x1="12" y1="5" x2="12" y2="19"></line>
-                      <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                    <span>Fichier</span>
-                  </button>
+                <!-- Bouton Pièce jointe style trombone -->
+                <button id="btn-attach-file" type="button" class="composer-icon-attach-btn" title="Joindre un fichier ou document">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                  </svg>
+                </button>
+
+                <!-- Menu contextuel étendu conservé en popover -->
                 <div id="composer-plus-menu" class="composer-plus-dropdown" style="display: none;">
                   <div class="plus-menu-group-label">Fichiers &amp; données</div>
                   <button type="button" class="plus-menu-item" id="plus-action-upload">
@@ -382,100 +407,59 @@
                     <span class="plus-item-icon t-blue"><svg class="pi" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>
                     <div class="plus-item-text"><strong>Bibliothèque du workspace</strong><span>Documents, templates et code</span></div>
                   </button>
-                  <button type="button" class="plus-menu-item" id="plus-action-image">
-                    <span class="plus-item-icon t-rose"><svg class="pi" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
-                    <div class="plus-item-text"><strong>Images &amp; graphismes</strong><span>PNG, JPEG, WebP, SVG</span></div>
-                  </button>
-
-                  <div class="plus-menu-group-label">Recherche &amp; réflexion</div>
-                  <button type="button" class="plus-menu-item" id="plus-action-web">
-                    <span class="plus-item-icon t-teal"><svg class="pi" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
-                    <div class="plus-item-text"><strong>Recherche web en direct</strong><span>Sources datées et vérifiées</span></div>
-                  </button>
-                  <button type="button" class="plus-menu-item" id="plus-action-deep-search">
-                    <span class="plus-item-icon t-violet"><svg class="pi" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6M8 11h6"/></svg></span>
-                    <div class="plus-item-text"><strong>Recherche approfondie</strong><span>Investigation multi-sources</span></div>
-                  </button>
-                  <button type="button" class="plus-menu-item" id="plus-action-thinking">
-                    <span class="plus-item-icon t-amber"><svg class="pi" viewBox="0 0 24 24"><path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.2 1 2.3h6c0-1.1.4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg></span>
-                    <div class="plus-item-text"><strong>Réflexion approfondie (PLAN)</strong><span>Planification étape par étape</span></div>
-                  </button>
-
-                  <div class="plus-menu-group-label">Création &amp; rendu</div>
                   <button type="button" class="plus-menu-item" id="plus-action-pdf">
                     <span class="plus-item-icon t-red"><svg class="pi" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg></span>
-                    <div class="plus-item-text"><strong>Générer un PDF (Tectonic)</strong><span>Compilation LaTeX certifiée</span></div>
+                    <div class="plus-item-text"><strong>Générer un PDF</strong><span>Compilation LaTeX certifiée</span></div>
                   </button>
-                  <button type="button" class="plus-menu-item" id="plus-action-diagram">
-                    <span class="plus-item-icon t-teal"><svg class="pi" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><path d="M10 6.5h4a3 3 0 0 1 3 3V14"/></svg></span>
-                    <div class="plus-item-text"><strong>Dessin &amp; diagrammes</strong><span>Mermaid &amp; SVG vectoriel</span></div>
-                  </button>
-                  <button type="button" class="plus-menu-item" id="plus-action-docs">
-                    <span class="plus-item-icon t-blue"><svg class="pi" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>
-                    <div class="plus-item-text"><strong>Documents</strong><span>Articles, mémoires, devoirs</span></div>
-                  </button>
-                  <button type="button" class="plus-menu-item" id="plus-action-sheets">
-                    <span class="plus-item-icon t-green"><svg class="pi" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg></span>
-                    <div class="plus-item-text"><strong>Tableurs (CSV)</strong><span>Jeux de données &amp; analyses</span></div>
-                  </button>
-                  <button type="button" class="plus-menu-item" id="plus-action-slides">
-                    <span class="plus-item-icon t-amber"><svg class="pi" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="13" rx="2"/><path d="M12 16v5M8 21h8"/></svg></span>
-                    <div class="plus-item-text"><strong>Présentations</strong><span>Diaporamas interactifs Web</span></div>
-                  </button>
-                  <button type="button" class="plus-menu-item" id="plus-action-templates">
-                    <span class="plus-item-icon t-violet"><svg class="pi" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>
-                    <div class="plus-item-text"><strong>Templates &amp; modèles</strong><span>Catalogue pédagogique</span></div>
-                  </button>
-                </div>
                 </div>
 
-                <!-- Bouton compact de gouvernance -->
-                <div class="governance-popover-container" style="position: relative;">
-                  <button id="btn-composer-governance" type="button" class="composer-chip-btn" title="Mode de gouvernance (Shift+Tab)">
-                    <span id="governance-chip-label">Auto</span>
-                    <svg class="caret-svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <!-- Sélecteur popover de mode d'exécution (NeoHarness Core / Swift / Deep) style maquette -->
+                <div class="composer-model-dropdown-container" style="position: relative;">
+                  <button id="btn-composer-model-popover" type="button" class="composer-model-pill" title="Sélectionner le mode d'exécution">
+                    <span class="status-dot-green"></span>
+                    <span id="composer-model-pill-label">NeoHarness Core</span>
+                    <svg class="caret-svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <polyline points="6 9 12 15 18 9"></polyline>
                     </svg>
                   </button>
-                  <div id="governance-dropdown" class="governance-dropdown" style="display: none;">
-                    <div class="governance-option active" data-mode="AUTO">
-                      <strong>AUTO</strong>
-                      <span>Exécution directe sans interruption</span>
+                  <div id="composer-model-dropdown-menu" class="composer-model-popover" style="display: none;">
+                    <div class="model-popover-item active" data-exec-mode="mono">
+                      <div class="popover-item-text">
+                        <strong>NeoHarness Core</strong>
+                        <span>Équilibre et fiabilité</span>
+                      </div>
+                      <span class="popover-check">✓</span>
                     </div>
-                    <div class="governance-option" data-mode="EDIT">
-                      <strong>EDIT</strong>
-                      <span>Validation requise avant chaque modification</span>
+                    <div class="model-popover-item" data-exec-mode="chat">
+                      <div class="popover-item-text">
+                        <strong>NeoHarness Swift</strong>
+                        <span>Réponses rapides</span>
+                      </div>
+                      <span class="popover-check" style="display: none;">✓</span>
                     </div>
-                    <div class="governance-option" data-mode="PLAN">
-                      <strong>PLAN</strong>
-                      <span>Planification seule sans modification</span>
+                    <div class="model-popover-item" data-exec-mode="multi">
+                      <div class="popover-item-text">
+                        <strong>NeoHarness Deep</strong>
+                        <span>Analyse approfondie</span>
+                      </div>
+                      <span class="popover-check" style="display: none;">✓</span>
                     </div>
-                    <div class="governance-option" data-mode="ACCEPT">
-                      <strong>ACCEPT</strong>
-                      <span>Confirmation pour toute action à risque</span>
+                    <div class="popover-divider"></div>
+                    <div class="model-popover-item footer-link" id="popover-open-full-models">
+                      <span>Changer de modèle LLM…</span>
+                    </div>
+                    <div class="model-popover-item footer-link btn-open-add-custom-model" id="popover-open-add-custom-model" data-open-modal="modal-add-custom-model" style="color:var(--accent-primary, #0969da); font-weight:600;">
+                      <span>Ajouter un LLM</span>
                     </div>
                   </div>
                 </div>
-                <!-- Bouton Chat Direct (Sans Agent - Économie de tokens) -->
-                <button id="btn-direct-chat" type="button" class="composer-chip-btn direct-chat-btn" data-tooltip="Chat direct avec Gemini (Sans agent · 0 surcoût tokens)" aria-pressed="false">
-                  <span class="direct-chat-icon">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                    </svg>
-                  </span>
-                  <span class="direct-chat-label">Chat direct</span>
-                </button>
 
-                <!-- Bouton Réflexion Approfondie (Mono / Multi-Agents) -->
-                <button id="btn-deep-reflection" type="button" class="composer-chip-btn deep-reflection-btn" data-tooltip="Réflexion approfondie (Multi-Agents / DAG)" aria-pressed="false">
-                  <span class="deep-reflection-icon">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.04"/>
-                      <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.04"/>
-                    </svg>
-                  </span>
-                  <span class="deep-reflection-label">Réflexion approfondie</span>
-                </button>
+                <!-- Boutons cachés préservés pour contrats DOM et scripts -->
+                <button id="btn-direct-chat" type="button" style="display: none;" aria-pressed="false"></button>
+                <button id="btn-deep-reflection" type="button" style="display: none;" aria-pressed="false"></button>
+                <button id="btn-composer-governance" type="button" style="display: none;"></button>
+                <div id="old-gov-holder" style="display:none;"></div>
+                <span id="governance-chip-label" style="display: none;">Auto</span>
 
                 <!-- Inputs préservés pour compatibilité de tests et scripts -->
                 <select id="composer-model-select" class="composer-select" style="display: none;" title="Modèle actif" aria-label="Modèle actif">
@@ -486,7 +470,7 @@
                   <option value="auto">Skill : Auto</option>
                 </select>
 
-                <select id="composer-mode-select" class="composer-select" style="display: none;" title="Mode de gouvernance (Shift+Tab)" aria-label="Mode de permissions">
+                <select id="composer-mode-select" class="composer-select" style="display: none;" title="Mode de gouvernance" aria-label="Mode de permissions">
                   <option value="EDIT">Mode : EDIT</option>
                   <option value="PLAN">Mode : PLAN</option>
                   <option value="ACCEPT">Mode : ACCEPT</option>
@@ -495,16 +479,18 @@
               </div>
 
               <div class="composer-controls-right">
-                <button id="btn-voice-dictate" type="button" class="voice-mic-btn" title="Dicter au microphone (style GPT)" aria-label="Dicter un message au microphone">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <button id="btn-voice-dictate" type="button" class="voice-mic-btn" title="Dicter au microphone" aria-label="Dicter un message au microphone">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
                     <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
                     <line x1="12" x2="12" y1="19" y2="22"></line>
                   </svg>
                 </button>
 
-                <button id="btn-send-task" type="button" class="send-btn" title="Envoyer (Entrée)">
-                  <span id="btn-send-task-text">Envoyer</span>
+                <span class="composer-shortcut-hint">↵ envoyer</span>
+
+                <button id="btn-send-task" type="button" class="send-round-btn" title="Envoyer (Entrée)">
+                  <span id="btn-send-task-text" style="display: none;">Envoyer</span>
                   <span id="btn-send-task-icon">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <line x1="12" y1="19" x2="12" y2="5"></line>
@@ -515,6 +501,7 @@
               </div>
             </div>
           </div>
+          <div class="composer-bottom-caption">NeoHarness AI · Orchestrateur agentique &amp; multi-modèles</div>
         </div>
       </main>
 
@@ -542,11 +529,11 @@
                 <span id="pdf-zoom-label" class="mono" style="font-size: 11px;">100%</span>
                 <button id="btn-pdf-zoom-in" type="button" class="icon-btn-mini" title="Zoom avant">+</button>
               </div>
-              <button id="btn-doc-recompile" type="button" class="composer-chip-btn" style="display: none;" title="Compiler le fichier LaTeX avec Tectonic">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              <button id="btn-doc-recompile" type="button" class="btn-doc-primary" style="display: none;" title="Compiler avec Tectonic">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
                 </svg>
-                <span>Compiler</span>
+                <span>Compiler avec Tectonic</span>
               </button>
               <button id="btn-doc-save-source" type="button" class="composer-chip-btn" style="display: none;" title="Enregistrer les modifications et actualiser l'aperçu">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -592,12 +579,12 @@
                 </svg>
                 <span>Inspecteur</span>
               </button>
-              <button id="btn-close-doc-preview" type="button" class="doc-close-btn" title="Fermer l'aperçu du document" aria-label="Fermer l'aperçu du document">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="15" y1="9" x2="9" y2="15"></line>
-                  <line x1="9" y1="9" x2="15" y2="15"></line>
+              <button id="btn-close-doc-preview" type="button" class="btn-doc-secondary-close" title="Fermer l'aperçu" aria-label="Fermer l'aperçu">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
                 </svg>
+                <span>Fermer</span>
               </button>
             </div>
           </div>
@@ -644,35 +631,34 @@
           </div>
         </div>
 
-        <!-- VUE B : INSPECTEUR TECHNIQUE -->
+        <!-- VUE B : INSPECTEUR TECHNIQUE (STYLE ÉDITORIAL MAQUETTE) -->
         <div id="inspector-tech-container" class="inspector-tech-container">
-          <div class="inspector-header">
+          <div class="inspector-top-bar">
+            <div class="inspector-title-group">
+              <svg class="inspector-pulse-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+              </svg>
+              <strong>Inspecteur</strong>
+            </div>
+            <button id="btn-close-inspector" class="inspector-close-btn" title="Fermer l'Inspecteur (Ctrl+I)" aria-label="Fermer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            <button id="btn-switch-to-doc" type="button" style="display: none;"></button>
+          </div>
+
+          <div class="inspector-tabs-bar">
             <nav class="inspector-tabs" role="tablist">
               <button class="inspector-tab active" data-inspector-tab="activity" role="tab">Activité</button>
-              <button class="inspector-tab" data-inspector-tab="files" role="tab">Fichiers & Diff</button>
-              <button class="inspector-tab" data-inspector-tab="rag" role="tab">Mémoire & RAG</button>
-              <button class="inspector-tab" data-inspector-tab="model" role="tab">Modèle</button>
-              <button class="inspector-tab" data-inspector-tab="skills" role="tab">Skills</button>
-              <button class="inspector-tab" data-inspector-tab="tools" role="tab">Outils</button>
+              <button class="inspector-tab" data-inspector-tab="details" role="tab">Détails</button>
+              <button class="inspector-tab" data-inspector-tab="library" id="tab-inspector-library" role="tab">Bibliothèque</button>
+              <button class="inspector-tab" data-inspector-tab="document" style="display: none;" role="tab">Document</button>
+              <!-- Onglets secondaires préservés pour contrats DOM et inspections spécialisées -->
+              <button class="inspector-tab" data-inspector-tab="files" style="display: none;" role="tab">Fichiers &amp; Diff</button>
+              <button class="inspector-tab" data-inspector-tab="model" style="display: none;" role="tab">Modèle</button>
+              <button class="inspector-tab" data-inspector-tab="skills" style="display: none;" role="tab">Skills</button>
+              <button class="inspector-tab" data-inspector-tab="tools" style="display: none;" role="tab">Outils</button>
+              <button class="inspector-tab" data-inspector-tab="rag" style="display: none;" role="tab">Mémoire &amp; RAG</button>
               <button class="inspector-tab" data-inspector-tab="memory" style="display: none;" role="tab">Mémoire</button>
               <button class="inspector-tab" data-inspector-tab="context" style="display: none;" role="tab">Contexte</button>
             </nav>
-            <div style="display: flex; align-items: center; gap: 4px;">
-              <button id="btn-switch-to-doc" type="button" class="icon-btn-mini" style="display: none;" title="Revenir à l'aperçu du document">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                </svg>
-                <span>Aperçu</span>
-              </button>
-              <button id="btn-close-inspector" class="doc-close-btn" title="Fermer l'Inspecteur (Ctrl+I)" aria-label="Fermer l'Inspecteur">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="15" y1="9" x2="9" y2="15"></line>
-                  <line x1="9" y1="9" x2="15" y2="15"></line>
-                </svg>
-              </button>
-            </div>
           </div>
 
           <div id="inspector-body" class="inspector-content"></div>
@@ -686,12 +672,18 @@
        ====================================================================== -->
   <div id="modal-model-picker" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-model-title">
     <div class="modal-panel model-picker-panel">
-      <div class="modal-header">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <strong id="modal-model-title">Sélection du Modèle &amp; Capacités Réelles</strong>
-          <span class="meta-chip">Architectures LLM</span>
+      <div class="modal-header" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px;">
+        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+          <strong id="modal-model-title" style="font-size: 14px; white-space: nowrap;">Sélection du Modèle</strong>
+          <span class="meta-chip" style="white-space: nowrap;">Architectures LLM</span>
         </div>
-        <button class="icon-btn-mini" data-close-modal="modal-model-picker" aria-label="Fermer" title="Fermer (Échap)">✕</button>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button id="btn-open-add-custom-model" class="btn-action-primary-sm btn-open-add-custom-model" data-open-modal="modal-add-custom-model" type="button" title="Ajouter un modèle LLM personnalisé" style="white-space: nowrap;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span> Ajouter un modèle</span>
+          </button>
+          <button class="icon-btn-mini" data-close-modal="modal-model-picker" aria-label="Fermer" title="Fermer (Échap)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+        </div>
       </div>
       <div id="modal-model-body" class="modal-body"></div>
     </div>
@@ -700,21 +692,39 @@
   <!-- ======================================================================
        MODAL 2 : RECHERCHE GLOBALE (Ctrl+K)
        ====================================================================== -->
+  <!-- ======================================================================
+       MODAL 2 : PALETTE DE COMMANDE & RECHERCHE GLOBALE (Ctrl+K)
+       ====================================================================== -->
   <div id="modal-global-search" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-search-title">
-    <div class="modal-panel">
-      <div class="modal-header">
-        <strong id="modal-search-title">Recherche Globale (Ctrl+K)</strong>
-        <button class="icon-btn-mini" data-close-modal="modal-global-search">Fermer</button>
-      </div>
-      <div class="modal-body">
+    <div class="modal-panel cmd-palette-panel">
+      <div class="cmd-palette-header">
+        <svg class="cmd-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
         <input
           id="global-search-input"
           type="search"
-          class="sidebar-search"
-          style="height: 36px; font-size: 13px;"
-          placeholder="Rechercher conversations, fichiers, skills, agents, outils, modèles…"
+          class="cmd-palette-input"
+          placeholder="Rechercher modèles, skills, conversations, fichiers..."
+          autocomplete="off"
+          spellcheck="false"
         />
-        <div id="global-search-results" style="display: flex; flex-direction: column; gap: 10px;"></div>
+        <kbd class="cmd-palette-esc" data-close-modal="modal-global-search">ÉCHAP</kbd>
+        <button class="icon-btn-mini cmd-close-btn" data-close-modal="modal-global-search" aria-label="Fermer" style="display: none;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+      </div>
+      <div class="cmd-palette-filter-bar">
+        <button type="button" class="cmd-filter-pill active" data-cmd-filter="all">Tous</button>
+        <button type="button" class="cmd-filter-pill" data-cmd-filter="models">Modèles</button>
+        <button type="button" class="cmd-filter-pill" data-cmd-filter="skills">Skills</button>
+        <button type="button" class="cmd-filter-pill" data-cmd-filter="files">Fichiers</button>
+        <button type="button" class="cmd-filter-pill" data-cmd-filter="tools">Outils</button>
+      </div>
+      <div id="global-search-results" class="cmd-palette-results"></div>
+      <div class="cmd-palette-footer">
+        <span class="cmd-hint"><span>↑↓</span> pour naviguer</span>
+        <span class="cmd-hint"><span>↵</span> pour ouvrir</span>
+        <span class="cmd-hint"><span>Échap</span> pour fermer</span>
       </div>
     </div>
   </div>
@@ -732,13 +742,22 @@
     </div>
   </div>
 
+  <!-- ======================================================================
+       MODAL 3 : PARAMÈTRES & CLÉS API
+       ====================================================================== -->
   <div id="modal-settings" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-settings-title">
-    <div class="modal-panel">
-      <div class="modal-header">
-        <strong id="modal-settings-title">Paramètres & Clés API</strong>
-        <button class="icon-btn-mini" data-close-modal="modal-settings">Fermer</button>
+    <div class="modal-panel settings-modal-panel">
+      <div class="modal-header settings-modal-header">
+        <div class="settings-header-left">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <strong id="modal-settings-title">Paramètres &amp; Clés API</strong>
+        </div>
+        <button class="icon-btn-mini" data-close-modal="modal-settings" aria-label="Fermer" title="Fermer (Échap)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
       </div>
-      <div id="modal-settings-body" class="modal-body"></div>
+      <div id="modal-settings-body" class="modal-body settings-modal-body"></div>
     </div>
   </div>
     <div id="modal-confirm" class="modal-backdrop" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-message">
@@ -753,6 +772,133 @@
           <button type="button" id="confirm-ok" class="confirm-btn danger">Supprimer</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- MODAL AJOUT MODÈLE LLM EXTENSIBLE -->
+  <div id="modal-add-custom-model" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="custom-model-title">
+    <div class="modal-panel custom-model-modal-panel">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="mp-provider-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"></rect><rect x="9" y="9" width="6" height="6"></rect></svg></span>
+          <strong id="custom-model-title">Ajouter un LLM</strong>
+        </div>
+        <button class="icon-btn-mini" data-close-modal="modal-add-custom-model" aria-label="Fermer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+      </div>
+      <form id="form-add-custom-model">
+        <div class="modal-body custom-model-form-grid">
+          <div class="form-row-2col">
+            <div class="form-group">
+              <label for="custom-model-provider">Fournisseur / Provider</label>
+              <select id="custom-model-provider" class="custom-model-input" required>
+                <option value="Anthropic">Anthropic (Claude)</option>
+                <option value="OpenAI">OpenAI (GPT / o-series)</option>
+                <option value="Google">Google (Gemini)</option>
+                <option value="Mistral">Mistral AI</option>
+                <option value="Ollama">Ollama (Local)</option>
+                <option value="Groq">Groq</option>
+                <option value="DeepSeek">DeepSeek</option>
+                <option value="Personnalisé">Autre / Endpoint compatible</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="custom-model-speed">Vitesse estimée</label>
+              <select id="custom-model-speed" class="custom-model-input">
+                <option value="Raisonnement">Raisonnement approfondi (CoT)</option>
+                <option value="Rapide">Rapide (&lt; 2s)</option>
+                <option value="Ultra-rapide">Ultra-rapide</option>
+                <option value="Équilibré" selected>Équilibré</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row-2col">
+            <div class="form-group">
+              <label for="custom-model-name">Nom d'affichage</label>
+              <input type="text" id="custom-model-name" class="custom-model-input" placeholder="ex: Claude 3.7 Sonnet (Thinking)" required>
+            </div>
+            <div class="form-group">
+              <label for="custom-model-id">API Model ID</label>
+              <input type="text" id="custom-model-id" class="custom-model-input mono" placeholder="ex: claude-3-7-sonnet-20250219" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="custom-model-endpoint">Endpoint API / Base URL (facultatif)</label>
+            <input type="url" id="custom-model-endpoint" class="custom-model-input mono" placeholder="https://api.anthropic.com/v1 ou proxy local">
+          </div>
+          <div class="form-row-2col">
+            <div class="form-group">
+              <label for="custom-model-key">Clé API associée (facultatif)</label>
+              <input type="password" id="custom-model-key" class="custom-model-input" placeholder="sk-... ou laisser vide si configurée dans .env">
+            </div>
+            <div class="form-group">
+              <label for="custom-model-context">Contexte maximal (tokens)</label>
+              <input type="number" id="custom-model-context" class="custom-model-input" value="200000" min="1000" step="1000">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Capacités déclarées</label>
+            <div class="capabilities-checkbox-grid">
+              <label class="cap-check-item"><input type="checkbox" id="cap-reasoning" checked><span>Raisonnement approfondi</span></label>
+              <label class="cap-check-item"><input type="checkbox" id="cap-tools" checked><span>Function Calling (Outils &amp; Skills)</span></label>
+              <label class="cap-check-item"><input type="checkbox" id="cap-vision"><span>Vision multimodale</span></label>
+              <label class="cap-check-item"><input type="checkbox" id="cap-streaming" checked><span>Streaming temps réel</span></label>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--border-subtle);">
+          <button type="button" class="btn-secondary" data-close-modal="modal-add-custom-model">Annuler</button>
+          <button type="submit" class="btn-primary" id="btn-submit-add-custom-model">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>Enregistrer et activer</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL AJOUT RESSOURCE BIBLIOTHÈQUE -->
+  <div id="modal-add-library-item" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="lib-add-title">
+    <div class="modal-panel custom-model-modal-panel">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="mp-provider-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg></span>
+          <strong id="lib-add-title">Ajouter à la Bibliothèque</strong>
+        </div>
+        <button class="icon-btn-mini" data-close-modal="modal-add-library-item" aria-label="Fermer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+      </div>
+      <form id="form-add-library-item">
+        <div class="modal-body custom-model-form-grid">
+          <div class="form-row-2col">
+            <div class="form-group">
+              <label for="lib-item-title">Titre</label>
+              <input type="text" id="lib-item-title" class="custom-model-input" placeholder="ex: Formules trigonométriques" required>
+            </div>
+            <div class="form-group">
+              <label for="lib-item-category">Catégorie</label>
+              <select id="lib-item-category" class="custom-model-input">
+                <option value="Notes" selected>Notes &amp; Mémos</option>
+                <option value="Documents">Documents</option>
+                <option value="Ressources">Ressources</option>
+                <option value="Références">Références</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="lib-item-tags">Tags (séparés par des virgules)</label>
+            <input type="text" id="lib-item-tags" class="custom-model-input" placeholder="ex: maths, trigonométrie, cours">
+          </div>
+          <div class="form-group">
+            <label for="lib-item-content">Contenu textuel ou note</label>
+            <textarea id="lib-item-content" class="custom-model-input" rows="5" placeholder="Rédigez ou collez vos notes ici..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--border-subtle);">
+          <button type="button" class="btn-secondary" data-close-modal="modal-add-library-item">Annuler</button>
+          <button type="submit" class="btn-primary" id="btn-submit-add-library-item">
+            <span>Enregistrer dans la bibliothèque</span>
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 

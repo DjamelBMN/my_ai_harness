@@ -63,7 +63,8 @@ my_ai_harness/
 ├── main.py                           # Point d'entrée principal CLI et lanceur UI (--ui)
 │
 ├── config/
-│   └── config.yaml                   # Configuration centrale (providers, agents, routes, permissions, modes, skills)
+│   ├── config.yaml                   # Configuration centrale (providers, agents, routes, permissions, modes, skills)
+│   └── custom_models.json            # Modèles LLM personnalisés ajoutés dynamiquement sans mise à jour                   # Configuration centrale (providers, agents, routes, permissions, modes, skills)
 │
 ├── agents/
 │   ├── __init__.py                   # Package des agents spécialisés
@@ -73,7 +74,8 @@ my_ai_harness/
 │   └── tester.py                     # TestAgent : exécution et validation des tests
 │
 ├── core/
-│   ├── __init__.py                   # Package du noyau d'orchestration
+│   ├── __init__.py
+│   ├── library.py                    # Bibliothèque intelligente persistante (LibraryManager, .harness/library.json)                   # Package du noyau d'orchestration
 │   ├── agent.py                      # Classe de base Agent (normalisation ensure_task)
 │   ├── agent_loop.py                 # Boucle d'exécution agentique multi-étapes (tools, web_search, streaming, vérification)
 │   ├── agent_registry.py             # Registre des agents disponibles (AgentRegistry)
@@ -84,7 +86,7 @@ my_ai_harness/
 │   ├── event_bus.py                  # Bus d'événements normalisés temps réel et SSE (STREAM_DELTA, ARTIFACT_READY)
 │   ├── events.py                     # Événements bas niveau du runtime et traducteur (HarnessEvent, EventTranslator)
 │   ├── intent_engine.py              # Moteur de classification d'intention et détection web (IntentEngine)
-│   ├── memory.py                     # Gestionnaire de mémoire (MemoryManager)
+│   ├── memory.py                     # Mémoire persistante cross-session & injection prompt (MemoryManager, PersistentMemoryItem)
 │   ├── model_registry.py             # Registre vérifié des Providers, Modèles et Capabilities (ModelCapabilityRegistry)
 │   ├── modes.py                      # Modes d'exécution (PLAN, ACCEPT, AUTO, EDIT)
 │   ├── multi_agent_coordinator.py    # Coordination séquentielle multi-agents (MultiAgentCoordinator)
@@ -210,6 +212,12 @@ my_ai_harness/
 | `ollama` | `OllamaProvider` (`providers/ollama.py`) | `qwen3:1.7b` | **Connecté en local** (`127.0.0.1:11434`) | Exécution locale, Function Calling JSON, `web_search` |
 | `claude` | `ClaudeProvider` (`providers/claude.py`) | `claude-sonnet-4` | **Non connecté** (squelette) | Signalé honnêtement comme indisponible |
 
+### 6.1 Extensibilité des Modèles LLM Personnalisés (`config/custom_models.json`)
+L'architecture ne dépend plus d'une liste figée de modèles :
+- Tout utilisateur peut ajouter manuellement n'importe quel nouveau modèle LLM (OpenAI, Anthropic, Mistral, Groq, Ollama ou endpoint compatible) sans attendre une mise à jour applicative.
+- Modale dédiée dans l'interface (`#modal-add-custom-model`) renseignant : fournisseur, nom d'affichage, model API ID, base URL/endpoint, clé API associée, fenêtre de contexte maximale, estimation de vitesse et capacités (raisonnement, outils, vision, streaming, format JSON structuré).
+- Persistance dans `config/custom_models.json`, rechargement à chaud et instanciation dynamique via `DynamicCustomProvider` dans `ui/server.py`.
+
 ---
 
 ## 7. Architecture complète des 18 Skills (Ordre Canonique)
@@ -248,9 +256,26 @@ Les **17 Tools réels** enregistrés dans `ToolRegistry` ([tools/registry.py](fi
 
 ---
 
-## 10. Architecture de la Mémoire
+## 10. Architecture de la Mémoire Persistante & de la Bibliothèque Intelligente
 
-Implémentée dans [core/memory.py](file:///c:/Users/nanod/Desktop/my_ai_harness/core/memory.py) (`MemoryManager`) avec portées Session, Projet, Décisions et Préférences, et signalement honnête `Non configuré` pour les portées Long terme et Procédurale.
+### 10.1 Mémoire Persistante de l'Agent (`core/memory.py`)
+Le gestionnaire de mémoire (`MemoryManager`) intègre désormais un stockage persistant cross-session dans `workspace/.harness/persistent_memory.json` :
+- **Compréhension du langage naturel** : interception et classification automatique des intentions de mémorisation (*« Mets ça en mémoire »*, *« Mémorise cette règle pour les prochaines fois »*, *« Garde ce paramètre en mémoire »*).
+- **Catégorisation stricte** : `rule` (règles permanentes), `preference` (préférences utilisateur), `context` (contexte projet), `decision` (décisions prises), `knowledge` (connaissances générales).
+- **Injection automatique dans le prompt système** : la méthode `format_for_system_prompt()` injecte le bloc `[MÉMOIRE PERSISTANTE ACTIVE DE L'AGENT]` au début des échanges, garantissant que l'agent applique fidèlement les règles mémorisées à chaque tour.
+- **Contrôle via API REST** : `GET /api/memory/persistent`, `POST /api/memory/persistent/add`, `POST /api/memory/persistent/toggle`, `POST /api/memory/persistent/delete`.
+
+### 10.2 Bibliothèque Intelligente / Library (`core/library.py`)
+Remplace définitivement l'ancienne section Documents statique par un centre de connaissances complet et réactif :
+- **Stockage central** : `workspace/.harness/library.json`, synchronisé automatiquement avec les fichiers existants du workspace (`.pdf`, `.docx`, `.tex`, `.md`, `.py`, etc.).
+- **Organisation par catégories** : `Tous`, `Documents`, `Notes`, `Ressources`, `Mémoire active`.
+- **Fonctionnalités avancées** : recherche en temps réel, tags multiples, épinglage en tête de liste (`pinned: true`), modale d'ajout rapide (`#modal-add-library-item`) et suppression sécurisée.
+- **Accès ergonomique** : bouton direct dans la topbar (`#btn-open-library`) et onglet natif dans l'Inspecteur (`#tab-inspector-library`).
+
+### 10.3 Distinction & Double Liaison Bidirectionnelle
+- **Mémoire** = règles de comportement, contraintes, préférences, décisions.
+- **Bibliothèque** = artefacts, fichiers livrables, notes, documentation.
+- **Double liaison** : lorsqu'un document ou une note est ajouté, un lien bidirectionnel (`linked_resource_id` / `linked_memory_id`) associe automatiquement le document physique à sa règle ou description mémorisée.
 
 ---
 
@@ -264,7 +289,15 @@ Implémentée dans [skills/loader.py](file:///c:/Users/nanod/Desktop/my_ai_harne
 
 1. **Mode Clair par défaut (`data-theme="light"`)** : Palette pierre chaude (`--bg-primary: #F6F5F0`, `--bg-secondary: #EFECE6`, `--bg-surface: #FFFFFF`, `--text-primary: #181816`, `--accent: #2563EB`) au premier lancement, avec bascule Mode Sombre persistée dans `localStorage`.
 2. **Palette flottante des Slash Commands (`#slash-command-palette`)** : S'ouvre immédiatement au-dessus du compositeur dès la saisie de `/` au début du champ ou après un espace (sans s'ouvrir dans une URL ou un chemin de fichier), affiche les 18 skills numérotés de `1.` à `18.`, filtre en temps réel, gère `↑`, `↓`, `Entrée`, `Tab`, `Échap` et clic souris.
-3. **Panneau latéral droit unifié (`#right-inspector`)** :
+3. **Design System Vectoriel & Finition Ultra-Premium (Zéro Émoji)** :
+   - Éradication totale des émojis au profit d'icônes vectorielles SVG cohérentes (même famille graphique, même épaisseur de trait, micro-animations harmonieuses).
+   - Carte profil personnalisée en bas de barre latérale : badge `DB`, `Djamel BENMAKHLOUF`, sous-titre `Développeur de NeoHarness interface agentique`.
+   - Bouton d'action globale « Tout effacer » (`#btn-delete-all-convs`) avec confirmation modale sécurisée.
+   - Boutons de prévisualisation documentaire entièrement redesignés : action principale `.btn-doc-primary` (« Compiler avec Tectonic » en bleu profond surélevé avec icône play SVG) et action secondaire `.btn-doc-secondary-close` (« Fermer »).
+   - Bandeau Word unifié bord à bord (*edge-to-edge*) avec titre centré et suppression des redondances.
+   - Règle fondamentale **`Chat ≠ Artefact`** : un moteur d'intention conversationnelle (`is_conversational_query`) interdit toute génération spontanée de fichier PDF/Word/LaTeX sur les questions, salutations ou analyses de code.
+
+4. **Panneau latéral droit unifié (`#right-inspector`)** :
    - **Mode Aperçu Document (`#doc-preview-container`)** :
      - **PDF (Tectonic)** : Affiche le PDF compilé (`#doc-pdf-frame`), le nom du fichier, le nombre de pages, la taille, les contrôles de zoom (`-`, `100%`, `+`), la bascule `Aperçu` / `Source .tex`, le bouton `⚡ Compiler` (recompilation Tectonic en direct), le téléchargement, le plein écran et la fermeture.
      - **HTML Sandboxé** : Affiche le rendu HTML dans `<iframe id="doc-html-frame" sandbox="allow-scripts">` servi par `/api/preview/workspace/<path>` (avec rejet `403 Forbidden` sur `Origin: null` dans `do_POST`), bascule `Aperçu` / `Code source` avec édition et sauvegarde en direct (`💾 Enregistrer`), rafraîchissement, téléchargement et plein écran.

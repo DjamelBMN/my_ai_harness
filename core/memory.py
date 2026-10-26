@@ -10,7 +10,8 @@ import sqlite3
 import time
 import uuid
 from contextlib import contextmanager
-from dataclasses import dataclass
+from datetime import datetime, timezone
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -21,8 +22,23 @@ _SENSITIVE = re.compile(
 )
 
 
+@dataclass
+class PersistentMemoryItem:
+    id: str
+    category: str  # "rule" | "preference" | "context" | "decision" | "knowledge"
+    content: str
+    source: str = "user"
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    linked_resource_id: str | None = None
+    active: bool = True
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
 class MemoryManager:
     PROJECT_PATH = ".harness/project_memory.json"
+    PERSISTENT_MEMORY_PATH = ".harness/persistent_memory.json"
 
     def __init__(self, tools: ToolRegistry) -> None:
         self.tools = tools
@@ -30,6 +46,250 @@ class MemoryManager:
         self.decisions: list[str] = []
         self.preferences: dict[str, str] = {}
         self.project: list[str] = self._load_project()
+        self.persistent_items: dict[str, PersistentMemoryItem] = {}
+        self._load_persistent_memory()
+
+    def _load_persistent_memory(self) -> None:
+        try:
+            raw = self.tools.filesystem.read_file(self.PERSISTENT_MEMORY_PATH)
+            data = json.loads(raw)
+            if isinstance(data, list):
+                for item in data:
+                    if isinstance(item, dict) and "id" in item and "content" in item:
+                        it = PersistentMemoryItem(
+                            id=item["id"],
+                            category=item.get("category", "knowledge"),
+                            content=item["content"],
+                            source=item.get("source", "user"),
+                            created_at=item.get("created_at", datetime.now(timezone.utc).isoformat()),
+                            linked_resource_id=item.get("linked_resource_id"),
+                            active=item.get("active", True),
+                        )
+                        self.persistent_items[it.id] = it
+        except (OSError, ValueError, json.JSONDecodeError):
+            self.persistent_items = {}
+
+    def _save_persistent_memory(self) -> None:
+        try:
+            payload = json.dumps(
+                [it.to_dict() for it in self.persistent_items.values()],
+                ensure_ascii=False,
+                indent=2,
+            )
+            self.tools.filesystem.write_file(self.PERSISTENT_MEMORY_PATH, payload, overwrite=True)
+        except Exception:
+            pass
+
+    def list_persistent_items(self, category: str | None = None) -> list[dict[str, Any]]:
+        items = list(self.persistent_items.values())
+        if category and category.strip().casefold() != "tous":
+            cat_norm = category.strip().casefold()
+            items = [it for it in items if it.category.casefold() == cat_norm]
+        items.sort(key=lambda x: x.created_at, reverse=True)
+        return [it.to_dict() for it in items]
+
+    def add_persistent_item(
+        self,
+        category: str,
+        content: str,
+        *,
+        source: str = "user",
+        linked_resource_id: str | None = None,
+    ) -> dict[str, Any]:
+        val = self._validate(content)
+        cat_norm = (category or "knowledge").strip().lower()
+        if cat_norm not in {"rule", "preference", "context", "decision", "knowledge"}:
+            cat_norm = "knowledge"
+        item_id = f"mem-{uuid.uuid4().hex[:8]}"
+        item = PersistentMemoryItem(
+            id=item_id,
+            category=cat_norm,
+            content=val,
+            source=source,
+            linked_resource_id=linked_resource_id,
+            active=True,
+        )
+        self.persistent_items[item_id] = item
+        self._save_persistent_memory()
+        return item.to_dict()
+
+    def delete_persistent_item(self, item_id: str) -> bool:
+        if item_id in self.persistent_items:
+            del self.persistent_items[item_id]
+            self._save_persistent_memory()
+            return True
+        return False
+
+    def toggle_persistent_item(self, item_id: str) -> dict[str, Any]:
+        if item_id not in self.persistent_items:
+            raise KeyError(f"Mémoire introuvable : {item_id}")
+        it = self.persistent_items[item_id]
+        it.active = not it.active
+        self._save_persistent_memory()
+        return it.to_dict()
+
+    def format_for_system_prompt(self) -> str:
+        """Injecte les règles, préférences et contexte actifs dans le prompt de l'agent."""
+        active = [it for it in self.persistent_items.values() if it.active]
+        if not active and not self.preferences and not self.project:
+            return ""
+
+        lines = ["\n[MÉMOIRE PERSISTANTE ACTIVE DE L'AGENT]"]
+        rules = [it.content for it in active if it.category == "rule"]
+        prefs = [it.content for it in active if it.category == "preference"]
+        ctx = [it.content for it in active if it.category == "context"]
+        know = [it.content for it in active if it.category in {"knowledge", "decision"}]
+
+        if rules:
+            lines.append("RÈGLES PERMANENTES À RESPECTER ABSOLUMENT :")
+            for r in rules:
+                lines.append(f"  • {r}")
+        if prefs:
+            lines.append("PRÉFÉRENCES UTILISATEUR :")
+            for p in prefs:
+                lines.append(f"  • {p}")
+        if ctx:
+            lines.append("CONTEXTE PROJET & UTILISATEUR :")
+            for c in ctx:
+                lines.append(f"  • {c}")
+        if know:
+            lines.append("CONNAISSANCES PERSISTANTES :")
+            for k in know:
+                lines.append(f"  • {k}")
+
+        for k, v in self.preferences.items():
+            lines.append(f"  • {k} = {v}")
+        for pr in self.project[-10:]:
+            lines.append(f"  • {pr}")
+
+        lines.append("[FIN DE LA MÉMOIRE PERSISTANTE]\n")
+        return "\n".join(lines)
+
+    def parse_and_store_natural_language(
+        self,
+        prompt: str,
+        *,
+        library_manager: Any = None,
+        last_assistant_answer: str = "",
+    ) -> dict[str, Any] | None:
+        """Interprète naturellement les demandes de mise en mémoire ou d'enregistrement en bibliothèque."""
+        clean = (prompt or "").strip()
+        lower = clean.casefold()
+
+        # Marqueurs de mémoire ou de bibliothèque
+        mem_triggers = (
+            "mets ça en mémoire", "mets ca en mémoire", "mets ca en memoire", "mets en mémoire",
+            "garde en mémoire", "garde en memoire", "garde cette information",
+            "mémorise cette règle", "memorise cette regle", "mémorise pour les prochaines fois",
+            "memorise pour les prochaines fois", "mémorise", "memorise",
+            "ajoute à ma mémoire", "ajoute a ma memoire", "ajoute ce document à ma mémoire",
+            "ajoute à la mémoire", "retiens que", "retiens bien que", "rappelle-toi que",
+            "rappelle-toi de", "n'oublie pas que", "garde cette note", "ajoute à ma bibliothèque",
+            "ajoute a ma bibliotheque", "garde dans ma bibliothèque", "garde dans ma bibliotheque",
+            "ajoute ce pdf dans ma bibliothèque", "ajoute ce document dans ma bibliothèque",
+        )
+
+        has_trigger = any(tr in lower for tr in mem_triggers)
+        if not has_trigger:
+            return None
+
+        # 1. Détection combinée Bibliothèque + Mémoire (ex: "Ajoute ce PDF dans ma bibliothèque et retiens que c'est ma référence principale pour ce projet")
+        is_library_req = any(kw in lower for kw in ("bibliothèque", "bibliotheque"))
+        is_memory_req = any(kw in lower for kw in ("mémoire", "memoire", "mémorise", "memorise", "retiens", "rappelle-toi", "n'oublie pas", "règle", "regle"))
+        is_rule = any(kw in lower for kw in ("règle", "regle", "toujours", "ne jamais", "interdit", "obligatoire", "pour les prochaines fois"))
+        is_pref = any(kw in lower for kw in ("préfère", "prefere", "préférence", "preference", "favori", "j'aime"))
+
+        created_mem = None
+        created_lib = None
+
+        # Extraction de la cible de mémorisation
+        # Si le prompt dit "Mets ça en mémoire" sans texte explicite, on mémorise la dernière réponse ou le contexte
+        extracted_content = clean
+        for tr in mem_triggers:
+            if tr in lower:
+                # Retirer le trigger pour isoler l'information
+                idx = lower.find(tr)
+                after = clean[idx + len(tr):].strip(" :,-—\n")
+                if len(after) > 4:
+                    extracted_content = after
+                break
+
+        if extracted_content == clean and len(clean.split()) <= 5:
+            # Demande de type "Mets ça en mémoire."
+            if last_assistant_answer:
+                extracted_content = last_assistant_answer[:800]
+            else:
+                extracted_content = clean
+
+        # 2. Gestion Bibliothèque (fichiers, notes ou ressources)
+        if is_library_req and library_manager is not None:
+            # Chercher si un fichier est mentionné (ex: "ce PDF", "derivatives.docx", etc.)
+            file_match = re.search(r"\b([a-zA-Z0-9_\-À-ÿ]+\.(?:pdf|docx|tex|html?|md|py|json|csv))\b", clean, re.IGNORECASE)
+            ref_path = file_match.group(1) if file_match else None
+            
+            title = f"Note : {extracted_content[:40]}" if not ref_path else f"Référence {ref_path}"
+            cat = "Documents" if ref_path else "Notes"
+            typ = Path(ref_path).suffix.lstrip(".").lower() if ref_path else "note"
+
+            created_lib = library_manager.add_item(
+                title=title,
+                category=cat,
+                item_type=typ,
+                path=ref_path,
+                summary=f"Enregistré à la demande : {clean[:80]}",
+                content=extracted_content if not ref_path else f"Référence projet liée : {ref_path}",
+                tags=["persistant", "utilisateur"],
+            )
+
+        # 3. Gestion Mémoire
+        if is_memory_req or not is_library_req:
+            cat = "rule" if is_rule else ("preference" if is_pref else ("context" if any(w in lower for w in ("projet", "utilisateur", "je suis", "référence")) else "knowledge"))
+            created_mem = self.add_persistent_item(
+                category=cat,
+                content=extracted_content,
+                source="user",
+                linked_resource_id=created_lib.get("id") if created_lib else None,
+            )
+            if created_lib and library_manager is not None:
+                created_lib = library_manager.update_item(created_lib["id"], linked_memory_id=created_mem["id"])
+
+        # Confirmation élégante et sans génération de fichier
+        cat_label = {
+            "rule": "Règle permanente",
+            "preference": "Préférence",
+            "context": "Contexte de projet",
+            "knowledge": "Information",
+            "decision": "Décision",
+        }.get(created_mem.get("category", "") if created_mem else "", "Élément")
+
+        confirm_msg = ""
+        if created_mem and created_lib:
+            confirm_msg = (
+                f"Bien noté. J'ai enregistré le document dans votre **Bibliothèque** et créé la règle associée dans ma **Mémoire persistante** :\n\n"
+                f"• **Bibliothèque** : `{created_lib.get('title')}` (ID `{created_lib.get('id')}`)\n"
+                f"• **Mémoire** ({cat_label}) : *« {created_mem.get('content')} »*\n\n"
+                f"Ces informations resteront actives et partagées pour toutes vos futures sessions."
+            )
+        elif created_mem:
+            confirm_msg = (
+                f"C'est mémorisé. J'ai ajouté cette **{cat_label}** à ma mémoire persistante :\n\n"
+                f"> *« {created_mem.get('content')} »*\n\n"
+                f"Je m'y conformerai automatiquement lors de nos prochains échanges."
+            )
+        elif created_lib:
+            confirm_msg = (
+                f"J'ai ajouté cet élément dans votre **Bibliothèque** :\n\n"
+                f"• **Titre** : `{created_lib.get('title')}`\n"
+                f"• **Catégorie** : {created_lib.get('category')}\n\n"
+                f"Vous pouvez la consulter et l'ouvrir à tout moment depuis le panneau Bibliothèque."
+            )
+
+        return {
+            "matched": True,
+            "memory_item": created_mem,
+            "library_item": created_lib,
+            "confirmation": confirm_msg,
+        }
 
     def _load_project(self) -> list[str]:
         try:

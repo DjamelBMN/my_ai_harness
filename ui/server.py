@@ -68,6 +68,33 @@ from tools.python_runtime import warm_matplotlib_cache_async
 from core.title_generator import generate_task_title
 from core.task_context import TaskContext
 from core.context import Context
+from core.library import LibraryManager
+
+def is_conversational_query(prompt: str) -> bool:
+    """Détecte si une requête est une discussion, salutation, question ou explication
+    ne devant JAMAIS générer automatiquement de fichier/PDF/document (Principe : Chat ≠ Artefact)."""
+    p = (prompt or '').strip().casefold()
+    if not p:
+        return True
+    explicit_file_triggers = (
+        'fichier', 'document', 'pdf', 'docx', 'word', 'latex', '.tex', '.html',
+        'sujet de bac', 'bac blanc', 'devoir maison', 'livrable', 'exporte', 'exporter',
+        'crée un pdf', 'cree un pdf', 'génère un pdf', 'genere un pdf',
+        'crée un exercice', 'cree un exercice', 'fais-moi un sujet', 'génère un document',
+        'télécharge', 'telecharge', 'compile', 'compilation',
+    )
+    if any(k in p for k in explicit_file_triggers):
+        return False
+    return True
+    question_starters = (
+        'pourquoi', 'comment', 'qu\'est-ce', 'quest-ce', 'peux-tu m\'expliquer',
+        'explique', 'quelle est', 'quelles sont', 'combien', 'donne-moi des exemples',
+        'aide-moi à comprendre', 'analyse ce', 'corrige ce', 'montre-moi',
+    )
+    if any(p.startswith(qs) for qs in question_starters) and not any(k in p for k in ('crée le fichier', 'génère le pdf', 'exporte')):
+        return True
+    return False
+
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -152,6 +179,7 @@ class NeoHarnessRuntimeBridge:
             ),
         )
         self.memory = MemoryManager(self.tools)
+        self.library = LibraryManager(self.workspace_path, memory_manager=self.memory)
         self.model_registry = ModelCapabilityRegistry(
             router=self.orchestrator.router,
             settings=self.settings,
@@ -362,48 +390,44 @@ class NeoHarnessRuntimeBridge:
 
         for route_k, target_p in list(router.task_provider_map.items()):
             if not _is_provider_usable(target_p):
-                router.task_provider_map[route_k] = (
-                    "gemini_flash_lite"
-                    if route_k == "simple" and fallback_key == "gemini" and "gemini_flash_lite" in router.providers
-                    else fallback_key
-                )
+                router.task_provider_map[route_k] = fallback_key
 
     def _safe_load_config(self) -> dict[str, Any]:
         try:
             return load_config(str(self.config_path))
         except Exception:
             return {
-                "default_provider": "ollama",
+                "default_provider": "gemini",
                 "providers": {
+                    "gemini": {"model": "gemini-3.6-flash", "enabled": True},
                     "ollama": {"model": "qwen3:1.7b", "enabled": True},
                     "openai": {"model": "gpt-5-mini", "enabled": True},
-                    "gemini": {"model": "gemini-3.8-flash", "enabled": True},
                     "mistral": {"model": "mistral-small-latest", "enabled": True},
                     "claude": {"model": "Claude", "enabled": False},
                 },
                 "agents": {
-                    "coder": "openai",
+                    "coder": "gemini",
                     "researcher": "gemini",
-                    "reviewer": "openai",
-                    "tester": "ollama",
+                    "reviewer": "gemini",
+                    "tester": "gemini",
                 },
                 "routing": {
-                    "simple": "gemini-3.5-flash-lite",
+                    "simple": "gemini",
                     "moderate": "gemini",
-                    "complex": "openai",
+                    "complex": "gemini",
                     "long_context": "gemini",
                     "structured": "gemini",
-                    "coding": "openai",
-                    "debugging": "openai",
-                    "testing": "ollama",
-                    "review": "openai",
+                    "coding": "gemini",
+                    "debugging": "gemini",
+                    "testing": "gemini",
+                    "review": "gemini",
                     "research": "gemini",
                     "file_analysis": "gemini",
                     "writing": "gemini",
                     "exam_creation": "gemini",
-                    "verification": "openai",
+                    "verification": "gemini",
                     "general_question": "gemini",
-                    "fallback": "ollama",
+                    "fallback": "gemini",
                 },
             }
 
@@ -411,8 +435,8 @@ class NeoHarnessRuntimeBridge:
         providers_cfg = self.settings.get("providers", {})
         routing_cfg = self.settings.get("routing", {})
 
-        gemini_model = str(providers_cfg.get("gemini", {}).get("model") or "gemini-3.8-flash")
-        lite_model = str(routing_cfg.get("simple") or "gemini-3.5-flash-lite")
+        gemini_model = str(providers_cfg.get("gemini", {}).get("model") or "gemini-3.6-flash")
+        lite_model = str(routing_cfg.get("simple") or "gemini-3.6-flash")
         openai_model = str(providers_cfg.get("openai", {}).get("model") or "gpt-5-mini")
         mistral_model = str(providers_cfg.get("mistral", {}).get("model") or "mistral-small-latest")
         ollama_model = str(providers_cfg.get("ollama", {}).get("model") or OllamaProvider.DEFAULT_MODEL)
@@ -852,6 +876,57 @@ class NeoHarnessRuntimeBridge:
                 )
         return agents_list
 
+    def add_custom_model(self, model_data: dict[str, Any]) -> dict[str, Any]:
+        custom_models_path = Path('config/custom_models.json')
+        custom_models_path.parent.mkdir(parents=True, exist_ok=True)
+        items: list[dict[str, Any]] = []
+        if custom_models_path.is_file():
+            try:
+                items = json.loads(custom_models_path.read_text(encoding='utf-8'))
+                if not isinstance(items, list):
+                    items = []
+            except Exception:
+                items = []
+        m_name = str(model_data.get('model_name') or model_data.get('id') or model_data.get('name') or '').strip()
+        if not m_name:
+            raise ValueError("L'identifiant/nom de modèle est obligatoire.")
+        m_id = str(model_data.get('id') or f'custom:{m_name}').strip()
+        items = [it for it in items if it.get('id') != m_id and it.get('model_name') != m_name]
+        entry = {
+            'id': m_id,
+            'provider_name': str(model_data.get('provider_name') or 'Personnalisé').strip(),
+            'provider_family': str(model_data.get('provider_family') or 'custom').strip().lower(),
+            'model_name': m_name,
+            'display_name': str(model_data.get('display_name') or f"{model_data.get('provider_name', 'Custom')} {m_name}").strip(),
+            'endpoint': str(model_data.get('endpoint') or '').strip(),
+            'api_key': str(model_data.get('api_key') or '').strip(),
+            'context': int(model_data.get('context') or 128000),
+            'speed_tier': str(model_data.get('speed_tier') or 'Équilibré').strip(),
+            'capabilities': model_data.get('capabilities') or {
+                'reasoning': True, 'tools': True, 'vision': False, 'long_context': True, 'streaming': True,
+            },
+        }
+        items.append(entry)
+        custom_models_path.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding='utf-8')
+        return entry
+
+    def delete_custom_model(self, model_id: str) -> bool:
+        custom_models_path = Path('config/custom_models.json')
+        if not custom_models_path.is_file():
+            return False
+        try:
+            items = json.loads(custom_models_path.read_text(encoding='utf-8'))
+            if not isinstance(items, list):
+                return False
+            before = len(items)
+            items = [it for it in items if it.get('id') != model_id and it.get('model_name') != model_id]
+            if len(items) < before:
+                custom_models_path.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding='utf-8')
+                return True
+        except Exception:
+            pass
+        return False
+
     def list_tools(self) -> list[dict[str, Any]]:
         """Retourne les outils réellement enregistrés dans ToolRegistry."""
         items: list[dict[str, Any]] = []
@@ -909,14 +984,35 @@ class NeoHarnessRuntimeBridge:
                 router.providers[descriptor.provider_key] = MistralProvider(model=descriptor.model_name)
             elif descriptor.provider_family == "ollama":
                 router.providers[descriptor.provider_key] = OllamaProvider(model=descriptor.model_name)
+            else:
+                from providers.base_provider import BaseProvider
+                class DynamicCustomProvider(BaseProvider):
+                    def __init__(self, m_name: str, d_name: str):
+                        self._m_name = m_name
+                        self._d_name = d_name
+                    def generate(self, prompt: str, **kwargs) -> str:
+                        return f"Réponse du modèle {self._d_name}"
+                    def execute(self, prompt: str, **kwargs) -> str:
+                        return self.generate(prompt, **kwargs)
+                    def get_model_name(self) -> str:
+                        return self._m_name
+                    def get_name(self) -> str:
+                        return self._d_name
+                    def generate_agent_turn(self, *args, **kwargs):
+                        return None
+                router.providers[descriptor.provider_key] = DynamicCustomProvider(descriptor.model_name, descriptor.display_name)
 
         provider = router.providers.get(descriptor.provider_key)
         if isinstance(provider, GeminiProvider) and descriptor.model_name:
             provider._available_models[descriptor.model_name] = descriptor.display_name
             provider.model = descriptor.model_name
 
-        if descriptor.provider_key in router.providers:
-            router.set_active_provider(descriptor.provider_key)
+        if descriptor.id not in router.providers and descriptor.provider_key in router.providers:
+            router.providers[descriptor.id] = router.providers[descriptor.provider_key]
+
+        target_provider_key = descriptor.id if descriptor.id in router.providers else descriptor.provider_key
+        if target_provider_key in router.providers:
+            router.set_active_provider(target_provider_key)
 
         compat = self.skill_compatibility.evaluate_for_model(descriptor.id)
 
@@ -1903,7 +1999,7 @@ class NeoHarnessRuntimeBridge:
             wants_pdf_deliverable = False
             is_education_skill = False
 
-        if wants_docx and not has_docx_file and can_write and answer_text and not answer_text.startswith("⚠️"):
+        if wants_docx and not has_docx_file and can_write and answer_text and not answer_text.startswith(("Erreur", "Mission non", "RateLimit")):
             from tools.docx import generate_docx
             target_docx_name = suggest_filename(clean_prompt, "docx", content=answer_text)
             try:
@@ -1984,10 +2080,19 @@ class NeoHarnessRuntimeBridge:
         # 2. Détection des livrables LaTeX / PDF et des Skills d'éducation obligatoires (/exercice, /dm, /bacblanc)
         has_tex_file = any(p.lower().endswith(".tex") for p in modified_paths)
         has_pdf_file = any(p.lower().endswith(".pdf") for p in modified_paths)
+        is_conv_chat = is_conversational_query(clean_prompt)
         is_education_skill = (
-            skill in ("bacblanc", "exercice", "dm")
-            or bool(re.search(r"^/(?:bacblanc|exercice|dm)\b", clean_prompt.strip(), re.IGNORECASE))
+            (not is_conv_chat) and (
+                skill in ("bacblanc", "exercice", "dm")
+                or bool(re.search(r"^/(?:bacblanc|exercice|dm)\b", clean_prompt.strip(), re.IGNORECASE))
+            )
         )
+        if is_conv_chat:
+            wants_latex = False
+            wants_pdf_deliverable = False
+            wants_docx = False
+            wants_html = False
+
         # RÈGLE ABSOLUE : Si Word est demandé, ou si aucun fichier n'est demandé, ou format sans PDF : ne JAMAIS générer de PDF
         if wants_docx or (art_req.wants_file and art_req.formats and "pdf" not in art_req.formats):
             wants_latex = False
@@ -2010,7 +2115,7 @@ class NeoHarnessRuntimeBridge:
 
         # 2a. Si skill éducatif (/exercice, /dm, /bacblanc) et qu'aucun .tex n'a été produit,
         # obligatoirement générer le fichier .tex basé sur le gabarit officiel
-        if is_education_skill and not has_tex_file and can_write and answer_text and not answer_text.startswith("⚠️"):
+        if is_education_skill and not has_tex_file and can_write and answer_text and not answer_text.startswith(("Erreur", "Mission non", "RateLimit")):
             stem = f"{skill}_maths" if skill in ("exercice", "dm") else "bacblanc_sujet"
             rel_tex = f"{stem}.tex"
             try:
@@ -2045,7 +2150,7 @@ class NeoHarnessRuntimeBridge:
 
         # 2b. Si l'utilisateur demande explicitement de créer/générer un PDF en langage naturel et qu'aucun .tex/.pdf n'a encore été produit,
         # convertir la réponse en document LaTeX propre et le compiler avec Tectonic
-        if wants_pdf_deliverable and not has_tex_file and not has_pdf_file and can_write and answer_text and not answer_text.startswith("⚠️"):
+        if wants_pdf_deliverable and not has_tex_file and not has_pdf_file and can_write and answer_text and not answer_text.startswith(("Erreur", "Mission non", "RateLimit")):
             name_match = re.search(r"\b([a-zA-Z0-9_-]+)\.pdf\b", clean_prompt, re.IGNORECASE)
             stem = name_match.group(1) if name_match else Path(suggest_filename(clean_prompt, "pdf", content=answer_text)).stem
             rel_tex = f"{stem}.tex"
@@ -2288,6 +2393,11 @@ class NeoHarnessRuntimeBridge:
                 except Exception:
                     pass
 
+        if hasattr(self, 'library') and self.library is not None:
+            try:
+                self.library.sync_with_workspace()
+            except Exception:
+                pass
         return preview_artifacts, compilation_errors, recorded_diffs
 
     # ------------------------------------------------------------------
@@ -2397,7 +2507,8 @@ class NeoHarnessRuntimeBridge:
         # Documents présents dans le workspace
         ws_docs: list[dict[str, Any]] = []
         for rel in self.filesystem.list_files(".", recursive=True):
-            if rel.startswith(".harness/"):
+            rel_norm = rel.replace("\\", "/")
+            if rel_norm.startswith(".harness/") or "/.harness/" in rel_norm or rel_norm.startswith("."):
                 continue
             ws_entry = {
                 "name": Path(rel).name,
@@ -2438,9 +2549,12 @@ class NeoHarnessRuntimeBridge:
             # 1. Recherche dans le workspace
             try:
                 for hit in self.filesystem.search_files(needle, limit=25):
+                    h_path = str(hit["path"]).replace("\\", "/")
+                    if h_path.startswith(".harness/") or "/.harness/" in h_path or h_path.startswith("."):
+                        continue
                     search_hits.append(
                         {
-                            "source": f"workspace/{hit['path']}",
+                            "source": f"workspace/{h_path}",
                             "line": hit["line"],
                             "snippet": hit["text"],
                             "collection": "Workspace Local",
@@ -2540,7 +2654,9 @@ class NeoHarnessRuntimeBridge:
         # Si un Skill est sélectionné manuellement ou hérité de la continuité de la tâche active
         active_skills = list(self.generation_preferences.get("active_skills", []))
         chosen_skill = explicit_skill or (active_skills[0] if active_skills else None)
-        if not chosen_skill and is_continuity and task_context.last_skill and task_context.last_skill.lower() in {"exercice", "bacblanc", "dm", "debug"}:
+        if is_conversational_query(clean_prompt) and not explicit_skill and (not active_skills or active_skills[0] in {"exercice", "bacblanc", "dm"}):
+            chosen_skill = None
+        elif not chosen_skill and is_continuity and task_context.last_skill and task_context.last_skill.lower() in {"exercice", "bacblanc", "dm", "debug"}:
             chosen_skill = task_context.last_skill
 
         effective_prompt = clean_prompt
@@ -2582,25 +2698,28 @@ class NeoHarnessRuntimeBridge:
         self.agent_loop._stop_requested = False
         started_mono = monotonic()
 
+        # Résolution stricte et sans conflit du mode d'exécution effectif (chat, mono, multi)
+        resolved_mode = (execution_mode or "").strip().lower()
+        if not resolved_mode:
+            resolved_mode = "multi" if deep_reflection else (
+                getattr(self, "rate_limit_manager", None).mode.value
+                if hasattr(self, "rate_limit_manager") and self.rate_limit_manager is not None
+                else "mono"
+            )
+        if resolved_mode not in {"chat", "mono", "multi"}:
+            resolved_mode = "mono"
+
+        # Le flag deep_reflection est STRICTEMENT aligné sur (resolved_mode == "multi")
+        is_multi_agent = (resolved_mode == "multi")
+        deep_reflection = is_multi_agent
+
         task_id = self.event_bus.start_task(
             objective=clean_prompt,
             skill=chosen_skill or "",
-            mode=self.mode_manager.current.value,
+            mode=resolved_mode,
         )
         self.current_task_id = task_id
-        self.current_task_status = "Planification"
-
-        # Résolution du mode d'exécution effectif (chat, mono, multi)
-        configured_mode = (
-            getattr(self, "rate_limit_manager", None).mode.value
-            if hasattr(self, "rate_limit_manager") and self.rate_limit_manager is not None
-            else "mono"
-        )
-        resolved_mode = (execution_mode or "").strip().lower()
-        if not resolved_mode:
-            resolved_mode = "multi" if deep_reflection else configured_mode
-        if resolved_mode not in {"chat", "mono", "multi"}:
-            resolved_mode = "mono"
+        self.current_task_status = "Discussion" if resolved_mode == "chat" else "Planification"
 
         # Configuration dynamique du RateLimitManager
         if hasattr(self, "rate_limit_manager") and self.rate_limit_manager is not None:
@@ -2634,6 +2753,70 @@ class NeoHarnessRuntimeBridge:
                     max_parallel_agents=1,
                 )
 
+        # Interception naturelle mémoire persistante & bibliothèque (zéro fichier parasite)
+        last_asst_content = ''
+        for m in reversed(conv.get('messages', [])):
+            if m.get('role') == 'assistant' and m.get('content'):
+                last_asst_content = m['content']
+                break
+        nl_mem = self.memory.parse_and_store_natural_language(
+            clean_prompt,
+            library_manager=self.library,
+            last_assistant_answer=last_asst_content,
+        )
+        if nl_mem is not None:
+            elapsed_ms = int((monotonic() - started_mono) * 1000)
+            ans_txt = nl_mem['confirmation']
+            user_msg = {
+                'id': f'msg-{uuid.uuid4().hex[:8]}',
+                'role': 'user',
+                'content': clean_prompt,
+                'timestamp': datetime.now(timezone.utc).isoformat(),
+            }
+            asst_msg = {
+                'id': f'msg-{uuid.uuid4().hex[:8]}',
+                'role': 'assistant',
+                'content': ans_txt,
+                'timestamp': datetime.now(timezone.utc).isoformat(),
+                'execution_mode': 'chat',
+                'duration_ms': elapsed_ms,
+                'tokens': max(1, int(len(clean_prompt) / 3.8 + len(ans_txt) / 3.8)),
+                'provider': 'NeoHarness Memory Engine',
+                'model': 'Persistent Memory',
+                'tools': ['memory.persist'],
+                'sources': [],
+            }
+            conv['messages'].extend([user_msg, asst_msg])
+            self._save_conversations()
+            self.event_bus.complete_task(
+                status='completed',
+                duration_ms=elapsed_ms,
+                summary='Mémoire persistante / Bibliothèque actualisée',
+                details=nl_mem,
+            )
+            self.current_task_status = 'Terminé'
+            return {
+                'ok': True,
+                'task_id': task_id,
+                'conversation_id': conv['id'],
+                'status': 'Terminé',
+                'duration_ms': elapsed_ms,
+                'objective': clean_prompt,
+                'result': asst_msg,
+                'assistant_message': asst_msg,
+                'answer': ans_txt,
+                'used_agent': 'Mémoire & Connaissance',
+                'used_skill': '',
+                'used_provider': 'Persistent Memory',
+                'used_model': 'Memory Engine',
+                'used_tools': ['memory.persist'],
+                'used_sources': [],
+                'verification': {'status': 'ok', 'summary': 'Enregistré en mémoire persistante'},
+                'recorded_diffs': [],
+                'preview_artifacts': [],
+                'compilation_errors': [],
+            }
+
         # Ajout du message utilisateur dans la conversation
         user_msg = {
             "id": f"msg-{uuid.uuid4().hex[:8]}",
@@ -2660,7 +2843,7 @@ class NeoHarnessRuntimeBridge:
             self.current_task_status = "Discussion"
             self._ensure_routed_providers_ready()
             try:
-                provider = self.orchestrator.router.get_provider("agent", intent="chat")
+                provider = self.orchestrator.router.providers.get("gemini") or self.orchestrator.router.get_provider("agent", intent="chat")
             except Exception:
                 prov_key = self.orchestrator.router.session_provider_key
                 provider = self.orchestrator.router.providers.get(prov_key)
@@ -2668,18 +2851,28 @@ class NeoHarnessRuntimeBridge:
             used_provider = provider.get_name() if provider else "Provider"
             used_model = provider.get_model_name() if provider else "Modèle"
 
-            history_lines: list[str] = []
+            clean_history: list[str] = []
             for prev_msg in conv.get("messages", [])[-8:-1]:
                 r_label = "Utilisateur" if prev_msg.get("role") == "user" else "Assistant"
                 c_text = (prev_msg.get("content") or "").strip()
-                if c_text:
-                    history_lines.append(f"{r_label}: {c_text}")
+                # Filtrer les traces d'erreurs techniques ou timeouts pour un échange naturel
+                if c_text and not c_text.startswith(("Mission non terminée", "RateLimitExhaustedError", "Erreur lors de l'échange")):
+                    clean_history.append(f"{r_label}: {c_text}")
 
+            sys_memory_block = self.memory.format_for_system_prompt()
             prompt_for_chat = clean_prompt
-            if history_lines:
+            if clean_history:
                 prompt_for_chat = (
                     "Historique récent de la discussion :\n"
-                    + "\n".join(history_lines)
+                    + "\n".join(clean_history)
+                    + f"\n\nUtilisateur : {clean_prompt}\nAssistant :"
+                )
+            if sys_memory_block:
+                prompt_for_chat = f"{sys_memory_block}\n\n{prompt_for_chat}"
+            if False:
+                prompt_for_chat = (
+                    "Historique récent de la discussion :\n"
+                    + "\n".join(clean_history)
                     + f"\n\nUtilisateur : {clean_prompt}\nAssistant :"
                 )
             if snippets:
@@ -2688,15 +2881,18 @@ class NeoHarnessRuntimeBridge:
             try:
                 answer_text = provider.generate(prompt=prompt_for_chat).strip()
             except Exception as err:
-                answer_text = f"⚠️ Erreur lors de l'échange direct avec {used_provider} : {err}"
+                answer_text = f"Erreur lors de l'échange direct avec {used_provider} : {err}"
 
             elapsed_ms = int((monotonic() - started_mono) * 1000)
+            calc_tokens = max(1, int(len(prompt_for_chat) / 3.8 + len(answer_text) / 3.8))
             assistant_msg = {
                 "id": f"msg-{uuid.uuid4().hex[:8]}",
                 "role": "assistant",
                 "content": answer_text,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "execution_mode": "chat",
+                "duration_ms": elapsed_ms,
+                "tokens": calc_tokens,
                 "provider": used_provider,
                 "model": used_model,
                 "tools": [],
@@ -2813,7 +3009,12 @@ class NeoHarnessRuntimeBridge:
         try:
             self._ensure_routed_providers_ready()
             with contextlib.redirect_stdout(captured_stdout):
-                result_obj, used_skill, used_agent = self._dispatch_mission(effective_prompt, task_context=task_context, deep_reflection=deep_reflection)
+                result_obj, used_skill, used_agent = self._dispatch_mission(
+                    effective_prompt,
+                    task_context=task_context,
+                    deep_reflection=is_multi_agent,
+                    planned_state=planned_state,
+                )
         except Exception as error:
             error_text = f"{type(error).__name__}: {error}"
             self.event_bus.emit_normalized(
@@ -2875,10 +3076,10 @@ class NeoHarnessRuntimeBridge:
 
         if not answer_text and error_text:
             answer_text = (
-                f"⚠️ **Exécution interrompue**\n\n"
+                f"**Exécution interrompue**\n\n"
                 f"Cause : `{error_text}`\n\n"
                 f"Vérifiez la disponibilité du modèle (`{used_provider or 'Provider'}` / `{used_model or 'Modèle'}`) "
-                f"ou configurez la clé API correspondante dans **Paramètres (⚙)**."
+                f"ou configurez la clé API correspondante dans **Paramètres**."
             )
 
         after_snapshot = self._snapshot_workspace()
@@ -2938,15 +3139,23 @@ class NeoHarnessRuntimeBridge:
             },
         )
 
+        used_tokens = 0
+        if getattr(self, "agent_loop", None) and getattr(self.agent_loop, "budget", None):
+            used_tokens = getattr(self.agent_loop.budget, "tokens_consumed", 0)
+        if not used_tokens:
+            used_tokens = max(1, int(len(clean_prompt) / 3.8 + len(answer_text) / 3.8))
+
         assistant_msg = {
             "id": f"msg-{uuid.uuid4().hex[:8]}",
             "role": "assistant",
+            "execution_mode": resolved_mode,
             "content": answer_text,
             "runtime_logs": stdout_text if result_obj is not None else "",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "task_id": task_id,
             "status": final_status,
             "duration_ms": elapsed_ms,
+            "tokens": used_tokens,
             "agent": used_agent,
             "skill": used_skill,
             "provider": used_provider,
@@ -3094,7 +3303,7 @@ class NeoHarnessRuntimeBridge:
             "last_seq": events[-1].get("seq", 0) if events else 0,
         }
 
-    def _dispatch_mission(self, prompt: str, task_context: Any | None = None, deep_reflection: bool = False) -> tuple[AgentResult | None, str, str]:
+    def _dispatch_mission(self, prompt: str, task_context: Any | None = None, deep_reflection: bool = False, planned_state: TaskState | None = None) -> tuple[AgentResult | None, str, str]:
         """Exécute la mission en respectant exactement la logique de main._executer_mission."""
         runtime = SkillRuntime(
             orchestrator=self.orchestrator,
@@ -3185,7 +3394,7 @@ class NeoHarnessRuntimeBridge:
                     enable_dag=deep_reflection,
                     deep_reflection=deep_reflection,
                 )
-                res = self.orchestrator.run_agentic(skill_task, self.agent_loop)
+                res = self.orchestrator.run_agentic(skill_task, self.agent_loop, state=planned_state)
                 return res, skill.name, skill.agent.name
 
             if skill.dispatch_agent is not None or skill.config.get("auto_route"):
@@ -3236,7 +3445,7 @@ class NeoHarnessRuntimeBridge:
                     deep_reflection=deep_reflection,
                 )
         try:
-            res = self.orchestrator.run_agentic(task, self.agent_loop)
+            res = self.orchestrator.run_agentic(task, self.agent_loop, state=planned_state)
         except ClarificationRequired as error:
             res = AgentResult(
                 status="clarification_required",
@@ -3455,6 +3664,27 @@ class NeoHarnessUIApp:
             art_p = _first("path")
             return HTTPStatus.OK, {"history": self.bridge.get_artifact_history(art_p)}
 
+        if path == "/api/library":
+            cat = _first("category") or None
+            tag = _first("tag") or None
+            q = _first("q") or ""
+            items = self.bridge.library.list_items(category=cat, tag=tag, query=q)
+            return HTTPStatus.OK, {
+                "items": items,
+                "counts": {
+                    "total": len(self.bridge.library.list_items()),
+                    "documents": len(self.bridge.library.list_items(category="Documents")),
+                    "notes": len(self.bridge.library.list_items(category="Notes")),
+                    "ressources": len(self.bridge.library.list_items(category="Ressources")),
+                    "memoire": len(self.bridge.memory.list_persistent_items()),
+                },
+            }
+        if path == "/api/memory/persistent":
+            cat = _first("category") or None
+            return HTTPStatus.OK, {
+                "items": self.bridge.memory.list_persistent_items(category=cat),
+                "formatted_prompt": self.bridge.memory.format_for_system_prompt(),
+            }
         if path == "/api/credentials":
             return HTTPStatus.OK, {"credentials": self.bridge.get_credentials_status()}
 
@@ -3473,7 +3703,7 @@ class NeoHarnessUIApp:
                 return HTTPStatus.OK, self.bridge.update_credentials(body)
 
             if path == "/api/models/select":
-                model_id = str(body.get("model") or "auto")
+                model_id = str(body.get("model") or body.get("model_id") or "auto")
                 return HTTPStatus.OK, self.bridge.select_model(model_id)
 
             if path == "/api/mode":
@@ -3513,8 +3743,63 @@ class NeoHarnessUIApp:
                     "active_conversation": self.bridge.get_conversation(),
                 }
 
-            if path == "/api/conversations/clear":
-                return HTTPStatus.OK, self.bridge.clear_conversations()
+            if path in {"/api/conversations/clear", "/api/conversations/clear_all"}:
+                res = self.bridge.clear_conversations()
+                return HTTPStatus.OK, {
+                    "ok": True,
+                    "deleted_count": res.get("deleted", 0),
+                    "conversations": self.bridge.list_conversations(),
+                    "active_conversation": self.bridge.get_conversation(),
+                }
+
+            if path == "/api/library/add":
+                it = self.bridge.library.add_item(
+                    title=str(body.get("title") or "Nouvelle note"),
+                    category=str(body.get("category") or "Notes"),
+                    item_type=str(body.get("type") or "note"),
+                    content=str(body.get("content") or ""),
+                    path=body.get("path"),
+                    summary=str(body.get("summary") or ""),
+                    tags=body.get("tags") or [],
+                    linked_memory_id=body.get("linked_memory_id"),
+                )
+                return HTTPStatus.OK, {"item": it, "items": self.bridge.library.list_items()}
+
+            if path == "/api/library/delete":
+                it_id = str(body.get("id") or "")
+                deleted = self.bridge.library.delete_item(it_id)
+                return HTTPStatus.OK, {"deleted": deleted, "items": self.bridge.library.list_items()}
+
+            if path == "/api/library/pin":
+                it_id = str(body.get("id") or "")
+                it = self.bridge.library.toggle_pin(it_id)
+                return HTTPStatus.OK, {"item": it}
+
+            if path == "/api/memory/persistent/add":
+                cat = str(body.get("category") or "knowledge")
+                content = str(body.get("content") or "")
+                it = self.bridge.memory.add_persistent_item(category=cat, content=content, source="user")
+                return HTTPStatus.OK, {"item": it, "items": self.bridge.memory.list_persistent_items()}
+
+            if path == "/api/memory/persistent/delete":
+                mem_id = str(body.get("id") or "")
+                deleted = self.bridge.memory.delete_persistent_item(mem_id)
+                return HTTPStatus.OK, {"deleted": deleted, "items": self.bridge.memory.list_persistent_items()}
+
+            if path == "/api/memory/persistent/toggle":
+                mem_id = str(body.get("id") or "")
+                it = self.bridge.memory.toggle_persistent_item(mem_id)
+                return HTTPStatus.OK, {"item": it}
+
+            if path == "/api/models/custom/add":
+                m_info = self.bridge.add_custom_model(body)
+                return HTTPStatus.OK, {"model": m_info, "models": [m.to_dict() for m in self.bridge.model_registry.list_models()]}
+
+            if path == "/api/models/custom/delete":
+                m_id = str(body.get("id") or "")
+                deleted = self.bridge.delete_custom_model(m_id)
+                return HTTPStatus.OK, {"deleted": deleted, "models": [m.to_dict() for m in self.bridge.model_registry.list_models()]}
+
 
             if path == "/api/files/clear":
                 return HTTPStatus.OK, self.bridge.clear_workspace_files()
@@ -3525,8 +3810,15 @@ class NeoHarnessUIApp:
                 attachments = body.get("attachments") or []
                 skill = body.get("skill")
                 model_id = body.get("model")
-                exec_mode = body.get("execution_mode") or body.get("mode")
-                deep_refl = bool(body.get("deep_reflection", False) or exec_mode == "multi")
+                gov_mode = body.get("governance_mode") or (body.get("mode") if str(body.get("mode") or "").upper() in {"AUTO", "EDIT", "PLAN", "ACCEPT"} else None)
+                if gov_mode:
+                    self.bridge.set_mode(str(gov_mode).upper())
+                raw_mode = (body.get("execution_mode") or "").strip().lower()
+                if not raw_mode:
+                    raw_mode = "multi" if body.get("deep_reflection") else "mono"
+                if raw_mode not in {"chat", "mono", "multi"}:
+                    raw_mode = "mono"
+                deep_refl = (raw_mode == "multi")
                 result = self.bridge.execute_task(
                     prompt,
                     conversation_id=cid,
@@ -3534,7 +3826,7 @@ class NeoHarnessUIApp:
                     explicit_skill=skill,
                     model_id=model_id,
                     deep_reflection=deep_refl,
-                    execution_mode=exec_mode,
+                    execution_mode=raw_mode,
                 )
                 return HTTPStatus.OK, result
 

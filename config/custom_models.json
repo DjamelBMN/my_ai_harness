@@ -1,0 +1,37 @@
+[
+  {
+    "id": "custom:claude-3-7-sonnet-20250219",
+    "provider_name": "Anthropic",
+    "provider_family": "custom",
+    "model_name": "claude-3-7-sonnet-20250219",
+    "display_name": "Claude 3.7 Sonnet (Thinking)",
+    "endpoint": "https://api.anthropic.com/v1",
+    "api_key": "test-key-mock",
+    "context": 200000,
+    "speed_tier": "Raisonnement",
+    "capabilities": {
+      "reasoning": true,
+      "tools": true,
+      "vision": true,
+      "long_context": true,
+      "streaming": true
+    }
+  },
+  {
+    "id": "custom-claude-3-7",
+    "provider_name": "Anthropic",
+    "provider_family": "anthropic",
+    "model_name": "claude-3-7-sonnet",
+    "display_name": "Claude 3.7 Sonnet (Thinking)",
+    "endpoint": "https://api.anthropic.com/v1",
+    "api_key": "sk-ant-api-test",
+    "context": 200000,
+    "speed_tier": "deep",
+    "capabilities": {
+      "reasoning": true,
+      "tools": true,
+      "vision": true,
+      "streaming": true
+    }
+  }
+]

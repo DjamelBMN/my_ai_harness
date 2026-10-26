@@ -1,0 +1,778 @@
+[
+  {
+    "id": "lib-f93f393d",
+    "title": "Formules test",
+    "category": "Notes",
+    "type": "note",
+    "path": null,
+    "summary": "Notes ajouté à la bibliothèque",
+    "content": "Test direct",
+    "tags": [
+      "maths"
+    ],
+    "size_bytes": 11,
+    "created_at": "2026-10-26T18:26:21.285363+00:00",
+    "updated_at": "2026-10-26T18:26:21.285363+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-ee08009a",
+    "title": "Formules d'analyse vectorielle",
+    "category": "Notes",
+    "type": "note",
+    "path": null,
+    "summary": "Notes ajouté à la bibliothèque",
+    "content": "Théorème de Green-Ostrogradsky : flux égal intégrale triple de divergence.",
+    "tags": [
+      "maths",
+      "physique"
+    ],
+    "size_bytes": 78,
+    "created_at": "2026-10-26T18:25:26.914231+00:00",
+    "updated_at": "2026-10-26T18:25:26.914231+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-8d9d528c",
+    "title": "Référence derivatives.pdf",
+    "category": "Documents",
+    "type": "pdf",
+    "path": "derivatives.pdf",
+    "summary": "Enregistré à la demande : Ajoute ce PDF dans ma bibliothèque et retiens que c'est ma référence principale ",
+    "content": "Référence projet liée : derivatives.pdf",
+    "tags": [
+      "persistant",
+      "utilisateur"
+    ],
+    "size_bytes": 42,
+    "created_at": "2026-10-26T18:18:37.339752+00:00",
+    "updated_at": "2026-10-26T18:18:37.340893+00:00",
+    "linked_memory_id": "mem-7a6dfb43",
+    "pinned": false
+  },
+  {
+    "id": "lib-f73be546",
+    "title": "Référence derivatives.pdf",
+    "category": "Documents",
+    "type": "pdf",
+    "path": "derivatives.pdf",
+    "summary": "Enregistré à la demande : Ajoute ce PDF dans ma bibliothèque et retiens que c'est ma référence principale ",
+    "content": "Référence projet liée : derivatives.pdf",
+    "tags": [
+      "persistant",
+      "utilisateur"
+    ],
+    "size_bytes": 42,
+    "created_at": "2026-10-26T18:05:00.822228+00:00",
+    "updated_at": "2026-10-26T18:05:00.829259+00:00",
+    "linked_memory_id": "mem-44caf266",
+    "pinned": false
+  },
+  {
+    "id": "lib-8546e9b3",
+    "title": "Solow",
+    "category": "Ressources",
+    "type": "python",
+    "path": "solow.py",
+    "summary": "Fichier PYTHON dans l'espace de travail",
+    "content": "# Modèle de Solow\nalpha = 0.33\ns = 0.3\nn = 0.02\n\nk_star = (s / n) ** (1 / (1 - alpha))\nprint(f\"Capital stationnaire k* : {k_star:.2f}\")\n",
+    "tags": [
+      "python"
+    ],
+    "size_bytes": 137,
+    "created_at": "2026-10-26T17:52:31.135150+00:00",
+    "updated_at": "2026-10-26T17:52:31.135150+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-318d2d36",
+    "title": "Exercice derivation",
+    "category": "Documents",
+    "type": "docx",
+    "path": "exercice_derivation.docx",
+    "summary": "Document Word vérifié",
+    "content": "",
+    "tags": [
+      "docx",
+      "exercice"
+    ],
+    "size_bytes": 3198,
+    "created_at": "2026-10-26T15:43:45.859931+00:00",
+    "updated_at": "2026-10-26T15:43:45.859931+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-4d298381",
+    "title": "Exercice derivation",
+    "category": "Documents",
+    "type": "pdf",
+    "path": "exercice_derivation.pdf",
+    "summary": "Document PDF compilé",
+    "content": "",
+    "tags": [
+      "pdf",
+      "exercice"
+    ],
+    "size_bytes": 14307,
+    "created_at": "2026-10-26T00:37:25.412659+00:00",
+    "updated_at": "2026-10-26T15:28:43.694334+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-eb3c8231",
+    "title": "Exercice derivation",
+    "category": "Documents",
+    "type": "tex",
+    "path": "exercice_derivation.tex",
+    "summary": "Fichier TEX dans l'espace de travail",
+    "content": "% Compiler avec XeLaTeX ou LuaLaTeX\n\\documentclass[11pt,a4paper]{article}\n\n\\usepackage{amsmath,amssymb}\n\\usepackage{fontspec}\n\\usepackage{unicode-math}\n\\usepackage{polyglossia}\n\\setmainlanguage{french}\n\\usepackage{xcolor}\n\\usepackage{fancyhdr}\n\\usepackage[margin=2cm,headheight=16pt,headsep=22pt]{geometry}\n\\usepackage{enumitem}\n\n% Police principale et police mathématique : Libertinus\n\\IfFontExistsTF{Libertinus Serif}\n  {\\setmainfont{Libertinus Serif}}\n  {\\IfFontExistsTF{Latin Modern Roman}{\\setmainfont{Latin Modern Roman}}{\\setmainfont{lmroman10-regular.otf}}}\n\n\\IfFontExistsTF{Libertinus Math}\n  {\\setmathfont{Libertinus Math}}\n  {\\IfFontExistsTF{Latin Modern Math}{\\setmathfont{Latin Modern Math}}{\\setmathfont{latinmodern-math.otf}}}\n\n\\linespread{1.07}\n\\setlength{\\parindent}{0pt}\n\\AtBeginDocument{\\setlength{\\parindent}{0pt}}\n\\setlength{\\parskip}{0.35em}\n\n% En-tête\n\\pagestyle{fancy}\n\\fancyhf{}\n\\lhead{Mathématiques}\n\\rhead{Terminale -- Spécialité}\n% Pagination : « Page X / Y » centrée en p",
+    "tags": [
+      "tex",
+      "exercice"
+    ],
+    "size_bytes": 3683,
+    "created_at": "2026-10-26T15:28:41.309129+00:00",
+    "updated_at": "2026-10-26T15:28:41.309129+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-e74b5f57",
+    "title": "Template exercice",
+    "category": "Documents",
+    "type": "docx",
+    "path": "template_exercice.docx",
+    "summary": "Document Word vérifié",
+    "content": "",
+    "tags": [
+      "docx",
+      "exercice"
+    ],
+    "size_bytes": 10447,
+    "created_at": "2026-10-26T12:02:53.569216+00:00",
+    "updated_at": "2026-10-26T12:02:53.584896+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-b098f56d",
+    "title": "Template exercice",
+    "category": "Documents",
+    "type": "pdf",
+    "path": "template_exercice.pdf",
+    "summary": "Document PDF compilé",
+    "content": "",
+    "tags": [
+      "pdf",
+      "exercice"
+    ],
+    "size_bytes": 13759,
+    "created_at": "2026-10-26T12:02:45.807407+00:00",
+    "updated_at": "2026-10-26T12:02:45.808914+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-9553f4e5",
+    "title": "Template exercice",
+    "category": "Documents",
+    "type": "tex",
+    "path": "template_exercice.tex",
+    "summary": "Fichier TEX dans l'espace de travail",
+    "content": "% Compiler avec XeLaTeX ou LuaLaTeX\n\\documentclass[11pt,a4paper]{article}\n\n\\usepackage{amsmath,amssymb}\n\\usepackage{fontspec}\n\\usepackage{unicode-math}\n\\usepackage{polyglossia}\n\\setmainlanguage{french}\n\\usepackage{xcolor}\n\\usepackage{fancyhdr}\n\\usepackage[margin=2cm,headheight=16pt,headsep=22pt]{geometry}\n\\usepackage{enumitem}\n\n% Police principale et police mathématique : Libertinus\n\\IfFontExistsTF{Libertinus Serif}\n  {\\setmainfont{Libertinus Serif}}\n  {\\IfFontExistsTF{Latin Modern Roman}{\\setmainfont{Latin Modern Roman}}{\\setmainfont{lmroman10-regular.otf}}}\n\n\\IfFontExistsTF{Libertinus Math}\n  {\\setmathfont{Libertinus Math}}\n  {\\IfFontExistsTF{Latin Modern Math}{\\setmathfont{Latin Modern Math}}{\\setmathfont{latinmodern-math.otf}}}\n\n\\linespread{1.07}\n\\setlength{\\parindent}{0pt}\n\\AtBeginDocument{\\setlength{\\parindent}{0pt}}\n\\setlength{\\parskip}{0.35em}\n\n% En-tête\n\\pagestyle{fancy}\n\\fancyhf{}\n\\lhead{Mathématiques}\n\\rhead{Première Générale -- Spécialité}\n% Pagination : « Page X / Y » cent",
+    "tags": [
+      "tex",
+      "exercice"
+    ],
+    "size_bytes": 3340,
+    "created_at": "2026-10-26T12:01:57.756737+00:00",
+    "updated_at": "2026-10-26T12:01:57.756737+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-49115135",
+    "title": "Suites geometriques",
+    "category": "Documents",
+    "type": "docx",
+    "path": "suites_geometriques.docx",
+    "summary": "Document Word vérifié",
+    "content": "",
+    "tags": [
+      "docx"
+    ],
+    "size_bytes": 4153,
+    "created_at": "2026-10-26T01:48:22.277299+00:00",
+    "updated_at": "2026-10-26T01:48:22.277299+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-36656039",
+    "title": "Exercice maths",
+    "category": "Documents",
+    "type": "pdf",
+    "path": "exercice_maths.pdf",
+    "summary": "Document PDF compilé",
+    "content": "",
+    "tags": [
+      "pdf",
+      "exercice"
+    ],
+    "size_bytes": 5961,
+    "created_at": "2026-10-25T19:03:46.564995+00:00",
+    "updated_at": "2026-10-26T01:10:31.866185+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-44202106",
+    "title": "Exercice maths",
+    "category": "Documents",
+    "type": "tex",
+    "path": "exercice_maths.tex",
+    "summary": "Fichier TEX dans l'espace de travail",
+    "content": "% Compiler avec XeLaTeX ou LuaLaTeX\n\\documentclass[11pt,a4paper]{article}\n\n\\usepackage{amsmath,amssymb}\n\\usepackage{fontspec}\n\\usepackage{unicode-math}\n\\usepackage{polyglossia}\n\\setmainlanguage{french}\n\\usepackage{xcolor}\n\\usepackage{fancyhdr}\n\\usepackage[margin=2cm,headheight=16pt,headsep=22pt]{geometry}\n\\usepackage{enumitem}\n\n% Police principale et police mathématique : Libertinus\n\\IfFontExistsTF{Libertinus Serif}\n  {\\setmainfont{Libertinus Serif}}\n  {\\IfFontExistsTF{Latin Modern Roman}{\\setmainfont{Latin Modern Roman}}{\\setmainfont{lmroman10-regular.otf}}}\n\n\\IfFontExistsTF{Libertinus Math}\n  {\\setmathfont{Libertinus Math}}\n  {\\IfFontExistsTF{Latin Modern Math}{\\setmathfont{Latin Modern Math}}{\\setmathfont{latinmodern-math.otf}}}\n\n\\linespread{1.07}\n\\setlength{\\parindent}{0pt}\n\\AtBeginDocument{\\setlength{\\parindent}{0pt}}\n\\setlength{\\parskip}{0.35em}\n\n% En-tête\n\\pagestyle{fancy}\n\\fancyhf{}\n\\lhead{NeoHarness AI}\n\\rhead{Lycée -- Mathématiques}\n% Pagination : « Page X / Y » centrée en pi",
+    "tags": [
+      "tex",
+      "exercice"
+    ],
+    "size_bytes": 2010,
+    "created_at": "2026-10-26T01:09:56.109847+00:00",
+    "updated_at": "2026-10-26T01:09:56.109847+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-f8bd1ecf",
+    "title": "Calculus solution",
+    "category": "Documents",
+    "type": "pdf",
+    "path": "calculus_solution.pdf",
+    "summary": "Document PDF compilé",
+    "content": "",
+    "tags": [
+      "pdf"
+    ],
+    "size_bytes": 77,
+    "created_at": "2026-10-26T01:08:24.074293+00:00",
+    "updated_at": "2026-10-26T01:08:24.074293+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-78eeb65d",
+    "title": "Derivatives",
+    "category": "Documents",
+    "type": "docx",
+    "path": "derivatives.docx",
+    "summary": "Document Word vérifié",
+    "content": "",
+    "tags": [
+      "docx"
+    ],
+    "size_bytes": 10622,
+    "created_at": "2026-10-26T00:49:58.644781+00:00",
+    "updated_at": "2026-10-26T00:49:58.665165+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-9369a878",
+    "title": "Derives premier",
+    "category": "Documents",
+    "type": "docx",
+    "path": "derives_premier.docx",
+    "summary": "Document Word vérifié",
+    "content": "",
+    "tags": [
+      "docx"
+    ],
+    "size_bytes": 10479,
+    "created_at": "2026-10-25T23:34:11.376705+00:00",
+    "updated_at": "2026-10-25T23:34:11.394374+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-d60997f8",
+    "title": "Exercice derivation",
+    "category": "Notes",
+    "type": "note",
+    "path": "exercice_derivation.md",
+    "summary": "Fichier NOTE dans l'espace de travail",
+    "content": "# Exercice d'entraînement : Étude complète d'une fonction et dérivation\n\nCet exercice propose d'étudier une fonction polynomiale et une fonction rationnelle afin de maîtriser le calcul de dérivées, l'étude du signe et la détermination des tangentes.\n\n## Partie A : Étude d'une fonction polynôme du troisième degré\n\nSoit $f$ la fonction définie sur $\\mathbb{R}$ par :\n$$f(x) = 2x^3 - 3x^2 - 12x + 5$$\n\n1. Calculer la dérivée $f'(x)$ pour tout réel $x$.\n2. Étudier le signe de $f'(x)$ sur $\\mathbb{R}$ et en déduire les variations de la fonction $f$.\n3. Déterminer l'équation réduite de la tangente à la courbe représentative de $f$ au point d'abscisse $x_0 = 0$.\n\n---\n\n## Partie B : Étude d'une fonction rationnelle et application géométrique\n\nSoit $g$ la fonction définie sur l'intervalle $I = ]1; +\\infty[$ par :\n$$g(x) = \\frac{x^2 + 3}{x - 1}$$\n\n1. Montrer que pour tout $x \\in ]1; +\\infty[$, la dérivée $g'(x)$ peut s'écrire sous la forme :\n$$g'(x) = \\frac{x^2 - 2x - 3}{(x - 1)^2}$$\n2. Déterminer",
+    "tags": [
+      "note",
+      "exercice"
+    ],
+    "size_bytes": 3302,
+    "created_at": "2026-10-25T23:14:14.953399+00:00",
+    "updated_at": "2026-10-25T23:14:14.953399+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-85c36edb",
+    "title": "Exercice identites remarquables verification",
+    "category": "Notes",
+    "type": "note",
+    "path": "exercice_identites_remarquables_verification.md",
+    "summary": "Fichier NOTE dans l'espace de travail",
+    "content": "# Exercice sur les identités remarquables\n\nCet exercice complet permet de travailler l'utilisation des trois identités remarquables fondamentales en calcul littéral.\n\n## Énoncé de l'exercice\n\nOn considère les expressions littérales suivantes, définies pour tout nombre réel $x$ :\n\n$$A = (3x + 2)^2$$\n\n$$B = (5x - 4)(5x + 4)$$\n\n$$C = (2x - 3)^2 - (x + 1)(x - 1)$$\n\n1. Développer et réduire l'expression $A$.\n2. Développer et réduire l'expression $B$.\n3. Développer et réduire l'expression $C$.\n4. Factoriser l'expression $D = 9x^2 - 25$.\n\n---\n\n## Rappels de cours\n\nPour rappel, les trois identités remarquables utilisées dans cet exercice sont :\n\n* Carré d'une somme : $(a + b)^2 = a^2 + 2ab + b^2$\n* Carré d'une différence : $(a - b)^2 = a^2 - 2ab + b^2$\n* Produit de la somme par la différence : $(a - b)(a + b) = a^2 - b^2$\n\n---\n\n## Correction détaillée\n\n### Question 1 : Développement de $A$\nL'expression $A = (3x + 2)^2$ est de la forme $(a + b)^2$ avec $a = 3x$ et $b = 2$.\n\n$$A = (3x)^2 + 2 \\ti",
+    "tags": [
+      "note",
+      "exercice"
+    ],
+    "size_bytes": 1835,
+    "created_at": "2026-10-25T23:08:29.077049+00:00",
+    "updated_at": "2026-10-25T23:08:29.077049+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-0a00e3b5",
+    "title": "Identites remarquables",
+    "category": "Documents",
+    "type": "docx",
+    "path": "identites_remarquables.docx",
+    "summary": "Document Word vérifié",
+    "content": "",
+    "tags": [
+      "docx"
+    ],
+    "size_bytes": 12301,
+    "created_at": "2026-10-25T23:08:21.798924+00:00",
+    "updated_at": "2026-10-25T23:08:21.834030+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-3903a1dd",
+    "title": "Document",
+    "category": "Documents",
+    "type": "docx",
+    "path": "document.docx",
+    "summary": "Document Word vérifié",
+    "content": "",
+    "tags": [
+      "docx"
+    ],
+    "size_bytes": 107,
+    "created_at": "2026-10-25T23:07:44.125124+00:00",
+    "updated_at": "2026-10-25T23:07:44.125680+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-fad9e6ac",
+    "title": "Remarquables identifiants",
+    "category": "Documents",
+    "type": "docx",
+    "path": "remarquables_identifiants.docx",
+    "summary": "Document Word vérifié",
+    "content": "",
+    "tags": [
+      "docx"
+    ],
+    "size_bytes": 10353,
+    "created_at": "2026-10-25T23:03:46.961532+00:00",
+    "updated_at": "2026-10-25T23:03:46.985850+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-e28c0eaa",
+    "title": "Exercice analyse fonctions",
+    "category": "Documents",
+    "type": "pdf",
+    "path": "exercice_analyse_fonctions.pdf",
+    "summary": "Document PDF compilé",
+    "content": "",
+    "tags": [
+      "pdf",
+      "exercice"
+    ],
+    "size_bytes": 16562,
+    "created_at": "2026-10-25T22:47:14.328697+00:00",
+    "updated_at": "2026-10-25T22:47:14.328697+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-b84fcc6e",
+    "title": "Script",
+    "category": "Ressources",
+    "type": "python",
+    "path": "script.py",
+    "summary": "Fichier PYTHON dans l'espace de travail",
+    "content": "def calculer_moyenne(notes):\n    if not notes:\n        return 0  # Sécurité pour éviter une division par zéro si la liste est vide\n\n    total = 0\n    for note in notes:\n        total += note\n\n    return total / len(notes)\n\n\ndef afficher_resultat(nom, moyenne):\n    print(f\"{nom} a obtenu {moyenne:.2f}/20\")\n\n\nnotes = [12, 15, 9, 17]\nmoyenne = calculer_moyenne(notes)\n\nafficher_resultat(\"Alice\", moyenne)",
+    "tags": [
+      "python"
+    ],
+    "size_bytes": 407,
+    "created_at": "2026-10-25T22:43:50.298783+00:00",
+    "updated_at": "2026-10-25T22:43:50.298783+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-f4112517",
+    "title": "Exercice physique terminale",
+    "category": "Documents",
+    "type": "pdf",
+    "path": "exercice_physique_terminale.pdf",
+    "summary": "Document PDF compilé",
+    "content": "",
+    "tags": [
+      "pdf",
+      "exercice"
+    ],
+    "size_bytes": 40841,
+    "created_at": "2026-10-25T22:40:02.377174+00:00",
+    "updated_at": "2026-10-25T22:40:02.377174+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-57b2f505",
+    "title": "Physique termine",
+    "category": "Documents",
+    "type": "docx",
+    "path": "physique_termine.docx",
+    "summary": "Document Word vérifié",
+    "content": "",
+    "tags": [
+      "docx"
+    ],
+    "size_bytes": 11998,
+    "created_at": "2026-10-25T22:40:00.307047+00:00",
+    "updated_at": "2026-10-25T22:40:00.335575+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-8e274401",
+    "title": "Physique de termine",
+    "category": "Documents",
+    "type": "docx",
+    "path": "physique_de_termine.docx",
+    "summary": "Document Word vérifié",
+    "content": "",
+    "tags": [
+      "docx"
+    ],
+    "size_bytes": 10572,
+    "created_at": "2026-10-25T22:39:04.926982+00:00",
+    "updated_at": "2026-10-25T22:39:04.943166+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-52ba6a99",
+    "title": "Exercice physique terminale",
+    "category": "Notes",
+    "type": "note",
+    "path": "exercice_physique_terminale.md",
+    "summary": "Fichier NOTE dans l'espace de travail",
+    "content": "# Exercice de Physique - Terminale Générale\n## Thème : Ondes et signaux – Étude de la propagation d'une onde ultrasonore dans l'air\n\nCet exercice complet de physique de Terminale aborde la propagation des ondes mécaniques progressives périodiques, l'exploitation de mesures expérimentales et le calcul d'incertitudes, conformément au programme officiel.\n\n---\n\n## Énoncé de l'exercice\n\n### Partie 1 : Étude théorique et caractéristiques de l'onde\n\nUn émetteur piézoélectrique produit une onde ultrasonore sinusoïdale de fréquence $f$ se propageant dans l'air au repos à la température de $20\\text{ }\\text{^\\circ{}C}$. \n\n1. Rappeler la définition d'une onde mécanique progressive. Préciser si l'onde ultrasonore est transversale ou longitudinale. Justifier.\n2. Établir la relation liant la célérité $c$ de l'onde dans l'air, sa longueur d'onde $\\lambda$ et sa fréquence $f$.\n3. La célérité des ultrasons dans l'air à $20\\text{ }\\text{^\\circ{}C}$ est $c = 343\\text{ m}\\cdot\\text{s}^{-1}$. Sachant que la",
+    "tags": [
+      "note",
+      "exercice"
+    ],
+    "size_bytes": 7113,
+    "created_at": "2026-10-25T22:38:03.878690+00:00",
+    "updated_at": "2026-10-25T22:38:03.878690+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-dbfa291a",
+    "title": "Exercice physique terminale",
+    "category": "Documents",
+    "type": "docx",
+    "path": "exercice_physique_terminale.docx",
+    "summary": "Document Word vérifié",
+    "content": "",
+    "tags": [
+      "docx",
+      "exercice"
+    ],
+    "size_bytes": 14812,
+    "created_at": "2026-10-25T22:37:54.268948+00:00",
+    "updated_at": "2026-10-25T22:37:54.310387+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-81df219a",
+    "title": "Exercice physique chimie",
+    "category": "Documents",
+    "type": "docx",
+    "path": "exercice_physique_chimie.docx",
+    "summary": "Document Word vérifié",
+    "content": "",
+    "tags": [
+      "docx",
+      "exercice"
+    ],
+    "size_bytes": 12310,
+    "created_at": "2026-10-25T22:28:08.245501+00:00",
+    "updated_at": "2026-10-25T22:28:08.260805+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-77dd7030",
+    "title": "Exercice identites remarquables",
+    "category": "Documents",
+    "type": "docx",
+    "path": "exercice_identites_remarquables.docx",
+    "summary": "Document Word vérifié",
+    "content": "",
+    "tags": [
+      "docx",
+      "exercice"
+    ],
+    "size_bytes": 1862,
+    "created_at": "2026-10-25T19:17:36.586587+00:00",
+    "updated_at": "2026-10-25T19:17:36.586587+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-ec09bce7",
+    "title": "Identites remarquables.exercice",
+    "category": "Documents",
+    "type": "docx",
+    "path": "identites_remarquables.exercice.docx",
+    "summary": "Document Word vérifié",
+    "content": "",
+    "tags": [
+      "docx",
+      "exercice"
+    ],
+    "size_bytes": 12305,
+    "created_at": "2026-10-25T19:16:07.713292+00:00",
+    "updated_at": "2026-10-25T19:16:07.729420+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-af0bfe12",
+    "title": "Document",
+    "category": "Documents",
+    "type": "pdf",
+    "path": "document.pdf",
+    "summary": "Document PDF compilé",
+    "content": "",
+    "tags": [
+      "pdf"
+    ],
+    "size_bytes": 9485,
+    "created_at": "2026-10-25T19:15:38.410777+00:00",
+    "updated_at": "2026-10-25T19:15:38.411776+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-4a332d0d",
+    "title": "Document",
+    "category": "Documents",
+    "type": "tex",
+    "path": "document.tex",
+    "summary": "Fichier TEX dans l'espace de travail",
+    "content": "\\documentclass[11pt,a4paper]{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{lmodern}\n\\usepackage{amsmath,amssymb}\n\\usepackage[margin=2.2cm]{geometry}\n\\usepackage{hyperref}\n\\title{fais-moi un fichier en PDF}\n\\author{NeoHarness AI}\n\\date{\\today}\n\\begin{document}\n\\maketitle\n\nMission non terminée : GeminiProviderError: La limite ou le quota Gemini est atteint. Réessaie plus tard.\n\n\\end{document}\n",
+    "tags": [
+      "tex"
+    ],
+    "size_bytes": 424,
+    "created_at": "2026-10-25T19:15:37.502508+00:00",
+    "updated_at": "2026-10-25T19:15:37.502508+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-6ce0d1d1",
+    "title": "Meme chose mais",
+    "category": "Documents",
+    "type": "pdf",
+    "path": "meme_chose_mais.pdf",
+    "summary": "Document PDF compilé",
+    "content": "",
+    "tags": [
+      "pdf"
+    ],
+    "size_bytes": 9433,
+    "created_at": "2026-10-25T19:11:26.866973+00:00",
+    "updated_at": "2026-10-25T19:11:26.866973+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-cffe3939",
+    "title": "Meme chose mais",
+    "category": "Documents",
+    "type": "tex",
+    "path": "meme_chose_mais.tex",
+    "summary": "Fichier TEX dans l'espace de travail",
+    "content": "\\documentclass[11pt,a4paper]{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{lmodern}\n\\usepackage{amsmath,amssymb}\n\\usepackage[margin=2.2cm]{geometry}\n\\usepackage{hyperref}\n\\title{fais-moi la même chose mais en format PDF}\n\\author{NeoHarness AI}\n\\date{\\today}\n\\begin{document}\n\\maketitle\n\nMission non terminée : GeminiProviderError: La limite ou le quota Gemini est atteint. Réessaie plus tard.\n\n\\end{document}\n",
+    "tags": [
+      "tex"
+    ],
+    "size_bytes": 440,
+    "created_at": "2026-10-25T19:11:25.786934+00:00",
+    "updated_at": "2026-10-25T19:11:25.786934+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-eb4b23f1",
+    "title": "Exercice identites remarquables",
+    "category": "Notes",
+    "type": "note",
+    "path": "exercice_identites_remarquables.md",
+    "summary": "Fichier NOTE dans l'espace de travail",
+    "content": "# Exercice d'entraînement : Les identités remarquables en classe de troisième / seconde\n\nCet exercice complet permet de réviser et de maîtriser l'utilisation des trois identités remarquables fondamentales en algèbre. Il est structuré en plusieurs parties progressives allant du calcul littéral de base à la résolution de problèmes et à la modélisation géométrique.\n\n---\n\n## Rappels de cours\n\nPour tous nombres réels $a$ et $b$ :\n1. **Carré d'une somme** : \n   $$(a + b)^2 = a^2 + 2ab + b^2$$\n2. **Carré d'une différence** : \n   $$(a - b)^2 = a^2 - 2ab + b^2$$\n3. **Produit de la somme par la différence** : \n   $$(a - b)(a + b) = a^2 - b^2$$\n\n---\n\n## Partie 1 : Développement et réduction\n\nDévelopper et réduire les expressions algébriques suivantes :\n\n* $A = (x + 3)^2$\n* $B = (2x - 5)^2$\n* $C = (3x - 4)(3x + 4)$\n* $D = (5x + 2)^2 - (3x - 1)(3x + 1)$\n\n### Corrigé détaillé de la Partie 1\n\n* **Expression $A$** :\n  $$(x + 3)^2 = x^2 + 2 \\times x \\times 3 + 3^2 = x^2 + 6x + 9$$\n\n* **Expression $B$**",
+    "tags": [
+      "note",
+      "exercice"
+    ],
+    "size_bytes": 3429,
+    "created_at": "2026-10-25T19:10:03.038274+00:00",
+    "updated_at": "2026-10-25T19:10:03.038274+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-b079ecc9",
+    "title": "Exercice suites geometriques",
+    "category": "Notes",
+    "type": "note",
+    "path": "exercice_suites_geometriques.md",
+    "summary": "Fichier NOTE dans l'espace de travail",
+    "content": "# Exercice d'application : Étude d'une suite géométrique et modélisation financière\n\nCet exercice propose d'étudier une suite géométrique à travers un cas concret de placement financier et d'évolution de capital, permettant de manipuler les notions de raison, de terme général et de somme de termes consécutifs.\n\n## Énoncé de l'exercice\n\nUn épargnant place la somme de $1\\,000\\text{ \\euro}$ sur un compte rémunéré au taux annuel composé de $3\\,\\%$. Les intérêts sont capitalisés chaque année, ce qui signifie qu'à la fin de chaque année, les intérêts s'ajoutent au capital existant pour produire eux aussi des intérêts l'année suivante.\n\nOn note $u_n$ le montant du capital (en euros) disponible sur le compte à la fin de l'année $n$, où $n$ est un entier naturel représentant le nombre d'années écoulées depuis l'ouverture du compte. Ainsi, le capital initial est $u_0 = 1\\,000$.\n\n1. Calculer le capital $u_1$ disponible à la fin de la première année, puis le capital $u_2$ à la fin de la deuxième a",
+    "tags": [
+      "note",
+      "exercice"
+    ],
+    "size_bytes": 4231,
+    "created_at": "2026-10-25T19:06:53.998753+00:00",
+    "updated_at": "2026-10-25T19:06:53.998753+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-9dc15dc6",
+    "title": "Exercice suites geometriques",
+    "category": "Documents",
+    "type": "docx",
+    "path": "exercice_suites_geometriques.docx",
+    "summary": "Document Word vérifié",
+    "content": "",
+    "tags": [
+      "docx",
+      "exercice"
+    ],
+    "size_bytes": 13293,
+    "created_at": "2026-10-25T18:34:22.432492+00:00",
+    "updated_at": "2026-10-25T19:06:43.273034+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-dbf5900b",
+    "title": "Exercice analyse fonctions",
+    "category": "Documents",
+    "type": "docx",
+    "path": "exercice_analyse_fonctions.docx",
+    "summary": "Document Word vérifié",
+    "content": "",
+    "tags": [
+      "docx",
+      "exercice"
+    ],
+    "size_bytes": 37501,
+    "created_at": "2026-10-25T18:43:53.433847+00:00",
+    "updated_at": "2026-10-25T18:44:15.797820+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-6544ce2e",
+    "title": "Bacblanc bareme",
+    "category": "Documents",
+    "type": "tex",
+    "path": "bacblanc_bareme.tex",
+    "summary": "Fichier TEX dans l'espace de travail",
+    "content": "\\documentclass[a4paper,11pt]{article}\n\n\\usepackage{amsmath,amssymb,amsfonts}\n\\usepackage{fontspec}\n\\usepackage{libertinus-otf}\n\\usepackage[french]{babel}\n\\usepackage{array}\n\\usepackage{booktabs}\n\\usepackage{longtable}\n\\usepackage{geometry}\n\\usepackage{multirow}\n\\usepackage[table]{xcolor}\n\\usepackage{colortbl}\n\\usepackage{fancyhdr}\n\\usepackage{lastpage}\n\\usepackage{enumitem}\n\\usepackage{eurosym}\n\\usepackage{tikz}\n\\usepackage[most]{tcolorbox}\n\\usepackage{tabularx}\n\n\\geometry{\n    a4paper,\n    left=1.1cm,\n    right=1.1cm,\n    top=1.6cm,\n    bottom=1.5cm,\n    headheight=20pt,\n    headsep=10pt,\n    footskip=20pt\n}\n\n\\setlength{\\parindent}{0pt}\n\\setlength{\\tabcolsep}{4.5pt}\n\\renewcommand{\\arraystretch}{1.18}\n\\setlength{\\aboverulesep}{1.5pt}\n\\setlength{\\belowrulesep}{1.5pt}\n\n\\definecolor{bleuprimaire}{RGB}{20, 52, 98}\n\\definecolor{bleusecondaire}{RGB}{31, 95, 168}\n\\definecolor{bleufond}{RGB}{238, 244, 251}\n\\definecolor{grisaccent}{RGB}{100, 116, 139}\n\\definecolor{vertvrai}{RGB}{16, 120, 60}\n\\d",
+    "tags": [
+      "tex",
+      "bac"
+    ],
+    "size_bytes": 13939,
+    "created_at": "2026-10-25T16:53:28.492644+00:00",
+    "updated_at": "2026-10-25T16:53:28.492644+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-f5c30a77",
+    "title": "Bacblanc sujet",
+    "category": "Documents",
+    "type": "pdf",
+    "path": "bacblanc_sujet.pdf",
+    "summary": "Document PDF compilé",
+    "content": "",
+    "tags": [
+      "pdf",
+      "bac"
+    ],
+    "size_bytes": 36970,
+    "created_at": "2026-10-25T16:53:28.492644+00:00",
+    "updated_at": "2026-10-25T16:53:28.492644+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-4f2d4ec3",
+    "title": "Bacblanc sujet",
+    "category": "Documents",
+    "type": "tex",
+    "path": "bacblanc_sujet.tex",
+    "summary": "Fichier TEX dans l'espace de travail",
+    "content": "\\documentclass[12pt,a4paper]{article}\n\n\\usepackage{amsmath, amssymb, esvect, mathtools}\n\\newcommand{\\R}{\\mathbb{R}}\n\\newcommand{\\N}{\\mathbb{N}}\n\\newcommand{\\e}{\\mathrm{e}}\n\\newcommand{\\vect}[1]{\\vv{#1}}\n\n\\usepackage[utf8]{inputenc}\n\\usepackage{fontspec}\n\\usepackage{libertinus-otf}\n\\usepackage[french]{babel}\n\\usepackage{microtype}\n\\usepackage{icomma}\n\n\\setlength{\\parindent}{0pt}\n\n\\usepackage[\n    top=1.6cm,\n    bottom=1.6cm,\n    left=1.6cm,\n    right=1.6cm,\n    headheight=15pt,\n    headsep=12pt,\n    footskip=22pt\n]{geometry}\n\n\\usepackage{fancyhdr}\n\\usepackage{lastpage}\n\\usepackage{tabularx}\n\\usepackage{tcolorbox}\n\\usepackage{enumitem}\n\\usepackage{eso-pic}\n\\usepackage{tikz}\n\\usepackage{xcolor}\n\n\\setlength{\\abovedisplayskip}{6pt}\n\\setlength{\\belowdisplayskip}{6pt}\n\\setlength{\\abovedisplayshortskip}{3pt}\n\\setlength{\\belowdisplayshortskip}{3pt}\n\n\\newcolumntype{Y}{>{\\centering\\arraybackslash}X}\n\n\\newcommand{\\exercice}[3][5]{%\n    \\noindent{\\Large\\textbf{Exercice #2}} \\hfill \\textbf{#1 points",
+    "tags": [
+      "tex",
+      "bac"
+    ],
+    "size_bytes": 11676,
+    "created_at": "2026-10-25T16:53:28.492644+00:00",
+    "updated_at": "2026-10-25T16:53:28.492644+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-cd121c1e",
+    "title": "Bacblanc bareme",
+    "category": "Documents",
+    "type": "pdf",
+    "path": "bacblanc_bareme.pdf",
+    "summary": "Document PDF compilé",
+    "content": "",
+    "tags": [
+      "pdf",
+      "bac"
+    ],
+    "size_bytes": 48518,
+    "created_at": "2026-10-25T16:53:28.489703+00:00",
+    "updated_at": "2026-10-25T16:53:28.489703+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  }
+]

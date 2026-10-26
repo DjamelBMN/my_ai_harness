@@ -29,12 +29,11 @@
 \pagestyle{fancy}
 \fancyhf{}
 \lhead{Mathématiques}
-\rhead{Première Générale -- Spécialité}
+\rhead{Terminale -- Spécialité}
 % Pagination : « Page X / Y » centrée en pied de page
 \usepackage{lastpage}
 \cfoot{Page \thepage\ / \pageref{LastPage}}
 \renewcommand{\headrulewidth}{0.5pt}
-% Trait de séparation éloigné du texte de l'en-tête (modifier 5pt pour ajuster)
 \renewcommand{\headrule}{\vskip 5pt\hrule width\headwidth height\headrulewidth \vskip-\headrulewidth}
 
 % Configuration des listes
@@ -59,34 +58,47 @@
 \begin{document}
 
 \begin{center}
-  {\LARGE \textbf{Dérivation et applications}}\\[0.5em]
-  {\large Première Spécialité Mathématiques}
+  {\LARGE \textbf{Étude d'une fonction dérivée et applications}}\\[0.5em]
+  {\large Terminale Spécialité Mathématiques}
 \end{center}
 
 % ---------------------- EXERCICE 1 ----------------------
-\exo{1}{Étude d'une fonction polynôme du troisième degré et recherche de tangentes}
+\exo{1}{Étude d'une fonction dérivée et applications}
 
-Soit $f$ la fonction définie et dérivable sur $\mathbb{R}$ par :
+\partie{Partie A -- Étude d'une fonction auxiliaire}
+
+Soit $g$ la fonction définie sur l'intervalle $]0 ; +\infty[$ par :
 \[
-f(x) = 2x^3 - 3x^2 - 12x + 5
+g(x) = x^3 - 2 + 2\ln(x)
 \]
-On note $\mathcal{C}_f$ sa courbe représentative dans un repère orthonormé $(O; \vec{i}, \vec{j})$.
-
-\partie{Partie A -- Étude des variations de la fonction $f$}
 
 \begin{enumerate}
-  \item Justifier que $f$ est dérivable sur $\mathbb{R}$ et déterminer sa fonction dérivée $f'$.
-  \item Étudier le signe du trinôme $f'(x)$ selon les valeurs du réel $x$.
-  \item Dresser le tableau de variations complet de la fonction $f$ sur l'intervalle $[-3\,;\,4]$, en précisant les valeurs remarquables et les extremums locaux.
-  \item Préciser le nombre de solutions de l'équation $f(x) = 0$ sur l'intervalle $[-3\,;\,4]$. Justifier.
+  \item Déterminer la limite de $g(x)$ en $0$ et interpréter graphiquement ce résultat.
+  \item Déterminer la limite de $g(x)$ en $+\infty$.
+  \item Calculer la dérivée $g'(x)$ pour tout $x \in ]0 ; +\infty[$ et étudier son signe.
+  \item Dresser le tableau de variations complet de la fonction $g$.
+  \item Démontrer que l'équation $g(x) = 0$ admet une unique solution $\alpha$ sur $]0 ; +\infty[$. Donner un encadrement de $\alpha$ d'amplitude $10^{-2}$.
+  \item En déduire le signe de $g(x)$ suivant les valeurs de $x$ sur $]0 ; +\infty[$.
 \end{enumerate}
 
-\partie{Partie B -- Tangentes remarquables à la courbe $\mathcal{C}_f$}
+\partie{Partie B -- Étude de la fonction principale}
+
+Soit $f$ la fonction définie sur $]0 ; +\infty[$ par :
+\[
+f(x) = x - 2 + \frac{2\ln(x)}{x^2}
+\]
+On note $\mathcal{C}$ sa courbe représentative dans un repère orthonormé $(O ; \vec{i}, \vec{j})$.
 
 \begin{enumerate}
-  \item Déterminer l'équation réduite de la tangente $T_0$ à la courbe $\mathcal{C}_f$ au point d'abscisse $x = 0$.
-  \item Déterminer les abscisses des éventuels points de $\mathcal{C}_f$ où la tangente est parallèle à la droite d'équation $y = 24x - 7$.
-  \item Existe-t-il des points de $\mathcal{C}_f$ où la tangente est horizontale ? Si oui, préciser leurs coordonnées.
+  \item Déterminer la limite de $f(x)$ en $0$. Interpréter graphiquement ce résultat.
+  \item Déterminer la limite de $f(x)$ en $+\infty$.
+  \item Démontrer que la droite $\Delta$ d'équation $y = x - 2$ est asymptote oblique à la courbe $\mathcal{C}$ en $+\infty$, et préciser la position relative de $\mathcal{C}$ et de $\Delta$.
+  \item Démontrer que pour tout $x \in ]0 ; +\infty[$, on a :
+  \[
+  f'(x) = \frac{g(x)}{x^3}
+  \]
+  \item En déduire le tableau de variations de la fonction $f$.
+  \item Démontrer que l'équation $f(x) = 0$ admet exactement deux solutions sur $]0 ; +\infty[$, dont l'une est notée $\beta$. Vérifier que $1 < \beta < 1,5$.
 \end{enumerate}
 
 \end{document}
