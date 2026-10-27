@@ -1,4 +1,4 @@
-# RÔLE DE CE FICHIER :
+﻿# RÔLE DE CE FICHIER :
 # Définit CodeAgent, notre agent spécialisé en programmation. Il construit une
 # consigne pour son LLM ; l'Orchestrator lui attribue le provider choisi par le Router.
 
@@ -7,9 +7,9 @@ from core.task import Task
 
 
 class CodeAgent(Agent):
-    description = "Inspecte, explique, modifie et débogue du code dans le workspace."
-    capabilities = ("coding", "debugging", "file_edit", "python", "testing_handoff")
-    supported_intents = ("coding", "debugging", "file_analysis")
+    description = "Inspecte, explique, modifie et débogue du code dans le workspace et pilote l'environnement de développement Windows."
+    capabilities = ("coding", "debugging", "file_edit", "python", "testing_handoff", "computer_use")
+    supported_intents = ("coding", "debugging", "file_analysis", "computer_use")
 
     def __init__(self) -> None:
         super().__init__(

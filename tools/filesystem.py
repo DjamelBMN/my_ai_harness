@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 
 WORKSPACE_ROOT = Path(__file__).resolve().parents[1] / "workspace"
-DEFAULT_MAX_FILE_BYTES = 2 * 1024 * 1024
+DEFAULT_MAX_FILE_BYTES = 25 * 1024 * 1024
 _SENSITIVE_COMPONENTS = {
     ".aws", ".ssh", ".gnupg", ".git", ".netrc", ".npmrc", ".pypirc",
     "id_rsa", "id_ed25519", "credentials",

@@ -555,11 +555,27 @@ class NeoHarnessRuntimeBridge:
             details={"path": arguments.get("path", ""), "tool": tool_name},
         )
 
-    def _confirm_tool_action(self, tool_name: str, risk: RiskLevel) -> bool:
-        if tool_name in self._always_approved_tools or tool_name in self._task_approved_tools:
+    def _confirm_tool_action(
+        self,
+        tool_name: str,
+        risk: RiskLevel,
+        evaluation: Any = None,
+    ) -> str | bool:
+        allow_session = True if evaluation is None else bool(getattr(evaluation, "allow_session_approval", True))
+        if allow_session and (
+            tool_name in self._always_approved_tools or tool_name in self._task_approved_tools
+        ):
             return True
         if self.auto_approve_in_headless:
             return True
+
+        human_desc = (
+            getattr(evaluation, "human_description", "")
+            or f"Exécuter l'outil '{tool_name}'"
+        )
+        category = getattr(evaluation, "category", "Workspace")
+        risk_label = getattr(evaluation, "risk_label", risk.name)
+        risk_label_fr = getattr(evaluation, "risk_label_fr", risk.name)
 
         approval_id = f"appr-{uuid.uuid4().hex[:8]}"
         evt = threading.Event()
@@ -567,11 +583,21 @@ class NeoHarnessRuntimeBridge:
             "id": approval_id,
             "task_id": self.current_task_id or "session",
             "tool": tool_name,
+            "category": category,
             "risk_level": risk.name,
+            "risk_label": risk_label,
+            "risk_label_fr": risk_label_fr,
+            "human_description": human_desc,
+            "allow_session_approval": allow_session,
+            "allowed_decisions": (
+                ["deny", "allow_once", "allow_session"]
+                if allow_session
+                else ["deny", "allow_once"]
+            ),
             "status": "pending",
             "decision": None,
             "created_at": datetime.now(timezone.utc).isoformat(),
-            "message": f"L'agent demande l'autorisation d'exécuter l'outil '{tool_name}' (risque : {risk.name}).",
+            "message": f"NeoHarness souhaite effectuer : {human_desc} (Outil : {category} · Risque : {risk_label_fr}).",
         }
         with self._lock:
             self._pending_approvals[approval_id] = record
@@ -582,7 +608,7 @@ class NeoHarnessRuntimeBridge:
         self.event_bus.emit_normalized(
             event="APPROVAL_REQUIRED",
             raw_event="permission.approval_required",
-            summary=f"Validation humaine requise pour {tool_name} ({risk.name})",
+            summary=f"Validation humaine requise : {human_desc} ({risk_label_fr})",
             tool=tool_name,
             status="waiting_approval",
             details=record,
@@ -596,24 +622,32 @@ class NeoHarnessRuntimeBridge:
             self._approval_events.pop(approval_id, None)
 
         decision = final_record.get("decision") or "deny"
-        if decision == "allow_always":
-            self._always_approved_tools.add(tool_name)
+        if decision in {"allow_always", "allow_session"}:
+            if allow_session:
+                self._always_approved_tools.add(tool_name)
+                if hasattr(self.permissions, "grant_session_permission"):
+                    self.permissions.grant_session_permission(tool_name=tool_name, category=category)
             return True
         if decision == "allow_task":
-            self._task_approved_tools.add(tool_name)
+            if allow_session:
+                self._task_approved_tools.add(tool_name)
+                if hasattr(self.permissions, "grant_session_permission"):
+                    self.permissions.grant_session_permission(tool_name=tool_name, category=category)
             return True
         if decision == "allow_once":
             return True
         return False
 
     def resolve_approval(self, approval_id: str, decision: str) -> dict[str, Any]:
-        valid = {"allow_once", "allow_task", "allow_always", "deny"}
+        valid = {"allow_once", "allow_task", "allow_session", "allow_always", "deny"}
         if decision not in valid:
             raise ValueError(f"Décision invalide '{decision}'. Attendu : {', '.join(sorted(valid))}.")
         with self._lock:
             if approval_id not in self._pending_approvals:
                 raise KeyError(f"Aucune demande d'approbation en attente avec l'identifiant {approval_id}.")
             record = self._pending_approvals[approval_id]
+            if not record.get("allow_session_approval", True) and decision in {"allow_task", "allow_session", "allow_always"}:
+                decision = "allow_once"
             record["decision"] = decision
             record["status"] = "approved" if decision != "deny" else "denied"
             evt = self._approval_events.get(approval_id)
@@ -1662,6 +1696,24 @@ class NeoHarnessRuntimeBridge:
             if "," in clean_b64 and clean_b64.lower().startswith("data:"):
                 clean_b64 = clean_b64.split(",", 1)[1]
             data = base64.b64decode(clean_b64)
+            ext_check = Path(safe_name).suffix.lower()
+            if ext_check in {".jpg", ".jpeg", ".png", ".webp"}:
+                try:
+                    from PIL import Image, ImageOps
+
+                    with Image.open(io.BytesIO(data)) as im:
+                        im_fixed = ImageOps.exif_transpose(im)
+                        if max(im_fixed.size) > 2400 or len(data) > 4 * 1024 * 1024:
+                            im_fixed.thumbnail((2400, 2400), Image.Resampling.LANCZOS)
+                        buf = io.BytesIO()
+                        fmt = "JPEG" if ext_check in {".jpg", ".jpeg"} else ("WEBP" if ext_check == ".webp" else "PNG")
+                        if fmt == "JPEG" and im_fixed.mode not in ("RGB", "L"):
+                            im_fixed = im_fixed.convert("RGB")
+                        save_kwargs = {"quality": 88, "optimize": True} if fmt in {"JPEG", "WEBP"} else {}
+                        im_fixed.save(buf, format=fmt, **save_kwargs)
+                        data = buf.getvalue()
+                except Exception:
+                    pass
             info = self.filesystem.write_bytes(rel_path, data, overwrite=True)
         elif content_text is not None:
             info = self.filesystem.write_file(rel_path, str(content_text), overwrite=True)
@@ -2667,9 +2719,29 @@ class NeoHarnessRuntimeBridge:
 
         # Si des fichiers du workspace sont joints au composer, on les indique proprement et on précharge leur extrait réel
         attachments = [f for f in (attached_files or []) if isinstance(f, str) and f.strip()]
+        if not attachments and hasattr(task_context, "is_pivot_request") and task_context.is_pivot_request(clean_prompt):
+            task_context.clear_stale_files()
+            if hasattr(self.orchestrator.context, "clear_stale_files"):
+                self.orchestrator.context.clear_stale_files()
+        intent_directive = (
+            task_context.resolve_intent_directive(clean_prompt, attachments)
+            if hasattr(task_context, "resolve_intent_directive")
+            else ""
+        )
+        if intent_directive:
+            effective_prompt = f"{effective_prompt}\n\n{intent_directive}"
         snippets: list[str] = []
+        multimodal_images: list[dict[str, Any]] = []
         if attachments and not effective_prompt.startswith(("/mode", "/model", "/context", "/diagnostic", "/memory", "/export")):
             files_clause = ", ".join(attachments)
+            mime_map = {
+                ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".webp": "image/webp",
+                ".gif": "image/gif",
+                ".bmp": "image/bmp",
+            }
             for att in attachments[:5]:
                 try:
                     ext = Path(att).suffix.lower()
@@ -2679,9 +2751,34 @@ class NeoHarnessRuntimeBridge:
                         if txt:
                             self.orchestrator.context.remember_file(att, txt[:4000])
                             snippets.append(f"--- Contenu extrait de {att} ---\n{txt[:2500]}")
-                    elif ext in {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}:
-                        st = self.filesystem.resolve(att).stat()
-                        snippets.append(f"--- Image jointe : {att} ({st.st_size} octets) ---")
+                    elif ext in mime_map:
+                        raw_img_bytes = self.filesystem.read_bytes(att)
+                        mime_type = mime_map[ext]
+                        img_b64 = base64.b64encode(raw_img_bytes).decode("ascii")
+                        multimodal_images.append(
+                            {
+                                "path": att,
+                                "bytes": raw_img_bytes,
+                                "base64": img_b64,
+                                "mime_type": mime_type,
+                            }
+                        )
+                        img_dims = ""
+                        try:
+                            from PIL import Image
+
+                            with Image.open(io.BytesIO(raw_img_bytes)) as pil_im:
+                                img_dims = f", {pil_im.width}x{pil_im.height} px"
+                        except Exception:
+                            pass
+                        snippets.append(
+                            f"--- Image jointe transmise en Vision Multimodale : {att} ({len(raw_img_bytes)} octets{img_dims}, {mime_type}) ---\n"
+                            "[DIRECTIVE VISION : L'image ci-dessus est fournie directement dans ton entrée visuelle multimodale. "
+                            "Tu peux la voir : analyse directement son contenu visuel, ses formes, son texte ou ses formules sans jamais dire que tu ne peux pas voir les images.]"
+                        )
+                    elif ext == ".svg":
+                        svg_txt = self.filesystem.read_file(att).strip()
+                        snippets.append(f"--- Image vectorielle SVG jointe ({att}) ---\n{svg_txt[:3000]}")
                     else:
                         txt = self.filesystem.read_file(att).strip()
                         if txt:
@@ -2693,6 +2790,10 @@ class NeoHarnessRuntimeBridge:
             if snippets:
                 effective_prompt = f"{effective_prompt}\n\n" + "\n\n".join(snippets)
 
+        # Injection des images multimodales dans les providers actifs pour ce tour
+        for prov in self.orchestrator.router.providers.values():
+            if hasattr(prov, "pending_images"):
+                prov.pending_images = list(multimodal_images)
         self._task_approved_tools.clear()
         self._stop_requested = False
         self.agent_loop._stop_requested = False
@@ -2857,11 +2958,72 @@ class NeoHarnessRuntimeBridge:
             for prev_msg in conv.get("messages", [])[-8:-1]:
                 r_label = "Utilisateur" if prev_msg.get("role") == "user" else "Assistant"
                 c_text = (prev_msg.get("content") or "").strip()
-                # Filtrer les traces d'erreurs techniques ou timeouts pour un échange naturel
+                # Filtrer les traces d'erreurs et tronquer les longues réponses passées pour ne jamais noyer une nouvelle consigne courte
                 if c_text and not c_text.startswith(("Mission non terminée", "RateLimitExhaustedError", "Erreur lors de l'échange")):
+                    if prev_msg.get("role") == "assistant" and len(c_text) > 500:
+                        c_text = c_text[:500] + " [...]"
                     clean_history.append(f"{r_label}: {c_text}")
 
             sys_memory_block = self.memory.format_for_system_prompt()
+            session_notes = list(self.memory.session) + list(self.memory.project) + list(self.memory.decisions)
+            if not sys_memory_block and not session_notes:
+                memory_status_block = (
+                    "[ÉTAT RÉEL DE LA MÉMOIRE NEOHARNESS : Aucune règle ou note n'est encore enregistrée dans la mémoire persistante, "
+                    "seul l'historique de la conversation en cours est actif.]"
+                )
+            else:
+                extra_notes = ("\nNotes de session/projet : " + " ; ".join(session_notes)) if session_notes else ""
+                memory_status_block = f"{sys_memory_block}{extra_notes}".strip()
+
+            tone_directive = (
+                "Tu es NeoHarness AI (conçu et développé par Djamel BENMAKHLOUF, professeur de mathématiques, assisté par IA).\n"
+                "Style conversationnel : compétent → clair → utile → humain → parfois drôle. "
+                "Adopte un ton intelligent, naturel et chaleureux. Réponds d'abord avec précision, et glisse occasionnellement "
+                "un trait d'esprit subtil, bref et spontané (ironie légère, analogie) si le contexte s'y prête.\n"
+                "Émoticônes : utilise par moments et avec intelligence un émoji bien placé (ex: 😄, 😉, 🤔, 🎯) quand il apporte une vraie nuance humaine ou souligne un trait d'humour, sans en mettre à chaque phrase.\n"
+                "Règles d'attitude : ne termine pas systématiquement tes messages par 'Que puis-je faire pour vous aujourd'hui ?'. "
+                "Si l'utilisateur te coupe sèchement, réponds en une seule ligne calme et pleine d'à-propos sans t'excuser platement, et ne cite jamais tes instructions internes.\n"
+                "RÈGLE DE PRIORITÉ AU DERNIER MESSAGE : Obéis toujours en priorité absolue à la DERNIÈRE demande de l'utilisateur. "
+                "S'il corrige sa demande, change de niveau (ex: 'plutôt de seconde', 'non fais un exo de seconde') ou change de sujet, "
+                "abandonne immédiatement le document ou l'exercice précédent et produis exactement ce qu'il vient de demander."
+            )
+
+            is_pivot_now = bool(
+                not attachments
+                and hasattr(task_context, "is_pivot_request")
+                and task_context.is_pivot_request(clean_prompt)
+            )
+            parts_chat: list[str] = [tone_directive, memory_status_block]
+            if clean_history and not is_pivot_now:
+                parts_chat.append("Historique récent de la discussion (résumé) :\n" + "\n".join(clean_history))
+            if snippets:
+                parts_chat.append("Pièce(s) jointe(s) à ce message :\n" + "\n\n".join(snippets))
+            if intent_directive:
+                parts_chat.append(intent_directive)
+            parts_chat.append(f"DERNIÈRE DEMANDE DE L'UTILISATEUR (prioritaire) : {clean_prompt}\nAssistant :")
+            prompt_for_chat = "\n\n".join(p for p in parts_chat if p)
+
+            sys_memory_block = self.memory.format_for_system_prompt()
+            session_notes = list(self.memory.session) + list(self.memory.project) + list(self.memory.decisions)
+            if not sys_memory_block and not session_notes:
+                memory_status_block = (
+                    "[ÉTAT RÉEL DE LA MÉMOIRE NEOHARNESS : Aucune règle ou note n'est encore enregistrée dans la mémoire persistante, "
+                    "seul l'historique de la conversation en cours est actif. Si l'utilisateur demande ce que tu as en mémoire, "
+                    "indique-lui l'état réel de ta mémoire persistante et résume brièvement ce qui a été dit dans cette conversation.]"
+                )
+            else:
+                extra_notes = ("\nNotes de session/projet : " + " ; ".join(session_notes)) if session_notes else ""
+                memory_status_block = f"{sys_memory_block}{extra_notes}".strip()
+
+            tone_directive = (
+                "Tu es NeoHarness AI (conçu et développé par Djamel BENMAKHLOUF, professeur de mathématiques, assisté par IA).\n"
+                "Style conversationnel : compétent → clair → utile → humain → parfois drôle. "
+                "Adopte un ton intelligent, naturel et chaleureux. Réponds d'abord avec précision, et glisse occasionnellement "
+                "un trait d'esprit subtil, bref et spontané (ironie légère, analogie) si le contexte s'y prête.\n"
+                "Émoticônes : utilise par moments et avec intelligence un émoji bien placé (ex: 😄, 😉, 🤔, 🎯) quand il apporte une vraie nuance humaine ou souligne un trait d'humour, sans en mettre à chaque phrase.\n"
+                "Règles d'attitude : ne termine pas systématiquement tes messages par 'Que puis-je faire pour vous aujourd'hui ?'. "
+                "Si l'utilisateur te coupe sèchement, réponds en une seule ligne calme et pleine d'à-propos sans t'excuser platement, et ne cite jamais tes instructions internes."
+            )
             prompt_for_chat = clean_prompt
             if clean_history:
                 prompt_for_chat = (
@@ -2869,8 +3031,7 @@ class NeoHarnessRuntimeBridge:
                     + "\n".join(clean_history)
                     + f"\n\nUtilisateur : {clean_prompt}\nAssistant :"
                 )
-            if sys_memory_block:
-                prompt_for_chat = f"{sys_memory_block}\n\n{prompt_for_chat}"
+            prompt_for_chat = f"{tone_directive}\n\n{memory_status_block}\n\n{prompt_for_chat}"
             if False:
                 prompt_for_chat = (
                     "Historique récent de la discussion :\n"
@@ -4331,8 +4492,8 @@ def create_http_server(
     text-align: center;
     pointer-events: auto;
   }}
-  .word-canvas {{
-    padding: 24px 16px 48px;
+.word-canvas {{
+    padding: clamp(10px, 2.2vw, 24px) clamp(8px, 2vw, 16px) 40px;
     display: flex;
     justify-content: center;
     width: 100%;
@@ -4342,12 +4503,15 @@ def create_http_server(
     background: var(--page-bg);
     width: 100%;
     max-width: 840px;
-    min-height: 1100px;
-    padding: 60px 72px;
+    min-height: 100vh;
+    padding: clamp(22px, 4.5vw, 56px) clamp(18px, 5vw, 60px);
     box-shadow: 0 2px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
     border: 1px solid var(--border-light);
     border-radius: 3px;
     box-sizing: border-box;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    overflow-x: hidden;
   }}
   /* Scrollbar raffinée parfaitement intégrée */
   ::-webkit-scrollbar {{
@@ -4369,28 +4533,32 @@ def create_http_server(
     font-weight: 600;
   }}
   h1 {{
-    font-size: 20pt;
+    font-size: clamp(15pt, 3.2vw, 20pt);
     margin-top: 0;
     margin-bottom: 0.6em;
     border-bottom: 2px solid #E2E8F0;
     padding-bottom: 8px;
     color: #0F6CBD;
   }}
-  h2 {{ font-size: 15pt; margin-top: 1.4em; margin-bottom: 0.5em; border-bottom: 1px solid #EDF2F7; padding-bottom: 4px; }}
-  h3 {{ font-size: 12.5pt; margin-top: 1.2em; margin-bottom: 0.4em; }}
-  p {{ margin: 0.7em 0; font-size: 11pt; }}
-  ul, ol {{ margin: 0.6em 0; padding-left: 28px; font-size: 11pt; }}
+  h2 {{ font-size: clamp(13pt, 2.6vw, 15pt); margin-top: 1.4em; margin-bottom: 0.5em; border-bottom: 1px solid #EDF2F7; padding-bottom: 4px; }}
+  h3 {{ font-size: 12pt; margin-top: 1.2em; margin-bottom: 0.4em; }}
+  p {{ margin: 0.7em 0; font-size: 10.5pt; }}
+  ul, ol {{ margin: 0.6em 0; padding-left: 24px; font-size: 10.5pt; }}
   li {{ margin: 0.3em 0; }}
+  img, svg, pre {{ max-width: 100%; height: auto; }}
   table {{
     border-collapse: collapse;
     width: 100%;
+    max-width: 100%;
+    table-layout: auto;
     margin: 18px 0;
-    font-size: 10.5pt;
+    font-size: 10pt;
   }}
   th, td {{
     border: 1px solid #D2D2D2;
-    padding: 8px 12px;
+    padding: 6px 10px;
     text-align: left;
+    word-break: break-word;
   }}
   th {{
     background-color: #F0F4FA;
@@ -4403,7 +4571,7 @@ def create_http_server(
   blockquote {{
     border-left: 3.5px solid #0F6CBD;
     margin: 14px 0;
-    padding: 8px 18px;
+    padding: 8px 16px;
     background: #F4F8FD;
     color: #333333;
     border-radius: 0 4px 4px 0;
@@ -4413,22 +4581,62 @@ def create_http_server(
     padding: 2px 6px;
     border-radius: 3px;
     font-family: 'Consolas', monospace;
-    font-size: 10pt;
+    font-size: 9.5pt;
     color: #9C1C1C;
   }}
-  .mjx-chtml {{
-    font-size: 112% !important;
+  mjx-container {{
+    max-width: 100% !important;
+    overflow-x: visible;
+  }}
+  mjx-container[display="true"] {{
+    display: block !important;
+    margin: 0.65em 0 !important;
   }}
 </style>
 <script>
+function fitWordEquationsToWidth() {{
+  const page = document.querySelector('.word-document-page');
+  if (!page) return;
+  const style = window.getComputedStyle(page);
+  const availWidth = page.clientWidth - parseFloat(style.paddingLeft || 0) - parseFloat(style.paddingRight || 0) - 4;
+  if (availWidth <= 40) return;
+  document.querySelectorAll('mjx-container').forEach((el) => {{
+    el.style.transform = '';
+    el.style.transformOrigin = '';
+    const inner = el.firstElementChild || el;
+    const natWidth = Math.max(el.scrollWidth, inner.scrollWidth || 0);
+    if (natWidth > availWidth && natWidth > 0) {{
+      const ratio = Math.max(0.55, (availWidth / natWidth));
+      el.style.display = el.getAttribute('display') === 'true' ? 'block' : 'inline-block';
+      el.style.transformOrigin = 'left center';
+      el.style.transform = 'scale(' + ratio.toFixed(4) + ')';
+    }}
+  }});
+}}
 window.MathJax = {{
   tex: {{
     inlineMath: [['$', '$'], ['\\(', '\\)']],
     displayMath: [['$$', '$$'], ['\\[', '\\]']],
     processEscapes: true
   }},
+  chtml: {{
+    scale: 1.0,
+    linebreaks: {{ automatic: true, width: 'container' }}
+  }},
   options: {{
     skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+  }},
+  startup: {{
+    pageReady: () => {{
+      return MathJax.startup.defaultPageReady().then(() => {{
+        fitWordEquationsToWidth();
+        const page = document.querySelector('.word-document-page');
+        if (page && window.ResizeObserver) {{
+          new ResizeObserver(() => fitWordEquationsToWidth()).observe(page);
+        }}
+        window.addEventListener('resize', fitWordEquationsToWidth);
+      }});
+    }}
   }}
 }};
 </script>
@@ -4457,7 +4665,13 @@ window.MathJax = {{
                                 if "</head>" in html_text.lower():
                                     idx = html_text.lower().rfind("</head>")
                                     html_text = html_text[:idx] + word_style + html_text[idx:]
-                                    html_text = re.sub(r"<body[^>]*>[\s\S]*?</body>", wrapped_body, html_text, flags=re.IGNORECASE)
+                                    # lambda _m évite que re.sub n'interprète les séquences LaTeX (\Delta, \frac, \sqrt...)
+                                    html_text = re.sub(
+                                        r"<body[^>]*>[\s\S]*?</body>",
+                                        lambda _m: wrapped_body,
+                                        html_text,
+                                        flags=re.IGNORECASE,
+                                    )
                                 else:
                                     html_text = f"<!DOCTYPE html><html><head><meta charset='utf-8'>{word_style}</head>{wrapped_body}</html>"
                                 raw = html_text.encode("utf-8")
@@ -4466,6 +4680,25 @@ window.MathJax = {{
                             import sys, traceback
                             print("=== DOCX PREVIEW ERROR ===", e, file=sys.stderr)
                             traceback.print_exc()
+                    # Repli HTML garanti si Pandoc échoue pour ne jamais déclencher de téléchargement bloqué dans l'iframe
+                    if content_type != "text/html; charset=utf-8":
+                        try:
+                            extracted = read_document(clean_rel, filesystem=ui_app.bridge.filesystem)
+                            paragraphs = "".join(
+                                f"<p>{line}</p>"
+                                for line in str(extracted.get("text") or "").splitlines()
+                                if line.strip()
+                            )
+                            fallback_html = (
+                                "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+                                "<style>body{font-family:'Segoe UI',sans-serif;background:#F0F2F5;margin:0;padding:24px;}"
+                                ".page{background:#fff;max-width:800px;margin:0 auto;padding:48px 60px;box-shadow:0 2px 10px rgba(0,0,0,0.08);}</style>"
+                                f"</head><body><div class='page'><h1>{target.name}</h1>{paragraphs}</div></body></html>"
+                            )
+                            raw = fallback_html.encode("utf-8")
+                            content_type = "text/html; charset=utf-8"
+                        except Exception:
+                            pass
             elif ext == ".css":
                 content_type = "text/css; charset=utf-8"
             elif ext in {".js", ".mjs"}:
@@ -4500,7 +4733,9 @@ window.MathJax = {{
                 params = parse_qs(parsed.query)
                 rel = (params.get("path") or [""])[0]
                 dl = (params.get("download") or ["0"])[0] in {"1", "true", "yes"}
-                self._serve_workspace_file(rel, download=dl, for_preview=False)
+                # Si un fichier .docx est demandé sans download=1 (affichage inline dans l'iframe), servir l'aperçu HTML Word
+                preview_docx = (not dl) and rel.strip().lower().endswith(".docx")
+                self._serve_workspace_file(rel, download=dl, for_preview=preview_docx)
                 return
 
             if route.startswith("/api/preview/workspace/"):

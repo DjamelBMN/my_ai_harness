@@ -812,15 +812,70 @@
     });
   }
 
-  function showOptimisticUserBubble(text) {
+function isImageAttachmentPath(p) {
+    return /\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(String(p || ""));
+  }
+
+  function ensureAttachmentHoverStyles() {
+    if (document.getElementById("neoharness-att-hover-css")) return;
+    const st = document.createElement("style");
+    st.id = "neoharness-att-hover-css";
+    st.textContent = `
+      .att-preview-wrap { position: relative; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+      .att-thumb-mini { width: 20px; height: 20px; object-fit: cover; border-radius: 4px; border: 1px solid rgba(0,0,0,0.12); flex-shrink: 0; }
+      .att-hover-card {
+        display: none; position: absolute; z-index: 9999; padding: 8px;
+        background: var(--bg-surface, #ffffff); border: 1px solid var(--border-subtle, rgba(0,0,0,0.12));
+        border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,0.22);
+        pointer-events: none; width: max-content; max-width: 320px;
+      }
+      .att-hover-card img { display: block; max-width: 300px; max-height: 240px; width: auto; height: auto; border-radius: 8px; object-fit: contain; }
+      .att-hover-caption { font-size: 11px; color: var(--text-muted, #666); margin-top: 5px; text-align: center; word-break: break-all; }
+      .composer-attachments-bar .att-preview-wrap .att-hover-card { bottom: calc(100% + 10px); left: 0; }
+      .message-card.user .att-preview-wrap .att-hover-card { top: calc(100% + 8px); right: 0; }
+      .att-preview-wrap:hover .att-hover-card { display: block; animation: attFadeIn 0.14s ease-out; }
+      @keyframes attFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    `;
+    document.head.appendChild(st);
+  }
+
+  function renderAttachmentBadgeHtml(filePath, removable = false) {
+    ensureAttachmentHoverStyles();
+    const isImg = isImageAttachmentPath(filePath);
+    const rawUrl = `/api/files/raw?path=${encodeURIComponent(filePath)}`;
+    const fileName = String(filePath || "").split("/").pop() || filePath;
+    if (removable) {
+      return `
+        <span class="attachment-chip att-preview-wrap">
+          ${isImg ? `<img src="${rawUrl}" class="att-thumb-mini" alt="" />` : ICONS.paperclip}
+          <span>${esc(fileName)}</span>
+          <button class="icon-btn-mini" data-remove-attachment="${esc(filePath)}" title="Retirer">${ICONS.close}</button>
+          ${isImg ? `<div class="att-hover-card"><img src="${rawUrl}" alt="${esc(fileName)}" /><div class="att-hover-caption">${esc(fileName)}</div></div>` : ""}
+        </span>
+      `;
+    }
+    return `
+      <span class="meta-chip att-preview-wrap" data-preview-file="${esc(filePath)}" title="Survoler pour prévisualiser · Cliquer pour ouvrir">
+        ${isImg ? `<img src="${rawUrl}" class="att-thumb-mini" alt="" />` : ICONS.paperclip}
+        <span>${esc(fileName)}</span>
+        ${isImg ? `<div class="att-hover-card"><img src="${rawUrl}" alt="${esc(fileName)}" /><div class="att-hover-caption">${esc(fileName)}</div></div>` : ""}
+      </span>
+    `;
+  }
+
+  function showOptimisticUserBubble(text, attachments = []) {
     const streamEl = document.getElementById("conversation-stream");
     const welcomeEl = document.getElementById("welcome-screen");
     if (!streamEl) return;
     if (welcomeEl) welcomeEl.style.display = "none";
     streamEl.style.display = "flex";
+    const attHtml =
+      attachments && attachments.length
+        ? `<div class="message-meta-badges">${attachments.map((a) => renderAttachmentBadgeHtml(a, false)).join("")}</div>`
+        : "";
     const el = document.createElement("article");
     el.className = "message-card user";
-    el.innerHTML = `<div class="message-body">${esc(text)}</div>`;
+    el.innerHTML = `${attHtml}<div class="message-body">${esc(text)}</div>`;
     streamEl.appendChild(el);
   }
 
@@ -1482,7 +1537,7 @@
           const attHtml =
             m.attachments && m.attachments.length
               ? `<div class="message-meta-badges">${m.attachments
-                  .map((a) => `<span class="meta-chip">${ICONS.paperclip} ${esc(a)}</span>`)
+                  .map((a) => renderAttachmentBadgeHtml(a, false))
                   .join("")}</div>`
               : "";
           return `
@@ -1840,7 +1895,7 @@
     }
   }
 
-  // -------------------------------------------------------------------------
+// -------------------------------------------------------------------------
   // 4. HUMAN APPROVAL BANNER
   // -------------------------------------------------------------------------
   function renderApprovalBanner() {
@@ -1852,20 +1907,38 @@
       return;
     }
     const item = approvals[0];
+    const isHighRisk =
+      item.allow_session_approval === false ||
+      ["HIGH", "DESTRUCTIVE", "CRITICAL", "BLOCKED"].includes(String(item.risk_label || item.risk_level || "").toUpperCase());
+    const titleText = isHighRisk
+      ? "ACTION À RISQUE"
+      : "AUTORISATION NÉCESSAIRE";
+    const actionDesc = item.human_description || item.message || `Exécuter ${item.tool}`;
+    const toolCat = item.category || item.tool || "Computer Use";
+    const riskLabel = item.risk_label_fr || item.risk_level || "Moyen";
+
     container.innerHTML = `
       <div class="approval-banner" role="alert">
         <div style="display:flex; align-items:flex-start; gap:10px;">
           <span style="color:var(--warning); margin-top:2px;">${ICONS.alert}</span>
           <div>
-            <strong>Validation humaine requise (${esc(item.risk_level)})</strong>
-            <div style="font-size: 12px;">${esc(item.message)}</div>
+            <strong>${esc(titleText)}</strong>
+            <div style="font-size: 12.5px; margin-top: 2px;">
+              NeoHarness souhaite effectuer : <strong>${esc(actionDesc)}</strong>
+            </div>
+            <div style="font-size: 11.5px; opacity: 0.85; margin-top: 2px;">
+              Outil : ${esc(toolCat)} · Risque : ${esc(riskLabel)}
+            </div>
           </div>
         </div>
         <div class="approval-actions">
-          <button class="btn-approve" data-approve-id="${esc(item.id)}" data-decision="allow_once">Autoriser une fois</button>
-          <button class="btn-approve" data-approve-id="${esc(item.id)}" data-decision="allow_task">Pour cette tâche</button>
-          <button class="btn-approve" data-approve-id="${esc(item.id)}" data-decision="allow_always">Toujours</button>
           <button class="btn-deny" data-approve-id="${esc(item.id)}" data-decision="deny">Refuser</button>
+          <button class="btn-approve" data-approve-id="${esc(item.id)}" data-decision="allow_once">${isHighRisk ? "Autoriser une fois" : "Autoriser"}</button>
+          ${
+            !isHighRisk
+              ? `<button class="btn-approve" data-approve-id="${esc(item.id)}" data-decision="allow_task">Autoriser pour cette session</button>`
+              : ""
+          }
         </div>
       </div>
     `;
@@ -2096,15 +2169,7 @@
       } else {
         attBar.style.display = "flex";
         attBar.innerHTML = state.attachedFiles
-          .map(
-            (f) => `
-            <span class="attachment-chip">
-              ${ICONS.paperclip}
-              <span>${esc(f)}</span>
-              <button class="icon-btn-mini" data-remove-attachment="${esc(f)}" title="Retirer">${ICONS.close}</button>
-            </span>
-          `
-          )
+          .map((f) => renderAttachmentBadgeHtml(f, true))
           .join("");
       }
     }
@@ -5768,7 +5833,11 @@ function switchRightPanelMode(mode) {
       }
     }, 100);
 
-    showOptimisticUserBubble(promptText.trim());
+    const attachments = [...state.attachedFiles];
+    state.attachedFiles = [];
+    renderComposerControls();
+
+    showOptimisticUserBubble(promptText.trim(), attachments);
     paintStreamBody();
     kickTypewriter();
     const sc0 = document.getElementById("workspace-scroll");
@@ -5803,8 +5872,6 @@ function switchRightPanelMode(mode) {
         inputEl.value = "";
         inputEl.style.height = "auto";
       }
-      const attachments = [...state.attachedFiles];
-      state.attachedFiles = [];
 
       const activeCid =
         (state.appState && state.appState.active_conversation && state.appState.active_conversation.id) || "";

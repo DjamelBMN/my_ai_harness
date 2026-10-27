@@ -379,6 +379,28 @@ class Verifier:
                 "evidence": art_eval["evidence"],
             })
 
+        # Vérification déterministe de la boucle fermée Computer Use / Windows
+        gui_verifiable_calls = [
+            item for item in results
+            if item.get("tool") in {"computer_action_verified", "window_focus", "process_start"}
+            and item.get("status") not in {"denied", "dry_run"}
+        ]
+        if gui_verifiable_calls:
+            last_gui = gui_verifiable_calls[-1]
+            gui_data = last_gui.get("data", {}) if isinstance(last_gui.get("data"), dict) else {}
+            gui_verified = bool(gui_data.get("verified", last_gui.get("status") == "success"))
+            checks.append(
+                {
+                    "check": "computer_use_closed_loop_verified",
+                    "status": "passed" if gui_verified else "failed",
+                    "evidence": (
+                        f"Action '{last_gui.get('tool')}' vérifiée par observation post-action."
+                        if gui_verified
+                        else f"La dernière action '{last_gui.get('tool')}' n'a pas pu être vérifiée ({gui_data.get('error_code') or 'sans effet observable'})."
+                    ),
+                }
+            )
+
         if not checks:
             report = {
                 "status": "not_required",

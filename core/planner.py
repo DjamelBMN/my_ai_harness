@@ -107,7 +107,9 @@ class Planner:
                 "reviewer": "review",
                 "researcher": "research",
             }
-            if agent in builtin_intents:
+            if decision.intent == "computer_use" and agent == "coder":
+                intent = "computer_use"
+            elif agent in builtin_intents:
                 intent = builtin_intents[agent]
             else:
                 intent = decision.intent
@@ -152,9 +154,14 @@ class Planner:
         )
         state.relevant_lessons = relevant_lessons
         if task_context is not None:
-            for f in getattr(task_context, "files", []):
-                if f not in state.files:
-                    state.files.append(f)
+            is_pivot = bool(
+                hasattr(task_context, "is_pivot_request")
+                and task_context.is_pivot_request(request)
+            )
+            if not is_pivot:
+                for f in getattr(task_context, "files", []):
+                    if f not in state.files:
+                        state.files.append(f)
             get_unresolved = getattr(task_context, "get_unresolved_errors", None)
             if callable(get_unresolved):
                 for err in get_unresolved():
@@ -229,7 +236,7 @@ class Planner:
             "compare", "plusieurs", "sources", "corrige", "modifie", "implémente",
             "tests", "régression", "analyse", "diagnostique", "planifie", "puis",
         )
-        if intent in {"coding", "testing", "review", "file_analysis"}:
+        if intent in {"coding", "testing", "review", "file_analysis", "computer_use"}:
             return "complex"
         if len(request) > 300 or sum(marker in text for marker in complex_markers) >= 2:
             return "complex"
@@ -248,6 +255,7 @@ class Planner:
         return {
             "coding": "coder",
             "debugging": "coder",
+            "computer_use": "coder",
             "testing": "tester",
             "review": "reviewer",
             "file_analysis": "researcher",
@@ -274,6 +282,19 @@ class Planner:
                     PlanStep("Vérifier les critères de réussite et les régressions observables."),
                 ]
             )
+        elif intent == "computer_use":
+            req_low = request.replace("’", "'").casefold()
+            if any(k in req_low for k in ("capture", "screenshot")) and any(k in req_low for k in ("bureau", "desktop")):
+                return [
+                    PlanStep("Capturer l'écran actif.", "ready", agent),
+                    PlanStep("Enregistrer la capture sur le Bureau Windows.", "pending", agent),
+                    PlanStep("Vérifier le fichier créé et confirmer.", "pending", agent),
+                ]
+            return [
+                PlanStep("Observer la cible Windows.", "ready", agent),
+                PlanStep("Exécuter l'action avec l'outil natif direct.", "pending", agent),
+                PlanStep("Vérifier le résultat observable.", "pending", agent),
+            ]
         elif intent == "testing":
             steps.append(PlanStep("Exécuter la suite du workspace et conserver son code retour."))
         elif intent in {"research", "file_analysis"}:
@@ -286,12 +307,31 @@ class Planner:
                     PlanStep("Faire contrôler les exigences et les calculs par des agents spécialisés si utile."),
                 ]
             )
-        steps.append(PlanStep("Vérifier les résultats observables avant de répondre."))
         steps.append(PlanStep("Présenter le résultat et les limites de vérification."))
         return steps
 
     def initial_observation_tools(self, state: TaskState) -> list[tuple[str, dict]]:
-        """Planifie une vraie lecture de départ pour les missions sur des fichiers."""
+        """Planifie une vraie lecture ou action d'observation Windows directe sans doublon."""
+        if state.intent == "computer_use":
+            req_low = state.user_request.replace("’", "'").casefold()
+            wants_shot = any(k in req_low for k in ("capture", "screenshot"))
+            wants_desktop = any(k in req_low for k in ("bureau", "desktop"))
+            if wants_shot:
+                return [
+                    (
+                        "computer_screenshot",
+                        {
+                            "label": "capture_ecran",
+                            "save_to_desktop": wants_desktop,
+                        },
+                    )
+                ]
+            if any(k in req_low for k in ("processus", "tasklist", "pid")):
+                return [("process_list", {"limit": 30})]
+            if any(k in req_low for k in ("fenêtre", "fenetre", "fenêtres", "fenetres")):
+                return [("window_list", {"visible_only": True})]
+            return []
+
         if not self._requires_workspace(state.intent, state.user_request):
             return []
         paths = []
@@ -303,4 +343,3 @@ class Planner:
             name = "read_document"
             return [(name, {"path": path}) for path in paths[:3]]
         return [("list_files", {"path": ".", "recursive": True})]
-

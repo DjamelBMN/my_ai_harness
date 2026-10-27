@@ -259,7 +259,7 @@ def _get_limiter() -> _SlidingWindowLimiter:
     try:
         rpm = int(os.environ.get("GEMINI_MAX_RPM", "8"))
     except ValueError:
-        rpm = 8
+        rpm = 15
     with _limiter_lock:
         if _limiter is None or _limiter.max_calls != rpm:
             _limiter = _SlidingWindowLimiter(rpm)
@@ -301,6 +301,7 @@ class GeminiProvider(BaseProvider):
         self.base_backoff_seconds = 1.0
         self.enable_extended_thinking = False
         self.stream_callback: Any = None
+        self.pending_images: list[dict[str, Any]] = []
 
     def _is_real_sdk_client(self) -> bool:
         """Retourne True uniquement lorsque self._client est le vrai client google.genai."""
@@ -822,15 +823,37 @@ class GeminiProvider(BaseProvider):
             self.last_used_model = replacement
         self._verified = True
 
+    def _consume_multimodal_contents(self, prompt: str) -> Any:
+        """Si des images jointes sont en attente et que le vrai SDK est actif, construit un Content multimodal."""
+        images = list(getattr(self, "pending_images", []) or [])
+        self.pending_images = []
+        if not images or not self._is_real_sdk_client():
+            return prompt
+        try:
+            from google.genai import types
+
+            parts = [
+                types.Part.from_bytes(data=img["bytes"], mime_type=img["mime_type"])
+                for img in images
+                if isinstance(img, dict) and img.get("bytes") and img.get("mime_type")
+            ]
+            if not parts:
+                return prompt
+            parts.append(types.Part.from_text(text=prompt))
+            return [types.Content(role="user", parts=parts)]
+        except Exception:
+            return prompt
+
     # -------------------------------------------------------------- génération
     def generate(self, prompt: str = "") -> str:
-        """Envoie le prompt à Gemini via google-genai et retourne son texte."""
+        """Envoie le prompt (et les éventuelles images jointes) à Gemini via google-genai."""
         if not prompt.strip():
             raise GeminiProviderError("Le prompt transmis à Gemini est vide.")
         if not self._verified:
             self.check_available()
 
-        response = self._generate_content(prompt, phase="la génération")
+        contents_payload = self._consume_multimodal_contents(prompt)
+        response = self._generate_content(contents_payload, phase="la génération")
 
         answer = getattr(response, "text", "")
         if not isinstance(answer, str) or not answer.strip():
@@ -877,18 +900,19 @@ class GeminiProvider(BaseProvider):
         return result
 
     def generate_stream(self, prompt: str):
-        """Expose les fragments texte du SDK; cette voie n'est pas utilisée pour les tools."""
+        """Expose les fragments texte du SDK (avec support multimodal si des images sont jointes)."""
         if not prompt.strip():
             raise GeminiProviderError("Le prompt transmis à Gemini est vide.")
         if not self._verified:
             self.check_available()
         client = self._get_client()
+        contents_payload = self._consume_multimodal_contents(prompt)
 
         def open_stream(model: str):
             iterator = iter(
                 client.models.generate_content_stream(
                     model=model,
-                    contents=prompt,
+                    contents=contents_payload,
                     config={"http_options": {"timeout": 90_000}},
                 )
             )
@@ -990,9 +1014,23 @@ class GeminiProvider(BaseProvider):
         history = continuation.get("contents", []) if isinstance(continuation, dict) else []
         contents = list(history)
         if prompt:
-            contents.append(
-                types.Content(role="user", parts=[types.Part(text=prompt)])
-            )
+            user_parts: list[Any] = []
+            images = list(getattr(self, "pending_images", []) or [])
+            self.pending_images = []
+            if images and self._is_real_sdk_client():
+                for img in images:
+                    if isinstance(img, dict) and img.get("bytes") and img.get("mime_type"):
+                        try:
+                            user_parts.append(
+                                types.Part.from_bytes(
+                                    data=img["bytes"],
+                                    mime_type=img["mime_type"],
+                                )
+                            )
+                        except Exception:
+                            pass
+            user_parts.append(types.Part(text=prompt))
+            contents.append(types.Content(role="user", parts=user_parts))
         if tool_results:
             function_parts = []
             for result in tool_results:

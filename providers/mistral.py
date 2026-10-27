@@ -30,6 +30,25 @@ class MistralProvider(BaseProvider):
         self.max_output_tokens: int | None = None
         self._client = None
         self._available_models: dict[str, dict[str, Any]] = {}
+        self.pending_images: list[dict[str, Any]] = []
+
+    def _build_user_content(self, prompt: str) -> Any:
+        images = list(getattr(self, "pending_images", []) or [])
+        self.pending_images = []
+        if not images:
+            return prompt
+        items: list[dict[str, Any]] = [
+            {
+                "type": "image_url",
+                "image_url": f"data:{img['mime_type']};base64,{img['base64']}",
+            }
+            for img in images
+            if isinstance(img, dict) and img.get("base64") and img.get("mime_type")
+        ]
+        if not items:
+            return prompt
+        items.append({"type": "text", "text": prompt})
+        return items
 
     def _get_client(self):
         api_key = os.environ.get("MISTRAL_API_KEY", "").strip()
@@ -266,7 +285,7 @@ class MistralProvider(BaseProvider):
     def generate(self, prompt: str = "") -> str:
         if not isinstance(prompt, str) or not prompt.strip():
             raise MistralProviderError("Le prompt transmis à Mistral est vide.")
-        response = self._complete([{"role": "user", "content": prompt}])
+        response = self._complete([{"role": "user", "content": self._build_user_content(prompt)}])
         choices = self._field(response, "choices", []) or []
         message = self._field(choices[0], "message") if choices else None
         answer = self._message_text(message) if message is not None else ""
@@ -290,7 +309,7 @@ class MistralProvider(BaseProvider):
 
         messages = [dict(item) for item in continuation or [] if isinstance(item, dict)]
         if prompt:
-            messages.append({"role": "user", "content": prompt})
+            messages.append({"role": "user", "content": self._build_user_content(prompt)})
         for result in tool_results or []:
             call_id = str(result.get("call_id", ""))
             messages.append(

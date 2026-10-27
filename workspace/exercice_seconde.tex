@@ -1,0 +1,70 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{amsmath,amssymb,geometry}
+\geometry{hmargin=2.5cm,vmargin=2.5cm}
+
+\begin{document}
+
+\begin{center}
+\textbf{\Large Exercice de Mathématiques — Niveau Seconde}
+\end{center}
+
+\vspace{0.5cm}
+
+Soit $f$ la fonction définie sur l'intervalle $[-3 ; 3]$ par :
+$$f(x) = -x^2 + 4$$
+
+\section*{Partie A : Étude graphique et algébrique}
+\begin{enumerate}
+    \item \textbf{Calculs d'images :} Calculer les images de $0$, de $2$ et de $-2$ par la fonction $f$.
+    \item \textbf{Antécédents :} Déterminer par le calcul les antécédents de $3$ par la fonction $f$.
+    \item \textbf{Factorisation :} Vérifier que pour tout réel $x$, on a : 
+    $$f(x) = (2 - x)(2 + x)$$
+    \item \textbf{Signe de $f(x)$ :} À l'aide de la forme factorisée, dresser le tableau de signes de $f(x)$ sur l'intervalle $[-3 ; 3]$.
+\end{enumerate}
+
+\section*{Partie B : Application géométrique}
+Dans un repère orthonormal $(O ; I, J)$, on considère la parabole représentant la fonction $f$ et les points $A(-1 ; 3)$ et $B(2 ; 0)$.
+\begin{enumerate}
+    \item Le point $A$ appartient-il à la courbe représentative de $f$ ? Justifier par un calcul.
+    \item Déterminer l'équation réduite de la droite $(AB)$.
+    \item Soit $C$ le point de coordonnées $(1 ; 3)$. Calculer la distance $AC$.
+\end{enumerate}
+
+\vspace{1cm}
+\begin{center}
+\textbf{\large Corrigé Détaillé}
+\end{center}
+
+\subsection*{Partie A}
+\begin{enumerate}
+    \item \textbf{Images :}
+    \begin{itemize}
+        \item $f(0) = -0^2 + 4 = 4$.
+        \item $f(2) = -2^2 + 4 = -4 + 4 = 0$.
+        \item $f(-2) = -(-2)^2 + 4 = -4 + 4 = 0$.
+    \end{itemize}
+    \item \textbf{Antécédents de $3$ :}
+    On cherche les solutions de l'équation $f(x) = 3$, soit $-x^2 + 4 = 3$, ce qui donne $-x^2 = -1 \iff x^2 = 1$.
+    Cette équation admet deux solutions : $x = 1$ et $x = -1$. Les antécédents de $3$ sont donc $1$ et $-1$.
+    \item \textbf{Vérification de la factorisation :}
+    En développant $(2 - x)(2 + x)$ par l'identité remarquable $(a-b)(a+b) = a^2 - b^2$ :
+    $$(2 - x)(2 + x) = 2^2 - x^2 = 4 - x^2 = -x^2 + 4 = f(x)$$
+    \item \textbf{Tableau de signes :}
+    Sur $[-3 ; 3]$, $f(x) \ge 0$ sur $[-2 ; 2]$ et $f(x) < 0$ sur $[-3 ; -2[ \cup ]2 ; 3]$.
+\end{enumerate}
+
+\subsection*{Partie B}
+\begin{enumerate}
+    \item \textbf{Appartenance de $A(-1 ; 3)$ :}
+    $f(-1) = -(-1)^2 + 4 = 3$. L'ordonnée de $A$ correspond à $f(-1)$, donc le point $A$ appartient à la courbe de $f$.
+    \item \textbf{Équation réduite de $(AB)$ :}
+    Le coefficient directeur est $m = \frac{0 - 3}{2 - (-1)} = -1$.
+    En utilisant $B(2 ; 0)$, $0 = -2 + p \implies p = 2$. L'équation réduite est $y = -x + 2$.
+    \item \textbf{Distance $AC$ :}
+    $AC = \sqrt{(1 - (-1))^2 + (3 - 3)^2} = \sqrt{2^2 + 0^2} = 2$.
+\end{enumerate}
+
+\end{document}

@@ -204,7 +204,15 @@ class IntentEngine:
                 )
 
         files = self._files(text)
-        if is_cont and context_files:
+        is_topic_pivot = any(
+            kw in text
+            for kw in (
+                "plutôt", "plutot", "pluto", "non ", "autre ", "change ",
+                "fais un", "fais-moi un", "donne un", "donne-moi un", "crée un", "cree un",
+                "de seconde", "de première", "de premiere", "de terminale", "de 3ème", "de 3e",
+            )
+        )
+        if is_cont and context_files and not is_topic_pivot and is_analysis_continuity:
             for cf in context_files:
                 if cf not in files:
                     files.append(cf)
@@ -286,6 +294,57 @@ class IntentEngine:
             for marker in ("cherche", "recherche", "trouve les sources", "trouve les informations", "vérifie cette information", "verifie cette information")
         )
 
+# Priorité directe aux demandes explicites d'action Opérateur Windows / Terminal / Computer Use
+        norm_text = text.replace("’", "'").replace("`", "'")
+        explicit_operator_request = any(
+            phrase in norm_text
+            for phrase in (
+                "dans le terminal",
+                "via le terminal",
+                "session terminal",
+                "powershell",
+                "capture d'écran",
+                "capture d ecran",
+                "capture de l'écran",
+                "screenshot",
+                "fenêtres windows",
+                "fenetres windows",
+                "fenêtres ouvertes",
+                "fenetres ouvertes",
+                "fenêtre active",
+                "fenetre active",
+                "ouvre l'application",
+                "ouvrir l'application",
+                "notepad",
+                "bloc-notes",
+                "presse-papiers",
+                "clipboard",
+            )
+        )
+        if explicit_operator_request:
+            op_tools = self._operator_tools_for_request(norm_text)
+            base_tools = ["list_files", "find_file", "read_file", "copy_to_desktop"]
+            for t_name in op_tools:
+                if t_name not in base_tools:
+                    base_tools.append(t_name)
+            return self._decision(
+                "computer_use",
+                request,
+                0.96,
+                capabilities=["coding", "computer_use"],
+                tools=base_tools,
+                workspace=False,
+                file_read=False,
+                modification=False,
+                tests=False,
+                risk="LOW",
+                confirmation=False,
+                criteria=[
+                    "action Windows ou commande terminal exécutée directement avec l'outil natif",
+                ],
+                rationale=["demande explicite d'action opérateur Windows / Terminal / Computer Use"],
+            )
+
         # Les demandes métier et les objectifs de modification priment sur les
         # mots secondaires. Une création de sujet n'est pas une recherche seule.
         if asks_exam:
@@ -304,6 +363,8 @@ class IntentEngine:
                 decision.rationale.append("vérification d'une exigence officielle demandée")
             return decision
 
+        operator_tools = self._operator_tools_for_request(text)
+
         if asks_code_modification:
             secondaries = []
             if asks_research and asks_debug_and_fix:
@@ -312,11 +373,18 @@ class IntentEngine:
                 secondaries.append("testing")
             if "testing" not in secondaries:
                 secondaries.append("testing")
+            coding_tools = [
+                "list_files", "find_file", "search_files", "read_file", "read_document",
+                "write_file", "patch_file", "run_python", "run_tests",
+            ]
+            for op_tool in operator_tools:
+                if op_tool not in coding_tools:
+                    coding_tools.append(op_tool)
             return self._decision(
                 "coding", request, 0.94,
                 capabilities=["coding"],
                 secondary=secondaries,
-                tools=["list_files", "find_file", "search_files", "read_file", "read_document", "write_file", "patch_file", "run_python", "run_tests"],
+                tools=coding_tools,
                 workspace=True,
                 file_read=True,
                 modification=True,
@@ -445,6 +513,33 @@ class IntentEngine:
                             rationale=[f"capacité déclarée détectée chez {agent.name}: {capability}"],
                         )
 
+        if operator_tools:
+            # Règle de sélection des outils : n'exposer que les outils natifs spécialisés
+            # (pas de run_python ni de création de scripts parasites pour une action Windows simple)
+            base_tools = ["list_files", "find_file", "read_file", "copy_to_desktop"]
+            if asks_test:
+                base_tools.append("run_tests")
+            for op_tool in operator_tools:
+                if op_tool not in base_tools:
+                    base_tools.append(op_tool)
+            return self._decision(
+                "computer_use",
+                request,
+                0.95,
+                capabilities=["coding", "computer_use"],
+                tools=base_tools,
+                workspace=False,
+                file_read=has_file,
+                modification=False,
+                tests=asks_test,
+                risk="LOW",
+                confirmation=False,
+                criteria=[
+                    "action Windows exécutée directement avec l'outil natif spécialisé",
+                ],
+                rationale=["action opérateur Windows ciblée sur outils natifs sans script intermédiaire"],
+            )
+
         return self._decision(
             "general_question", request, 0.75,
             capabilities=["research"],
@@ -452,6 +547,58 @@ class IntentEngine:
             criteria=["réponse directe", "incertitudes explicites si nécessaire"],
             rationale=["aucune action locale ou recherche explicite n'est requise"],
         )
+
+    @staticmethod
+    def _operator_tools_for_request(text: str) -> list[str]:
+        """Détecte si la requête nécessite les outils Windows, Computer Use, Terminal, Process ou Clipboard."""
+        norm = text.replace("’", "'").replace("`", "'").casefold()
+        tools: list[str] = []
+        wants_gui_or_window = any(
+            kw in norm
+            for kw in (
+                "vs code", "vscode", "visual studio code", "notepad", "bloc-notes", "bloc notes",
+                "fenêtre", "fenetre", "fenêtres", "fenetres",
+                "écran", "ecran", "capture", "screenshot", "bureau", "windows",
+                "clique", "cliquer", "souris", "clavier", "raccourci", "alt+tab",
+                "ctrl+", "ouvre ", "ouvrir ", "lance l'application", "minimise",
+                "maximise", "ferme la fenêtre", "computer use", "ocr",
+            )
+        )
+        wants_terminal = any(
+            kw in norm
+            for kw in (
+                "terminal", "powershell", "cmd.exe", "conpty", "npm ", "pnpm ",
+                "yarn ", "serveur de dev", "session interactive",
+            )
+        )
+        wants_process = any(
+            kw in norm
+            for kw in (
+                "processus", "tasklist", "pid", "arrête le processus", "tue le processus",
+                "ouvre ", "ouvrir ", "vs code", "vscode", "notepad", "bloc-notes", "application",
+            )
+        )
+        wants_clipboard = any(
+            kw in norm
+            for kw in ("presse-papiers", "presse papiers", "clipboard", "copie dans le presse")
+        )
+        if wants_gui_or_window:
+            tools.extend([
+                "window_list", "window_active", "window_find", "window_focus",
+                "window_minimize", "window_maximize", "window_restore", "window_close",
+                "computer_screenshot", "computer_ocr", "computer_compare_screens",
+                "computer_mouse_move", "computer_click", "computer_drag", "computer_scroll",
+                "computer_type", "computer_press", "computer_hotkey", "computer_action_verified",
+            ])
+        if wants_terminal:
+            tools.extend([
+                "terminal_start", "terminal_send", "terminal_read", "terminal_stop", "terminal_list",
+            ])
+        if wants_process:
+            tools.extend(["process_list", "process_start", "process_status", "process_stop"])
+        if wants_clipboard:
+            tools.extend(["clipboard_get", "clipboard_set"])
+        return list(dict.fromkeys(tools))
 
     @classmethod
     def _decision(

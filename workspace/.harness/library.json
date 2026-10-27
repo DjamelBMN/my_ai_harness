@@ -1,5 +1,162 @@
 [
   {
+    "id": "lib-ad0d3c63",
+    "title": "Output",
+    "category": "Documents",
+    "type": "pdf",
+    "path": "output.pdf",
+    "summary": "Document PDF compilé",
+    "content": "",
+    "tags": [
+      "pdf"
+    ],
+    "size_bytes": 33,
+    "created_at": "2026-10-27T18:52:59.995407+00:00",
+    "updated_at": "2026-10-27T18:52:59.995943+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-667a1673",
+    "title": "Report",
+    "category": "Documents",
+    "type": "docx",
+    "path": "report.docx",
+    "summary": "Document Word vérifié",
+    "content": "",
+    "tags": [
+      "docx"
+    ],
+    "size_bytes": 10422,
+    "created_at": "2026-10-27T18:50:22.818682+00:00",
+    "updated_at": "2026-10-27T18:50:22.835128+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-722cbd39",
+    "title": "Exercice second degre",
+    "category": "Documents",
+    "type": "pdf",
+    "path": "exercice_second_degre.pdf",
+    "summary": "Document PDF compilé",
+    "content": "",
+    "tags": [
+      "pdf",
+      "exercice"
+    ],
+    "size_bytes": 20701,
+    "created_at": "2026-10-27T18:47:11.487371+00:00",
+    "updated_at": "2026-10-27T18:47:11.487371+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-d59847af",
+    "title": "Exercice second degre",
+    "category": "Documents",
+    "type": "tex",
+    "path": "exercice_second_degre.tex",
+    "summary": "Fichier TEX dans l'espace de travail",
+    "content": "\\documentclass[11pt,a4paper]{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage[french]{babel}\n\\usepackage{amsmath,amssymb}\n\\usepackage{geometry}\n\\geometry{margin=2cm}\n\n\\begin{document}\n\n\\begin{center}\n    {\\Large \\textbf{Classe de Seconde -- Mathématiques}} \\\\[0.3em]\n    {\\large \\textbf{Exercice : Fonctions et variations}}\n\\end{center}\n\n\\vspace{0.5cm}\n\nSoit $f$ la fonction définie sur $\\mathbb{R}$ par $f(x) = 2x^2 - 8x + 6$.\n\n\\begin{enumerate}\n    \\item \\textbf{Forme canonique :}\\\\\n    Démontrer que pour tout réel $x$, on a : \n    $$f(x) = 2(x - 2)^2 - 2$$\n\n    \\item \\textbf{Sommet et extremum :}\\\\\n    En déduire les coordonnées du sommet de la parabole représentant $f$ ainsi que son extremum sur $\\mathbb{R}$.\n\n    \\item \\textbf{Tableau de variations :}\\\\\n    Préciser les intervalles de croissance et de décroissance de la fonction $f$.\n\n    \\item \\textbf{Résolution d'équation :}\\\\\n    Résoudre l'équation $f(x) = 6$.\n\\end{enumerate}\n\n\\vspace{0.5cm}\n\\hrule\n\\vspace",
+    "tags": [
+      "tex",
+      "exercice"
+    ],
+    "size_bytes": 2112,
+    "created_at": "2026-10-27T18:47:07.417564+00:00",
+    "updated_at": "2026-10-27T18:47:07.417564+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-37f7c045",
+    "title": "Partie c",
+    "category": "Notes",
+    "type": "note",
+    "path": "partie_c.md",
+    "summary": "Fichier NOTE dans l'espace de travail",
+    "content": "### Partie C : Optimisation et intersection\n\nDans le même repère orthonormal $(O ; I, J)$, on considère la droite $(\\Delta)$ d'équation réduite $y = -x + 2$.\n\n1. **Positions relatives :** \n   Étudier la position relative de la parabole représentant la fonction $f$ (définie par $f(x) = -x^2 + 4$) et de la droite $(\\Delta)$ en résolvant l'équation $f(x) = (-x + 2)$.\n2. **Coordonnées des points d'intersection :** \n   En déduire les coordonnées exactes des points d'intersection de la parabole et de la droite $(\\Delta)$.\n3. **Optimisation géométrique :** \n   Soit $M$ un point de la parabole d'abscisse $x$ appartenant à l'intervalle $[0 ; 2]$. On considère le rectangle $OMNP$ où $N$ est le projeté orthogonal de $M$ sur l'axe des abscisses et $P$ sur l'axe des ordonnées. Exprimer l'aire de ce rectangle en fonction de $x$, puis déterminer pour quelle valeur de $x$ cette aire est maximale.\n\n---\n\n### Corrigé détaillé\n\n#### Partie C\n1. **Positions relatives :**\n   On étudie le signe de la différe",
+    "tags": [
+      "note"
+    ],
+    "size_bytes": 2823,
+    "created_at": "2026-10-27T18:38:08.028847+00:00",
+    "updated_at": "2026-10-27T18:38:08.028847+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-fe6baa0d",
+    "title": "Exercice seconde",
+    "category": "Documents",
+    "type": "pdf",
+    "path": "exercice_seconde.pdf",
+    "summary": "Document PDF compilé",
+    "content": "",
+    "tags": [
+      "pdf",
+      "exercice"
+    ],
+    "size_bytes": 26163,
+    "created_at": "2026-10-27T18:37:32.393643+00:00",
+    "updated_at": "2026-10-27T18:37:32.393643+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-b29e399d",
+    "title": "Exercice seconde",
+    "category": "Documents",
+    "type": "tex",
+    "path": "exercice_seconde.tex",
+    "summary": "Fichier TEX dans l'espace de travail",
+    "content": "\\documentclass[11pt,a4paper]{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage[french]{babel}\n\\usepackage{amsmath,amssymb,geometry}\n\\geometry{hmargin=2.5cm,vmargin=2.5cm}\n\n\\begin{document}\n\n\\begin{center}\n\\textbf{\\Large Exercice de Mathématiques — Niveau Seconde}\n\\end{center}\n\n\\vspace{0.5cm}\n\nSoit $f$ la fonction définie sur l'intervalle $[-3 ; 3]$ par :\n$$f(x) = -x^2 + 4$$\n\n\\section*{Partie A : Étude graphique et algébrique}\n\\begin{enumerate}\n    \\item \\textbf{Calculs d'images :} Calculer les images de $0$, de $2$ et de $-2$ par la fonction $f$.\n    \\item \\textbf{Antécédents :} Déterminer par le calcul les antécédents de $3$ par la fonction $f$.\n    \\item \\textbf{Factorisation :} Vérifier que pour tout réel $x$, on a : \n    $$f(x) = (2 - x)(2 + x)$$\n    \\item \\textbf{Signe de $f(x)$ :} À l'aide de la forme factorisée, dresser le tableau de signes de $f(x)$ sur l'intervalle $[-3 ; 3]$.\n\\end{enumerate}\n\n\\section*{Partie B : Application géométrique}\nDans un repère",
+    "tags": [
+      "tex",
+      "exercice"
+    ],
+    "size_bytes": 2931,
+    "created_at": "2026-10-27T18:37:25.188138+00:00",
+    "updated_at": "2026-10-27T18:37:25.188138+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-217ed55c",
+    "title": "Copy screenshot",
+    "category": "Ressources",
+    "type": "python",
+    "path": "copy_screenshot.py",
+    "summary": "Fichier PYTHON dans l'espace de travail",
+    "content": "import os\nimport shutil\n\nsrc = \"screenshots/capture_bureau_demandee_1793115441405.png\"\ndesktop = os.path.join(os.path.expanduser(\"~\"), \"Desktop\")\ndst = os.path.join(desktop, \"capture_ecran_actuel.png\")\nshutil.copy(src, dst)\nprint(f\"Copié avec succès vers {dst}\")\n",
+    "tags": [
+      "python"
+    ],
+    "size_bytes": 265,
+    "created_at": "2026-10-27T15:39:35.851420+00:00",
+    "updated_at": "2026-10-27T15:39:35.851945+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-0e41d284",
+    "title": "Autonomie agent",
+    "category": "Notes",
+    "type": "note",
+    "path": "autonomie_agent.md",
+    "summary": "Fichier NOTE dans l'espace de travail",
+    "content": "# Extension de l'autonomie de ResearchAgent\n\nCe document consigne les modifications et extensions apportées au code source et aux capacités de ResearchAgent dans le cadre du harness NeoHarness AI.\n\n## Axes d'amélioration de l'autonomie\n1. **Boucle de raisonnement itératif** : Renforcement de la capacité d'auto-évaluation et de correction sur les résultats intermédiaires.\n2. **Élargissement des outils d'exécution** : Intégration accrue de modules de manipulation structurée de données et de vérification formelle.\n3. **Gouvernance et sécurité** : Maintien de barrières strictes (*guardrails*) pour garantir la sécurité et la traçabilité de chaque action autonome.\n",
+    "tags": [
+      "note"
+    ],
+    "size_bytes": 688,
+    "created_at": "2026-10-27T14:32:02.493167+00:00",
+    "updated_at": "2026-10-27T14:32:02.493167+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
     "id": "lib-19828216",
     "title": "Test qcm",
     "category": "Ressources",

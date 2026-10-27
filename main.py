@@ -442,16 +442,36 @@ def afficher_harness_pret(
     print("\nTape exit pour arrêter.\n")
 
 
-def _confirmation_outil(name: str, risk: RiskLevel) -> bool:
-    try:
-        answer = input(
+def _confirmation_outil(name: str, risk: RiskLevel, evaluation=None) -> str | bool:
+    if evaluation is not None:
+        from core.permissions import format_hitl_box
+
+        print("\n" + format_hitl_box(evaluation))
+        if evaluation.allow_session_approval:
+            prompt_str = (
+                f"Autoriser l'outil {name} (risque {risk.name}) ? "
+                "[oui = autoriser une fois / session = autoriser pour cette session / non = refuser] : "
+            )
+        else:
+            prompt_str = (
+                f"Autoriser l'outil à risque {name} ({risk.name}) ? "
+                "[oui = autoriser une fois / non = refuser] : "
+            )
+    else:
+        prompt_str = (
             f"\nAutoriser l'outil {name} (risque {risk.name}) ? "
             "Tape oui pour continuer : "
-        ).strip().casefold()
+        )
+    try:
+        answer = input(prompt_str).strip().casefold()
     except (EOFError, KeyboardInterrupt):
         print("\nConfirmation annulée.")
         return False
-    return answer in {"oui", "o", "yes", "y"}
+    if answer in {"session", "s", "allow_session", "toujours"}:
+        return "allow_session"
+    if answer in {"oui", "o", "yes", "y"}:
+        return True
+    return False
 
 
 def _preview_edit(name: str, arguments: dict) -> None:

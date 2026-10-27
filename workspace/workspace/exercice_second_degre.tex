@@ -1,0 +1,151 @@
+% Compiler avec XeLaTeX ou LuaLaTeX
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{amsmath,amssymb}
+\usepackage{fontspec}
+\usepackage{unicode-math}
+\usepackage{polyglossia}
+\setmainlanguage{french}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage[margin=2cm,headheight=16pt,headsep=22pt]{geometry}
+\usepackage{enumitem}
+
+\IfFontExistsTF{Libertinus Serif}
+  {\setmainfont{Libertinus Serif}}
+  {\IfFontExistsTF{Latin Modern Roman}{\setmainfont{Latin Modern Roman}}{\setmainfont{lmroman10-regular.otf}}}
+
+\IfFontExistsTF{Libertinus Math}
+  {\setmathfont{Libertinus Math}}
+  {\IfFontExistsTF{Latin Modern Math}{\setmathfont{Latin Modern Math}}{\setmathfont{latinmodern-math.otf}}}
+
+\linespread{1.07}
+\setlength{\parindent}{0pt}
+\AtBeginDocument{\setlength{\parindent}{0pt}}
+\setlength{\parskip}{0.35em}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Classe de Première Spécialité Mathématiques}
+\rhead{Équations du second degré avec paramètre}
+\usepackage{lastpage}
+\cfoot{Page \thepage\ / \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\headrule}{\vskip 5pt\hrule width\headwidth height\headrulewidth \vskip-\headrulewidth}
+
+\setlist[enumerate,1]{itemsep=0.45em, topsep=0.3em, label=\textbf{\arabic*.}}
+\setlist[enumerate,2]{itemsep=0.25em, topsep=0.2em, label=\textbf{\alph*.}}
+
+\newcommand{\exo}[2]{%
+  \vspace{1.5em}%
+  \noindent{\large\textbf{Exercice #1. -- #2}}%
+  \par\vspace{0.35em}%
+  \hrule height 0.5pt%
+  \vspace{0.7em}%
+}
+
+\newcommand{\partie}[1]{%
+  \vspace{0.9em}%
+  \noindent\textbf{#1}%
+  \par\vspace{0.3em}%
+}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE \textbf{Exercice : Équations du second degré}}\\[0.5em]
+  {\large Première Spécialité Mathématiques}
+\end{center}
+
+\exo{1}{Résolution d'équations et forme canonique}
+
+\partie{Partie A -- Forme canonique}
+Soit $f$ la fonction définie sur $\mathbb{R}$ par $f(x) = 2x^2 - 8x + 6$.
+\begin{enumerate}
+  \item Démontrer que pour tout réel $x$, $f(x) = 2(x-2)^2 - 2$.
+  \item En déduire les coordonnées du sommet de la parabole représentant $f$ ainsi que son extremum.
+\end{enumerate}
+
+\partie{Partie B -- Résolution d'équations avec paramètre}
+Résoudre dans $\mathbb{R}$ les équations suivantes en détaillant le calcul du discriminant :
+\begin{enumerate}
+  \item $3x^2 - 5x - 2 = 0$
+  \item $-x^2 + 4x - 4 = 0$
+  \item $2x^2 - 5x + m = 0$ avec $m = 2$, puis résoudre l'équation en fonction de ce paramètre.
+\end{enumerate}
+
+\exo{2}{Problème d'optimisation géométrique}
+
+Un propriétaire souhaite entourer un enclos rectangulaire d'une aire de $300\text{ m}^2$ en utilisant un mur existant sur l'un des côtés (qui ne nécessite donc pas de clôture). On note $x$ la largeur de l'enclos (en mètres) perpendiculaire au mur, et $L$ la longueur parallèle au mur.
+
+\begin{enumerate}
+  \item Exprimer la longueur $L$ en fonction de $x$.
+  \item Démontrer que la longueur totale de clôture nécessaire, notée $f(x)$, est donnée par :
+  $$f(x) = 2x + \frac{300}{x}$$
+  sur l'intervalle $]0 ; +\infty[$.
+  \item Étudier les variations de la fonction $f$ sur $]0 ; +\infty[$.
+  \item En déduire les dimensions de l'enclos permettant de minimiser la quantité de clôture à acheter. Quelle est alors cette longueur minimale ?
+\end{enumerate}
+
+\vspace{2em}
+\hrule
+\vspace{1em}
+\noindent{\large\textbf{Corrigé détaillé}}
+
+\vspace{0.5em}
+\noindent\textbf{Corrigé de l'exercice 1}
+
+\partie{Partie A}
+\begin{enumerate}
+  \item Développons l'expression proposée :
+  $$2(x-2)^2 - 2 = 2(x^2 - 4x + 4) - 2 = 2x^2 - 8x + 8 - 2 = 2x^2 - 8x + 6 = f(x)$$
+  L'égalité est ainsi démontrée pour tout réel $x$.
+  \item La forme canonique est de la forme $a(x-\alpha)^2 + \beta$ avec $a=2$, $\alpha=2$ et $\beta=-2$. 
+  Le sommet de la parabole a pour coordonnées $(2 ; -2)$. 
+  Comme $a = 2 > 0$, la parabole est tournée vers le haut et la fonction admet un minimum égal à $\beta = -2$ atteint en $x = 2$.
+\end{enumerate}
+
+\partie{Partie B}
+\begin{enumerate}
+  \item Pour $3x^2 - 5x - 2 = 0$, on a $a=3$, $b=-5$ et $c=-2$.
+  $$\Delta = b^2 - 4ac = (-5)^2 - 4(3)(-2) = 25 + 24 = 49$$
+  Puisque $\Delta > 0$, l'équation admet deux solutions distinctes :
+  $$x_1 = \frac{-(-5) - \sqrt{49}}{2(3)} = \frac{5 - 7}{6} = \frac{-2}{6} = -\frac{1}{3}$$
+  $$x_2 = \frac{-(-5) + \sqrt{49}}{2(3)} = \frac{5 + 7}{6} = \frac{12}{6} = 2$$
+  L'ensemble des solutions est $\left\{-\frac{1}{3} ; 2\right\}$.
+  
+  \item Pour $-x^2 + 4x - 4 = 0$, on a $a=-1$, $b=4$ et $c=-4$.
+  $$\Delta = 4^2 - 4(-1)(-4) = 16 - 16 = 0$$
+  Puisque $\Delta = 0$, l'équation admet une unique solution double :
+  $$x_0 = \frac{-4}{2(-1)} = \frac{-4}{-2} = 2$$
+  L'ensemble des solutions est $\{2\}$.
+  
+  \item Pour l'équation paramétrique $2x^2 - 5x + m = 0$ avec $m = 2$, les coefficients sont $a = 2$, $b = -5$ et $c = 2$.
+  Le discriminant vaut :
+  $$\Delta = (-5)^2 - 4(2)(2) = 25 - 16 = 9$$
+  Puisque $\Delta = 9 > 0$ ($\sqrt{\Delta} = 3$), l'équation admet deux solutions distinctes :
+  $$x_1 = \frac{5 - 3}{4} = \frac{2}{4} = \frac{1}{2}, \quad x_2 = \frac{5 + 3}{4} = \frac{8}{4} = 2$$
+  L'ensemble des solutions pour $m = 2$ est $\left\{\frac{1}{2} ; 2\right\}$.
+  Plus généralement, pour une valeur quelconque de $m$, le discriminant est $\Delta = 25 - 8m$. L'équation admet deux solutions si $m < \frac{25}{8}$, une solution double si $m = \frac{25}{8}$, et aucune solution réelle si $m > \frac{25}{8}$.
+\end{enumerate}
+
+\vspace{0.5em}
+\noindent\textbf{Corrigé de l'exercice 2}
+
+\begin{enumerate}
+  \item L'aire de l'enclos est donnée par $A = x \times L = 300$. On en déduit immédiatement :
+  $$L = \frac{300}{x}$$
+  \item La clôture est nécessaire pour les deux largeurs $x$ et la longueur $L$ (le mur faisant office de quatrième côté). La longueur totale de clôture est donc :
+  $$f(x) = 2x + L = 2x + \frac{300}{x}$$
+  \item La fonction $f$ est dérivable sur $]0 ; +\infty[$ et sa dérivée est :
+  $$f'(x) = 2 - \frac{300}{x^2} = \frac{2x^2 - 300}{x^2} = \frac{2(x^2 - 150)}{x^2} = \frac{2(x - \sqrt{150})(x + \sqrt{150})}{x^2}$$
+  Sur $]0 ; +\infty[$, le dénominateur $x^2$ est strictement positif, de même que $(x + \sqrt{150})$. Le signe de $f'(x)$ dépend donc uniquement de $x - \sqrt{150} = x - 5\sqrt{6}$.
+  Ainsi, $f'(x) \le 0$ sur $]0 ; 5\sqrt{6}]$ et $f'(x) \ge 0$ sur $[5\sqrt{6} ; +\infty[$.
+  \item La fonction $f$ décroît puis croît, admettant un minimum global en $x = 5\sqrt{6} \approx 12,25\text{ m}$.
+  Les dimensions optimales de l'enclos sont donc :
+  - Une largeur de $x = 5\sqrt{6}\text{ m} \approx 12,25\text{ m}$.
+  - Une longueur de $L = \frac{300}{5\sqrt{6}} = \frac{60}{\sqrt{6}} = 10\sqrt{6}\text{ m} \approx 24,50\text{ m}$.
+  La longueur minimale de clôture est alors $f(5\sqrt{6}) = 2(5\sqrt{6}) + \frac{300}{5\sqrt{6}} = 10\sqrt{6} + 10\sqrt{6} = 20\sqrt{6} \approx 48,99\text{ m}$.
+\end{enumerate}
+
+\end{document}

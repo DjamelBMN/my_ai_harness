@@ -18,8 +18,27 @@ class OpenAIProvider(BaseProvider):
         self.model = model.strip()
         self._client = None
         self.max_output_tokens: int | None = None
+        self.pending_images: list[dict[str, Any]] = []
         if not self.model:
             raise ValueError("Le modèle OpenAI doit être renseigné dans config.yaml.")
+
+    def _build_multimodal_input(self, prompt: str) -> Any:
+        images = list(getattr(self, "pending_images", []) or [])
+        self.pending_images = []
+        if not images:
+            return prompt
+        content_items: list[dict[str, Any]] = [
+            {
+                "type": "input_image",
+                "image_url": f"data:{img['mime_type']};base64,{img['base64']}",
+            }
+            for img in images
+            if isinstance(img, dict) and img.get("base64") and img.get("mime_type")
+        ]
+        if not content_items:
+            return prompt
+        content_items.append({"type": "input_text", "text": prompt})
+        return [{"role": "user", "content": content_items}]
 
     def generate(self, prompt: str = "") -> str:
         api_key = os.environ.get("OPENAI_API_KEY", "").strip()
@@ -48,7 +67,7 @@ class OpenAIProvider(BaseProvider):
             if self._client is None:
                 self._client = OpenAI(api_key=api_key, max_retries=2, timeout=90.0)
             client = self._client
-            request = {"model": self.model, "input": prompt}
+            request = {"model": self.model, "input": self._build_multimodal_input(prompt)}
             if self.max_output_tokens:
                 request["max_output_tokens"] = self.max_output_tokens
             response = client.responses.create(**request)
@@ -143,7 +162,7 @@ class OpenAIProvider(BaseProvider):
                 for item in tool_results
             ]
         else:
-            request_input = prompt or ""
+            request_input = self._build_multimodal_input(prompt or "")
 
         try:
             if self._client is None:

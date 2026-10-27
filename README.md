@@ -1,398 +1,277 @@
-# NeoHarness AI — Agent Operating Environment
+Voici le fichier README.md complet et intégralement mis à jour, prêt à être
+copié-collé pour remplacer README.md à la racine de ton dépôt :
+
+# NeoHarness AI — AI Agent Operating Environment & Windows Computer Use
 
 > **Créé et développé par Djamel BENMAKHLOUF**
-> Un environnement agentique multi-modèles de production (Gemini, Ollama, OpenAI, Mistral), orchestrant agents autonomes, 18 skills canoniques, outils réels, RAG, Tectonic LaTeX et vérification déterministe — Zéro simulation.
+> Un environnement opératoire agentique multi-modèles de production (Gemini, Ollama, OpenAI, Mistral + LLM personnalisés), orchestrant agents autonomes, 20 skills canoniques et éducatifs, **Computer Use Windows en boucle fermée**, **Tool Gateway**, **Policy Engine**, **Human-In-The-Loop proportionné**, **Terminal PowerShell/CMD persistant**, RAG, Tectonic LaTeX, Pandoc Word (`.docx`) et vérification déterministe — **Zéro simulation**.
 
 ```text
-Utilisateur
+Utilisateur (Interface Web --ui ou CLI interactif)
     ↓
-Orchestrator → Planner → TaskState
+Orchestrator → IntentEngine → Planner (plan minimal suffisant) → TaskState
     ↓
 AgentLoop : PERCEIVE → PLAN → ACT → OBSERVE → VERIFY → CORRECT → DELIVER
     ↓
-CodeAgent / TestAgent / ReviewAgent / ResearchAgent
+CodeAgent / TestAgent / ReviewAgent / ResearchAgent / BacBlancAgent
     ↓
-ModelRouter (intention + complexité, avec repli sur le modèle de session)
+ModelRouter (intention + complexité + RateLimitManager + repli automatique)
     ↓
-OpenAIProvider / GeminiProvider / OllamaProvider
+GeminiProvider / OpenAIProvider / MistralProvider / OllamaProvider / Custom LLM
     ↓
-ToolRegistry → WorkspaceFilesystem / Documents / Python tests / Git
-    ↑                 ↓
-Agent ← résultats d'outils ← PermissionPolicy
-```
+ToolGateway (core/tool_gateway.py) → PolicyEngine (SAFE | LOW | MEDIUM | HIGH | CRITICAL | BLOCKED)
+    ↓
+PermissionPolicy & HITL proportionné (Exécution directe si SAFE/LOW · Validation humaine si sensible)
+    ├── filesystem      (lecture, écriture, patch, édition, copie directe vers le Bureau Windows)
+    ├── computer_use    (screenshot, diff visuel avant/après, OCR localisé, souris, clavier, boucle fermée)
+    ├── windows         (lister, identifier la fenêtre active, chercher, focus, minimiser, maximiser, fermer)
+    ├── terminal        (sessions PowerShell/CMD persistantes, stdin/stdout/stderr temps réel, tests)
+    ├── process         (lister les processus Windows, démarrer une app, surveiller, arrêter)
+    ├── clipboard       (lecture/écriture native Win32 Unicode du presse-papiers)
+    ├── browser         (recherche Web réelle, navigation Chromium Playwright, téléchargement avec provenance)
+    ├── documents       (compilation PDF Tectonic auto-réparatrice, génération Word .docx Pandoc, TikZ, OCR)
+    ├── git             (status, branch, commit staged, merge)
+    └── mcp             (adaptateur client MCP JSON-RPC stdio externe sous contrôle du PolicyEngine)
 
-## LLM, Agent et Harness
+1. LLM, Agent, Opérateur Windows et Harness
 
-- Un **LLM** génère du texte ou des appels d'outils : GPT, Gemini ou Qwen.
-- Un **Agent** est un programme que nous construisons avec un rôle et un prompt.
-  CodeAgent programme, TestAgent teste, ReviewAgent relit et ResearchAgent analyse.
-- Un **Provider** transporte les demandes entre un Agent et un LLM. Le Provider
-  n'est pas un Agent.
-- Le **ModelRouter** choisit un Provider selon l'Agent, l'intention et la complexité.
-- L'**Orchestrator** choisit l'Agent, lui attribue le Provider puis coordonne la mission.
-- Un **Tool** permet de lire ou modifier le workspace, exécuter les tests ou interroger
-  Git. Le registre valide le nom et les arguments avant l'exécution.
-- Le **Harness** réunit l'orchestrateur, les agents, les providers, les outils, le
-  contexte et les contrôles de sécurité.
+  - Un LLM génère du texte ou des appels d'outils : GPT, Gemini, Mistral ou
+    Qwen.
+  - Un Agent est un programme spécialisé construit dans le harness avec un rôle,
+    des capacités et un prompt structuré :
+      - CodeAgent programme, débogue et pilote l'environnement de développement
+        et le système Windows (computer_use) ;
+      - TestAgent exécute et analyse les suites de tests ;
+      - ReviewAgent (assisté d'IndependentCritic sur contexte vierge) relit et
+        audite ;
+      - ResearchAgent analyse les sources locales/Web et récupère des documents
+        authentifiés.
+  - Un Provider transporte les demandes entre un Agent et un LLM. Le Provider
+    n'est pas un Agent.
+  - Le ModelRouter choisit un Provider selon l'Agent, l'intention et la
+    complexité, avec gestion de débit (RateLimitManager), circuit breaker et
+    repli automatique (failover).
+  - L'Orchestrator choisit l'Agent (AgentSelector), lui attribue le Provider
+    puis coordonne la mission.
+  - Le ToolGateway (core/tool_gateway.py) centralise l'accès à toutes les
+    capacités locales et Windows, évalue chaque appel via le PolicyEngine
+    (core/policy_engine.py), applique le Human-In-The-Loop (HITL) et trace
+    chaque action horodatée dans workspace/.harness/operator_audit.jsonl.
+  - Le Harness réunit l'orchestrateur, les agents, les providers, le Tool
+    Gateway, le Policy Engine, la mémoire persistante, la bibliothèque et le
+    vérificateur déterministe (Verifier).
 
-Un LLM n'est donc pas un agent. La réponse finale est rédigée par l'Agent après
-réception des observations du modèle et des outils.
+2. Lancer NeoHarness AI (Interface Web & CLI)
 
-## Lancer le programme
+2.1 Lancer l'Interface Web Opératoire (--ui)
 
 Dans PowerShell :
 
-```powershell
 cd "$HOME\Desktop\my_ai_harness"
-python main.py
-```
+python -B main.py --ui --port 8765
 
-Choisis d'abord LOCAL ou API DISTANTE, puis un provider/modèle réellement détecté.
-Ensuite saisis une mission, par exemple :
+Puis ouvre http://127.0.0.1:8765 dans ton navigateur. L'interface Web propose :
 
-```text
+  - Mode Clair pierre chaude par défaut et bascule Mode Sombre instantanée ;
+  - 3 modes d'exécution :
+      - NeoHarness Agent (mono) : agent autonome avec outils, Computer Use,
+        terminal et vérification ;
+      - NeoHarness Swift (chat) : discussion directe ultra-rapide sans surcoût
+        de tokens d'orchestration ;
+      - NeoHarness Deep (multi) : réflexion approfondie et délégation
+        multi-agents / graphe DAG ;
+  - Palette immédiate des Slash Commands (/) dès la saisie de / ;
+  - Bannière Human-In-The-Loop proportionnée pour valider en un clic ([ Refuser
+    ], [ Autoriser ], [ Autoriser pour cette session ]) toute action sensible ;
+  - Panneau latéral droit unifié : Aperçu de document en direct (PDF compilé via
+    Tectonic, Word .docx via Pandoc, HTML interactif sandboxé, graphiques
+    Python) et Inspecteur Technique (Modèle, Skills, Activité temps réel,
+    Fichiers & Diff, Outils, Mémoire, Bibliothèque, RAG, Contexte) ;
+  - Dictée vocale style GPT avec visualisation d'onde audio temps réel
+    (AnalyserNode).
+
+2.2 Lancer le CLI interactif
+
+cd "$HOME\Desktop\my_ai_harness"
+python -B main.py
+
+Choisis d'abord [1] LOCAL ou [2] API DISTANTE, puis un provider/modèle
+réellement détecté. Ensuite saisis une mission libre ou préfixée :
+
+Prends une capture d'écran de cet écran actuel et mets-la sur le bureau
+Ouvre l'application Notepad (notepad.exe) et vérifie que la fenêtre est ouverte
 researcher: explique ce qu'est un Transformer
 coder: analyse le projet, corrige le bug décrit puis lance les tests
-```
 
-Les commandes `coder:`, `tester:`, `reviewer:` et `researcher:` fixent l'Agent.
-Une demande libre est classée par le Planner. Le mot isolé `code` demande une
-clarification, car il ne précise pas s'il s'agit de programmation ou d'une recherche.
-Tape `exit` pour arrêter.
+Les préfixes coder:, tester:, reviewer: et researcher: fixent l'Agent. Une
+demande libre est classée automatiquement par IntentEngine et Planner. Tape exit
+pour arrêter.
 
-### Skills et commandes slash
+Le lancement CLI peut aussi recevoir directement une mission ou des options :
 
-Une commande commençant par `/` est résolue avant les agents explicites et le
-Planner. Par exemple :
+python main.py "Analyse les documents du workspace" --workspace "C:\chemin\vers\mon-projet"
 
-```text
-/bacblanc suite fonction espace
-```
+Options CLI disponibles : --ui, --port, --replay <run_id>, --agent, --model,
+--workspace, --max-iterations, --max-output-tokens, --verbose, --dry-run et
+--autonomous.
 
-Le Harness découvre les dossiers de `skills/` contenant un `skill.md`. Le
-`SkillRegistry` les indexe, le `SkillRouter` sépare la commande de la mission,
-et le `SkillLoader` charge le manifeste, les règles, le YAML et l'agent éventuel.
-Une commande inconnue affiche la liste des Skills disponibles et n'est jamais
-envoyée silencieusement à `ResearchAgent`.
+3. Computer Use Windows, Policy Engine & Human-In-The-Loop
 
-Le Skill `bacblanc` porte les règles métier dans `skills/bacblanc/skill.md` et
-`rules.md`, sa configuration dans `config.yaml`, et son `BacBlancAgent` dans
-`agent.py`. Il n'est plus découvert comme agent générique dans `agents/`. Le
-SkillLoader lit réellement les deux gabarits LaTeX, et extrait les ressources RAG
-compatibles lorsqu'elles existent. Le RAG actuel est vide; aucune source n'est
-inventée.
+3.1 Boucle fermée Perception → Action → Observation → Vérification
 
-Pour créer un sujet complet, BacBlancAgent contrôle la présence des quatre
-exercices, du barème à 20 points, du corrigé complet, des gabarits remplis et de
-la relecture complète par ReviewAgent. Il peut écrire les fichiers LaTeX dans le
-workspace avec confirmation. Si un quota, une limite du provider ou des itérations
-empêche la fin, le runtime remet le meilleur contenu conservé avec un avertissement
-explicite et un statut incomplet; il ne le présente jamais comme un livrable terminé.
+NeoHarness AI ne fonctionne jamais comme une macro aveugle :
 
-Pour ajouter un Skill, crée un dossier `skills/mon_skill/` avec un `skill.md`.
-Ajoute `agent.py` si le Skill nécessite un agent spécialisé et un `config.yaml`
-si tu veux déclarer son nom affiché, ses tools, capacités ou règles de délégation.
-Il sera découvert au prochain démarrage sans modifier `main.py` ni le routeur
-générique. Un Skill sans agent est détectable, mais le lancement d'une mission
-échoue clairement jusqu'à ce qu'un agent compatible soit fourni.
-Le fichier Python `agent.py` est exécuté au chargement du Skill : n'ajoute que du
-code de confiance dans ce dossier.
+1.  Observation (tools/computer_use.py & tools/windows.py) :
+      - computer_screenshot : capture l'écran actif (ou une région), identifie
+        la fenêtre au premier plan, calcule le hash SHA-256 et peut enregistrer
+        l'image directement sur le Bureau Windows réel (save_to_desktop=True,
+        compatible Bureau local et OneDrive Bureau).
+      - computer_ocr : extrait par OCR (pytesseract) le texte visible à l'écran
+        avec les coordonnées exactes (x, y) de chaque élément pour savoir où
+        cliquer.
+      - computer_compare_screens : compare deux captures avant/après une action
+        (PIL.ImageChops.difference) et mesure le ratio de pixels modifiés
+        (diff_percent) ainsi que la boîte englobante du changement.
+      - window_list, window_active, window_find : inspectent en temps réel
+        toutes les fenêtres Windows ouvertes (titre, HWND, PID, dimensions, état
+        minimisé/maximisé/actif).
+2.  Actions Souris, Clavier & Fenêtres :
+      - Souris : computer_mouse_move, computer_click (gauche, droit, milieu,
+        double-clic), computer_drag, computer_scroll — avec Fail-Safe d'urgence
+        au coin (0, 0).
+      - Clavier : computer_type (frappe de texte), computer_press (touche
+        individuelle), computer_hotkey (Ctrl+C, Ctrl+V, Ctrl+A, Alt+Tab, Win,
+        Enter, Escape...).
+      - Fenêtres : window_focus, window_minimize, window_maximize,
+        window_restore, window_close.
+      - Boucle fermée atomique : computer_action_verified capture l'écran avant,
+        exécute l'action, attend la stabilisation, capture l'écran après et
+        vérifie mathématiquement si l'écran ou la fenêtre cible a réagi. Si un
+        clic n'a eu aucun effet (click_or_action_had_no_effect), l'agent en est
+        immédiatement informé pour corriger sa cible.
 
-Le lancement peut aussi recevoir une mission :
+3.2 Principe de proportionnalité UX & Policy Engine (core/policy_engine.py)
 
-```powershell
-python main.py "Analyse les documents du workspace"
-```
+Le niveau de friction est strictement proportionnel au niveau de risque évalué
+par le PolicyEngine (qui inspecte à la fois le nom de l'outil et ses arguments)
+:
 
-Le menu du mode et du LLM reste présenté avant l'exécution de cette mission.
+| Niveau de risque               | Actions typiques                                                                                                                                                      | Comportement HITL                                                                                          |
+| :----------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------- |
+| **`SAFE`** (`READ_ONLY`)       | `read_file`, `list_files`, `computer_screenshot`, `computer_ocr`, `window_list`, `window_active`, `process_list`, `clipboard_get`, `terminal_read`                    | **Exécution directe immédiate** (aucune confirmation inutile)                                              |
+| **`LOW`**                      | `copy_to_desktop`, `clipboard_set`, `window_focus`, `window_minimize`, `window_maximize`, `window_restore`, `terminal_start`, `terminal_stop`, `write_file`           | **Exécution directe** pour les outils opérateur simples ; aperçu en mode `EDIT`                            |
+| **`MEDIUM`** (`MODERATE`)      | `process_start` (ex: ouvrir VS Code ou Notepad), `package.install`, `terminal_send`, `computer_click`, `computer_type`, `computer_hotkey`, `computer_action_verified` | **Autorisation standard** : `[ Refuser ]`, `[ Autoriser ]`, `[ Autoriser pour cette session ]`             |
+| **`HIGH`**                     | `delete_file`, `filesystem.delete_many`, `process_stop`, `window_close`, `registry.modify`                                                                            | **Action à risque** : uniquement `[ Refuser ]` ou `[ Autoriser une fois ]` (pas d'autorisation de session) |
+| **`CRITICAL`** (`DESTRUCTIVE`) | `system.shutdown` (`shutdown /s`, `Stop-Computer`, `Restart-Computer`, formatage)                                                                                     | **Confirmation critique systématique** : uniquement `[ Refuser ]` ou `[ Autoriser une fois ]`              |
+| **`BLOCKED`**                  | Contournement UAC (`fodhelper`, `eventvwr`), désactivation d'antivirus (`Set-MpPreference`), extraction LSASS/SAM                                                     | **Refus immédiat** par le Policy Engine                                                                    |
 
-### Skills généralistes
+3.3 Terminal Interactif Persistant Windows, Processus & Presse-papiers
 
-Les Skills généralistes sont découverts dans `skills/<nom>/skill.md`. Les commandes
-qui exécutent une mission utilisent les agents, le Planner, le ModelRouter et
-l'AgentLoop déjà présents; les commandes de supervision disposent d'un
-`command.py` dédié chargé par `SkillLoader`.
-Les Skills explicites gardent la priorité; si aucun Skill ne porte le nom demandé,
-`/coder`, `/tester`, `/reviewer` et `/researcher` sont résolus vers l'agent enregistré.
+  - Terminal Persistant (tools/terminal_session.py) : terminal_start,
+    terminal_send, terminal_read, terminal_stop, terminal_list maintiennent des
+    sessions PowerShell ou CMD vivantes d'un tour à l'autre, détectent
+    instantanément la fin d'une commande (sans attente fixe inutile), gèrent les
+    prompts interactifs ([Y/n], Confirm) et laissent tourner les serveurs de
+    développement (npm run dev) en arrière-plan.
+  - Process Manager (tools/process_manager.py) : process_list, process_start,
+    process_status, process_stop.
+  - Presse-papiers (tools/clipboard.py) : clipboard_get, clipboard_set.
 
-| Commande | Rôle |
-| --- | --- |
-| `/model status`, `/model gemini`, `/model mistral`, `/model openai`, `/model ollama`, `/model auto` | Affiche l'état des providers, épingle un provider déjà disponible dans la session, ou réactive le routage configuré. Un modèle peut être précisé après le provider lorsqu'il a été validé par celui-ci. |
-| `/auto <mission>` | Classe la mission, choisit un agent enregistré puis un provider par le routeur. Les tools sont limités à ceux requis par la décision d'intention et autorisés par le Skill. |
-| `/compare <mission>` | Interroge jusqu'à quatre providers chargés, garde les réponses en cas d'échec partiel, puis demande une synthèse au ReviewAgent. Les appels distants peuvent être facturés. |
-| `/route <mission>` | Affiche la sélection réelle de l'AgentSelector et du ModelRouter puis exécute avec l'AgentLoop. |
-| `/workflow <mission>` | Réutilise le cycle AgentLoop, ses outils, sa vérification et la délégation lorsqu'elle est demandée par l'agent. |
-| `/plan <mission>` | Affiche une prévisualisation du Planner sans appel de modèle ni modification. |
-| `/diagnostic` | Vérifie localement Skills, agents, tools, workspace, configuration, ressources et statut Git. Il compte les fichiers de tests, mais ne lance pas les tests et ne fait pas d'appel API de diagnostic. |
-| `/research <mission>`, `/analyze <mission>`, `/debug <mission>`, `/review <mission>`, `/test <mission>`, `/refactor <mission>` | Réutilise respectivement ResearchAgent, ResearchAgent, CodeAgent, ReviewAgent, TestAgent et CodeAgent avec les règles et permissions de chaque Skill. Gemini Search grounding n'est disponible que si la mission l'exige et que Gemini est le provider utilisé. |
-| `/context` | Compte l'historique, les fichiers et ressources suivis sans afficher le contenu de l'historique. |
-| `/memory status` ou `/memory remember ...` | Gère les notes temporaires, décisions et préférences de session. Une note de projet ne persiste que si elle est explicitement demandée et que l'écriture est autorisée. Les secrets détectés sont refusés. |
-| `/export markdown`, `/export latex`, `/export pdf`, `/export docx` | Convertit le dernier résultat en fichier dans `workspace/exports/`; l'écriture passe par la politique de permission. |
-| `/mode`, `/mode edit`, `/mode plan`, `/mode accept`, `/mode auto` | Affiche ou change le mode global, appliqué à tous les Skills, agents, tools et délégations. `Shift+Tab` parcourt EDIT → PLAN → ACCEPT → AUTO. |
+4. Skills et commandes slash (/)
 
-### Modes de travail
+Une commande commençant par / est résolue par SkillRouter et SkillLoader.
 
-Le mode initial est **ACCEPT**. Il est distinct du choix LOCAL/API du provider.
+4.1 Skills éducatifs (skills/education/)
 
-- **EDIT** : autorise directement `write_file` et `patch_file` après affichage
-  dans le terminal du chemin et de l'action. Les outils plus risqués restent
-  soumis aux permissions habituelles.
-- **PLAN** : bloque au niveau central les tools mutateurs, y compris ceux que le
-  modèle demanderait malgré leur absence des schémas. Le workspace reste lisible.
-- **ACCEPT** : comportement normal; les opérations sensibles demandent
-  confirmation via la politique existante.
-- **AUTO** : active le mécanisme `autonomous` déjà présent dans la politique de
-  permissions pour permettre l'enchaînement des actions autorisées. `--dry-run`
-  reste prioritaire.
+  - /bacblanc <mission> : génère un sujet complet de Bac Blanc et son barème
+    détaillé sur 20 points à partir des gabarits LaTeX officiels et des
+    programmes de mathématiques en RAG, compilés automatiquement en PDF via
+    Tectonic.
+  - /dm <mission> : génère un Devoir Maison structuré en LaTeX/PDF à partir du
+    gabarit officiel template_dm.tex.
+  - /exercice <mission> : génère une fiche d'exercice ciblée en LaTeX/PDF à
+    partir du gabarit officiel template_exercice.tex.
 
-L'option CLI historique `--autonomous` reste un forçage explicite conservé pour
-compatibilité. Le panneau des modes apparaît au démarrage et le mode courant reste
-visible dans l'invite. `Shift+Tab` est intercepté dans `PromptSession` avec une
-liaison clavier `BackTab`, indépendamment du Skill actif; `msvcrt` reste le fallback
-Windows. Les événements de mode sont traduits en français par le même observateur
-générique que les outils et les providers.
+4.2 Skills généralistes et de supervision
 
-`/model status` ne révèle jamais la valeur d'une clé. Il vérifie réellement Ollama
-et le modèle local; pour les providers distants, il indique si l'instance et les
-credentials sont chargées, sans prétendre que l'API a été sondée. La sélection à
-chaud ne concerne que les providers chargés au démarrage (sauf détection locale
-d'Ollama demandée explicitement). `/model auto` rétablit les routes configurées.
+| Commande                                                 | Rôle                                                                                                 |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `/analyze <mission>`                                     | Analyse approfondie de documents, d'architecture ou de données avec `ResearchAgent`.                 |
+| `/auto <mission>`                                        | Classe la mission, choisit l'agent et le provider optimal via `AgentSelector` et `ModelRouter`.      |
+| `/compare <mission>`                                     | Interroge plusieurs providers chargés et produit une synthèse comparative via `ReviewAgent`.         |
+| `/context`                                               | Inspecte l'historique, les fichiers suivis et le budget de contexte actif.                           |
+| `/debug <mission>`                                       | Reproduit un bug, identifie la cause racine, applique le correctif minimal et relance les tests.     |
+| `/diagnostic`                                            | Vérifie localement Skills, agents, tools, workspace, configuration, ressources et statut Git.        |
+| `/export markdown\|latex\|pdf\|docx`                     | Exporte le dernier résultat dans `workspace/exports/`.                                               |
+| `/memory status` ou `/memory remember ...`               | Gère la mémoire de session, les notes projet et la mémoire persistante cross-session.                |
+| `/mode [edit\|plan\|accept\|auto]`                       | Affiche ou change le mode global (`Shift+Tab` en CLI parcourt `EDIT → PLAN → ACCEPT → AUTO`).        |
+| `/model [status\|gemini\|openai\|mistral\|ollama\|auto]` | Affiche l'état des providers ou épingle dynamiquement un modèle pour la session.                     |
+| `/plan <mission>`                                        | Affiche la prévisualisation du plan d'exécution sans appel modèle ni modification.                   |
+| `/refactor <mission>`                                    | Refactorise du code avec `CodeAgent` en vérifiant l'absence de régression par les tests.             |
+| `/research <mission>`                                    | Recherche documentaire et Web vérifiée avec distinction `FACT` / `SOURCE` / `INFERENCE` / `UNKNOWN`. |
+| `/review <mission>`                                      | Audit critique de code ou de document par `ReviewAgent`.                                             |
+| `/route <mission>`                                       | Affiche la décision de routage (`AgentSelector` + `ModelRouter`) puis exécute la mission.            |
+| `/test <mission>`                                        | Exécute et analyse la suite de tests avec `TestAgent`.                                               |
+| `/workflow <mission>`                                    | Orchestre un workflow multi-étapes ou multi-agents (délégation séquentielle ou graphe DAG).          |
 
-`/auto` utilise le classifieur d'intention et les routes configurées; il ne calcule
-pas un coût financier et ne mesure pas automatiquement les performances des modèles.
-`/workflow` donne les consignes de séquencement au même AgentLoop : le plan est
-adaptatif, et un agent secondaire n'est exécuté que si une délégation réelle est
-demandée et autorisée. Les événements de l'AgentLoop (`provider.started`,
-`tool.completed`, `delegation.*`, `verification.*`, `delivery.*`) sont traduits
-en messages français génériques dans le terminal; ils peuvent aussi alimenter une
-future interface sans logique propre à BacBlanc.
+5. Providers et configuration des clés API
 
-## Providers et sélection du modèle
+5.1 LOCAL — Ollama
 
-### LOCAL — Ollama
+Vérifie ollama.exe, le serveur local 127.0.0.1:11434 et le modèle configuré dans
+config/config.yaml (qwen3:1.7b par défaut).
 
-Le provider vérifie `ollama.exe`, le serveur local `127.0.0.1:11434` et le modèle
-configuré dans `config/config.yaml`. Il ne télécharge aucun modèle et n'appelle pas
-Internet. La configuration actuelle sélectionne `qwen3.5:4b-q4_K_M`.
+5.2 API DISTANTE — Gemini, OpenAI, Mistral & Modèles Personnalisés
 
-### API DISTANTE — OpenAI, Gemini et Mistral
+Tu peux configurer tes clés API :
 
-OpenAI utilise `gpt-5-mini` configuré dans `config/config.yaml` et la variable
-d'environnement `OPENAI_API_KEY`. Gemini utilise le SDK officiel `google-genai` et
-`GEMINI_API_KEY`. Mistral utilise le SDK officiel `mistralai` et `MISTRAL_API_KEY`.
-Claude reste une interface non connectée et n'est jamais annoncé comme disponible.
+  - directement depuis l'interface Web via le bouton Paramètres (⚙) de la barre
+    supérieure (POST /api/credentials),
+  - dans un fichier .env local (ignoré par Git),
+  - ou en variable d'environnement PowerShell :
 
-Quand Gemini est choisi, le menu récupère auprès de l'API les modèles accessibles
-qui prennent en charge `generateContent`, puis te laisse sélectionner leur ID exact.
-La liste inclut `gemini-3.5-flash-lite` lorsqu'il est exposé pour la clé utilisée.
-Google le documente comme modèle stable avec function calling et Search grounding :
-[modèles Gemini](https://ai.google.dev/gemini-api/docs/models),
-[Gemini 3.5 Flash-Lite](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite).
+$env:GEMINI_API_KEY = "votre_cle_gemini"
+$env:OPENAI_API_KEY = "votre_cle_openai"
+$env:MISTRAL_API_KEY = "votre_cle_mistral"
 
-Dans `config/config.yaml`, le champ `providers.gemini.model` est la préférence du
-routeur lorsqu'aucun choix Gemini direct n'a été fait. Le routeur peut utiliser
-`gemini_flash_lite` pour les demandes simples si ce modèle est disponible, et
-`gemini` pour les demandes plus complexes. Les routes sont des préférences : si un
-provider n'est pas disponible, le routeur revient au provider de session choisi.
+6. Mémoire Persistante, Bibliothèque & Observabilité
 
-Lorsque Mistral est configuré et que `MISTRAL_API_KEY` est présente, le menu appelle
-l'API officielle de liste des modèles et propose tous les modèles accessibles qui
-prennent en charge le chat. Tu peux choisir leur ID exact au démarrage ou avec
-`--model`. `providers.mistral.model` dans la configuration ne sert que de préférence
-de tri. Le provider prend aussi en charge les tool calls natifs lorsque le modèle les
-déclare; les modèles sans cette capacité restent utilisables pour les réponses texte.
-Le décodeur Brotli du transport HTTP doit être en version `1.2.0` ou plus récente.
-Cette dépendance est déclarée dans `requirements.txt`; pour corriger notamment
-`process() takes no keyword arguments`, mets à jour avec
-`python -m pip install --upgrade -r requirements.txt`.
-Références officielles : [démarrage API Mistral](https://docs.mistral.ai/getting-started/quickstarts/developer/first-api-request),
-[API de liste des modèles](https://docs.mistral.ai/api/endpoint/models) et
-[catalogue des modèles](https://docs.mistral.ai/models).
+  - Mémoire Persistante (workspace/.harness/persistent_memory.json) : retient
+    les règles permanentes, préférences et décisions d'une session à l'autre
+    (compréhension naturelle des demandes comme « Mémorise cette règle pour les
+    prochaines fois »).
+  - Mémoire Réflexive (ReflectiveMemory) : enregistre automatiquement les leçons
+    expérientielles lorsque l'agent surmonte un échec d'outil ou de
+    vérification.
+  - Bibliothèque Intelligente (workspace/.harness/library.json) : indexe et
+    organise les documents, notes et ressources produits avec recherche, tags et
+    épinglage.
+  - Observabilité Opérateur (workspace/.harness/operator_audit.jsonl) :
+    journalise chaque action passant par le ToolGateway avec horodatage précis
+    (AGENT_CALL, POLICY, HITL, VERIFICATION).
+  - Télémétrie & Auto-Audit (workspace/.harness/telemetry.jsonl) : suit la
+    latence, les tokens, les erreurs 429 et le taux de réussite des missions.
 
-Configure les clés dans la session PowerShell. La valeur n'est ni demandée par le
-programme, ni affichée, ni écrite dans le projet :
+7. Installation et exécution des tests
 
-```powershell
-$secureKey = Read-Host "Clé API OpenAI" -AsSecureString
-$env:OPENAI_API_KEY = [System.Net.NetworkCredential]::new("", $secureKey).Password
-Remove-Variable secureKey
+7.1 Installation des dépendances
 
-$secureGeminiKey = Read-Host "Clé API Gemini" -AsSecureString
-$env:GEMINI_API_KEY = [System.Net.NetworkCredential]::new("", $secureGeminiKey).Password
-Remove-Variable secureGeminiKey
-
-$secureMistralKey = Read-Host "Clé API Mistral" -AsSecureString
-$env:MISTRAL_API_KEY = [System.Net.NetworkCredential]::new("", $secureMistralKey).Password
-Remove-Variable secureMistralKey
-
-python main.py
-```
-
-Pour mettre à niveau le SDK Mistral et installer les dépendances, lance
-`python -m pip install --upgrade -r requirements.txt`.
-
-Une souscription ChatGPT n'est pas une clé API OpenAI. Le provider OpenAI utilise
-l'API OpenAI et sa facturation distincte.
-
-## Boucle agentique et vérification
-
-Pour chaque mission, le Planner classe l'intention, assigne un Agent et crée des
-étapes de départ. `TaskState` conserve l'objectif, les contraintes, le plan, les
-observations, les résultats d'outils, les fichiers, les erreurs et les vérifications.
-L'AgentLoop limite le nombre d'itérations, de relances et d'appels d'outils.
-
-OpenAI Responses, Gemini function calling, Mistral Chat Completions et Ollama `/api/chat` conservent leur
-historique natif pour les tool calls. Gemini renvoie les objets `Content` et `Part`
-complets au tour suivant afin de préserver les `thought_signature`; les pensées ne
-sont pas affichées comme texte. Les appels d'outils Gemini sont limités à une boucle
-contrôlée par le harness, et non exécutés automatiquement par le SDK. Google décrit
-le format et la conservation des signatures dans sa
-[documentation function calling](https://ai.google.dev/gemini-api/docs/function-calling)
-et sa [documentation des thought signatures](https://ai.google.dev/gemini-api/docs/thought-signatures).
-
-Les vérifications s'appuient sur des observations concrètes :
-
-- analyse de fichier : un `read_file` ou `read_document` a réellement réussi ;
-- modification : le fichier est relu et son hash correspond à l'écriture, puis une
-  suite non vide doit se terminer avec un code nul ;
-- correction de bug : une suite non vide doit aussi échouer avant la première
-  modification ;
-- tests : `unittest` doit avoir exécuté au moins un test ; zéro test n'est pas un succès ;
-- recherche Web : Gemini doit retourner des sources HTTPS de son grounding.
-
-Le programme affiche `answered` quand il a répondu sans vérification déterministe,
-`verified` quand les contrôles demandés ont réussi sans test, et `success` seulement
-quand une suite de tests non vide a réussi. Une réponse linguistique ou une lecture
-de document n'est pas présentée comme un test logiciel.
-
-Les échecs d'outil et de vérification sont renvoyés au modèle pour une tentative de
-correction bornée. Une modification n'est déclarée vérifiée qu'après relecture et
-tests. Les tâches simples de réponse peuvent ne pas appeler d'outil.
-
-## Outils, workspace et autorisations
-
-Outils enregistrés :
-
-- Fichiers : `list_files`, `find_file`, `search_files`, `read_file`, `read_document`,
-  `write_file`, `patch_file`, `delete_file`, `move_file`.
-- Exécution : `run_tests` et `run_python` (scripts Python présents dans le workspace).
-- Git : statut, branche courante, création de branche, commit des fichiers staged et merge.
-- Web : Gemini Google Search grounding quand la mission demande des sources. Il n'y a
-  pas de navigateur Web générique configuré; une recherche sans source ne sera pas
-  présentée comme vérifiée.
-
-Par défaut, l'accès se limite au dossier `my_ai_harness`. Les chemins `..`, liens
-symboliques, `.env*`, `.git`, dossiers de secrets et caches d'exécution sont refusés
-ou masqués. Les textes extraits sont bornés et les motifs courants de clés sont
-masqués. Les formats pris en charge sont TXT, MD, JSON, YAML, CSV, PDF, DOCX, XLSX,
-PPTX, HTML, CSS, JS, TS et PY. Les PDF scannés nécessitent PyMuPDF, Pillow, pytesseract
-et le programme Tesseract installé ; sans OCR utilisable, la lecture échoue clairement.
-
-En mode ACCEPT, écriture, suppression, Git mutateur, `run_tests` et `run_python`
-demandent une confirmation. En EDIT, `write_file` et `patch_file` sont précédés
-d'un aperçu et peuvent être appliqués directement; les autres actions sensibles
-gardent leur confirmation. PLAN bloque toutes les actions mutatrices. `--dry-run`
-reste un verrou absolu. `--autonomous` est un consentement CLI distinct qui supprime
-les confirmations mutatrices et ne doit être utilisé que si tu l'autorises. Le mode
-AUTO active le même mécanisme de permissions pour la session et le désactive en
-quittant AUTO, sauf si le forçage CLI explicite est actif.
-Les scripts et tests s'exécutent avec les droits Windows de l'utilisateur : le harness
-retire les variables d'environnement de secrets usuelles, mais ne constitue pas un
-sandbox système pour du code hostile.
-
-Dans la CLI, Git passe par `GitWorkspace` et est exécuté réellement après confirmation.
-Les anciennes fonctions directes `tools.git.status()`/`branch()` restent des stubs de
-compatibilité et ne sont pas utilisées par le runtime.
-
-Pour travailler sur un autre projet, donne explicitement son chemin comme workspace :
-
-```powershell
-python main.py --workspace "C:\chemin\vers\mon-projet"
-```
-
-Le dossier doit déjà exister. Sans cette option, le harness ne parcourt pas les autres
-projets du PC.
-
-Options disponibles : `--agent`, `--model`, `--workspace`, `--max-iterations`,
-`--max-output-tokens`, `--verbose`, `--dry-run` et `--autonomous`.
-
-## Mémoire et observabilité
-
-- **Task memory** : `TaskState`, en RAM pendant une mission.
-- **Session memory** : contexte compacté à cinq entrées et environ 6 000 caractères.
-- **Mémoire projet** : uniquement les notes explicitement ajoutées par `/memory remember project ...`, après permission; le fichier est `.harness/project_memory.json` dans le workspace. L'historique des conversations n'est pas persisté.
-- Les actions et résultats sont visibles dans le terminal et dans les observations
-  structurées renvoyées par l'AgentLoop. Il n'y a pas de journal persistant des prompts.
-
-Le contrôle de coût s'appuie sur `--max-iterations`, `--max-output-tokens`, les
-timeouts et un nombre borné de retries. Le SDK OpenAI et Gemini ont des reprises
-bornées; Ollama est limité par le timeout du provider. Aucun budget monétaire ne peut
-être calculé à partir de ces limites.
-
-## Dépendances et tests
-
-Par défaut, l'AgentLoop autorise 20 tours. BacBlanc configure un budget de sortie
-de 16 384 tokens par tour et 20 tours afin de laisser terminer ses documents longs;
-ce budget est temporaire et ne s'applique pas aux autres agents. Les options de
-ligne de commande restent disponibles. Le terminal indique la taille de la réponse,
-les appels d'outils et les continuations partielles de chaque tour.
-
-Installe les dépendances listées si elles ne sont pas déjà disponibles :
-
-```powershell
 python -m pip install --upgrade -r requirements.txt
-```
 
-La suite locale n'a besoin d'aucune clé et ne fait pas d'appel réseau :
+7.2 Exécution des suites de tests
 
-```powershell
-python -m unittest discover -s tests -t . -v
-```
+Tester spécifiquement l'architecture Opérateur Windows (Computer Use, Policy
+Engine, HITL, Tool Gateway, Terminal persistant, Process, Fenêtres,
+Presse-papiers) :
 
-Les tests provider utilisent des clients de test; ils ne valident pas l'accès aux
-comptes OpenAI, Gemini ou Mistral. Un vrai test distant nécessite une clé configurée.
+python -B -m unittest tests/test_windows_computer_use_agent.py -v
 
-## Architecture actuelle et limites
+Lancer les suites de validation du noyau, des skills, du multi-agents et de
+l'environnement UI :
 
-- `main.py` : CLI, choix du mode/modèle, configuration workspace et autorisations.
-- `core/orchestrator.py` : garde aussi l'ancienne méthode `run(Task) -> str` et expose
-  `run_agentic(Task, AgentLoop) -> AgentResult`.
-- `core/agent_loop.py`, `planner.py`, `task_state.py`, `verifier.py` : cycle, plan,
-  état structuré et vérifications.
-- `core/router.py` : parse la configuration simple et route par intention/complexité.
-- `agents/` : CodeAgent, TestAgent, ReviewAgent et ResearchAgent.
-- `skills/` : registre, chargeur, routeur slash et Skill métier BacBlanc.
-- `providers/` : Ollama, OpenAI, Gemini et Mistral; Claude et LocalProvider restent non connectés.
-- `tools/` : filesystem, extraction documentaire, exécution Python/tests, Git, recherche.
+python -B -m unittest tests/test_runtime.py tests/test_skills.py tests/test_general_skills.py tests/test_multi_agent_runtime.py tests/test_ui_environment.py tests/test_windows_computer_use_agent.py -v
 
-Le runtime prend en charge la délégation séquentielle demandée par un agent via le
-tool virtuel `delegate_to_agent`; il ne lance pas encore automatiquement toute
-combinaison secondaire sans instruction du Planner ou de l'agent. La classification
-d'intention est une estimation heuristique explicable, pas un classifieur sémantique
-universel. Les tools Web disponibles dépendent du provider (Gemini Search grounding
-est distinct d'un navigateur générique); le runtime ne garantit pas l'ouverture de
-toute page citée. La mémoire longue reste désactivée, Claude n'est pas connecté, et
-les programmes s'exécutent avec les droits Windows du compte : le workspace borné et
-le nettoyage de variables secrètes ne constituent pas une sandbox OS.
+Compiler et vérifier la syntaxe de l'ensemble du dépôt :
 
-### Ajouter un agent
-
-Crée un module `agents/mon_agent.py` et une classe qui hérite de `BaseAgent` ou
-`Agent`. Déclare `name`, `description`, `capabilities` et, si utile,
-`supported_intents`/`allowed_tools`. Un constructeur sans argument est découvert par
-`AgentRegistry`; si aucun `routing_key` n'est déclaré, il est construit depuis le nom
-de la classe. Les providers et le ModelRouter ne doivent pas être importés dans
-l'agent. Pour une capacité spécifique, exprime-la dans les métadonnées : le registre
-et le sélecteur l'exposeront sans modification de `core/router.py`.
-
-### Tests du runtime multi-agents
-
-```powershell
 python -m compileall -q .
-python -m unittest discover -v
-```
 
-Le test E2E utilise des providers de test pour rendre les choix de délégation
-déterministes, mais exécute réellement le registre, l'orchestrateur, la boucle,
-`read_document`, `run_tests`, le workspace et le vérificateur. Il ne valide pas un
-appel réseau OpenAI/Gemini ni le comportement spontané d'un LLM réel en délégation.

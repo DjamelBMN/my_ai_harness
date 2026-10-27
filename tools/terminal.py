@@ -236,3 +236,67 @@ def execute_bounded_command(
             "stderr": truncate_output(stderr),
             "error": f"Commande interrompue après {timeout}s (timeout strict dépassé).",
         }
+
+
+def terminal_start(
+    session_id: str = "default",
+    shell: str = "powershell",
+    cwd: str | Path | None = None,
+) -> dict[str, Any]:
+    """Démarre ou récupère une session de terminal interactif persistant Windows."""
+    from tools.terminal_session import get_terminal_manager
+
+    return get_terminal_manager().start_session(session_id=session_id, shell=shell, cwd=cwd)
+
+
+def terminal_send(
+    command: str,
+    session_id: str = "default",
+    wait_ms: int = 1200,
+    cwd: str | Path | None = None,
+) -> dict[str, Any]:
+    """Envoie une commande ou réponse interactive dans le terminal persistant et lit stdout/stderr."""
+    from tools.terminal_session import get_terminal_manager
+
+    effective_cwd = Path(cwd).resolve() if cwd else None
+    cmd_str = (command or "").strip()
+    # Si le terminal est lancé depuis workspace/ mais que la commande cible tests/ ou main.py à la racine du projet,
+    # se placer automatiquement à la racine du projet pour que la commande trouve les fichiers.
+    if (
+        effective_cwd is not None
+        and effective_cwd.name.lower() == "workspace"
+        and any(tok in cmd_str for tok in ("tests/", "tests\\", "main.py", "unittest"))
+        and (effective_cwd.parent / "tests").is_dir()
+    ):
+        effective_cwd = effective_cwd.parent
+        cmd_str = f"Set-Location -LiteralPath '{effective_cwd}'; {cmd_str}"
+
+    # Adapter automatiquement l'attente si la commande lance des tests
+    effective_wait = max(int(wait_ms or 1200), 3500 if "unittest" in cmd_str else 800)
+    return get_terminal_manager().send_input(
+        command=cmd_str,
+        session_id=session_id,
+        wait_ms=effective_wait,
+        cwd=effective_cwd,
+    )
+
+
+def terminal_read(session_id: str = "default", wait_ms: int = 300) -> dict[str, Any]:
+    """Lit les nouvelles sorties stdout/stderr du terminal persistant (ex: serveur npm run dev)."""
+    from tools.terminal_session import get_terminal_manager
+
+    return get_terminal_manager().read_output(session_id=session_id, wait_ms=wait_ms)
+
+
+def terminal_stop(session_id: str = "default") -> dict[str, Any]:
+    """Arrête proprement une session de terminal persistant."""
+    from tools.terminal_session import get_terminal_manager
+
+    return get_terminal_manager().stop_session(session_id=session_id)
+
+
+def terminal_list() -> dict[str, Any]:
+    """Liste toutes les sessions de terminal persistantes actives."""
+    from tools.terminal_session import get_terminal_manager
+
+    return get_terminal_manager().list_sessions()

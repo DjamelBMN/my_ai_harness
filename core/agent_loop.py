@@ -298,6 +298,22 @@ class AgentLoop:
                 "CONSEIL D'AUTO-RÉPARATION : Des tests ont échoué. "
                 "Lis la trace d'erreur, corrige le fichier concerné avec 'write_file' ou 'patch_file', puis relance 'run_tests'."
             )
+        if "click_or_action_had_no_effect" in combined or tool_name == "computer_action_verified":
+            return (
+                "CONSEIL D'AUTO-RÉPARATION (COMPUTER USE) : L'action n'a produit aucun changement visuel à l'écran "
+                "ou la fenêtre attendue n'est pas apparue. Prends une capture ('computer_screenshot' ou 'computer_ocr') "
+                "ou liste les fenêtres ('window_list') pour vérifier les coordonnées avant de réessayer."
+            )
+        if "window_not_found" in combined or tool_name.startswith("window_"):
+            return (
+                "CONSEIL D'AUTO-RÉPARATION (FENÊTRES) : La fenêtre demandée est introuvable. "
+                "Appelle 'window_list' pour connaître les titres exacts des fenêtres ouvertes ou 'process_start' pour lancer l'application."
+            )
+        if "process_exited_prematurely" in combined or "application_not_found" in combined:
+            return (
+                "CONSEIL D'AUTO-RÉPARATION (PROCESSUS) : L'application n'a pas démarré ou s'est terminée prématurément. "
+                "Vérifie le chemin de l'exécutable ou lance la commande via 'terminal_send' pour observer la sortie d'erreur."
+            )
         return (
             f"CONSEIL D'AUTO-RÉPARATION : L'outil '{tool_name}' a retourné une erreur. "
             "Ne répète pas le même appel avec les mêmes arguments ; adapte ta stratégie."
@@ -518,6 +534,12 @@ class AgentLoop:
                 ) if getattr(task, "deep_reflection", False) else "",
                 _CHAT_DIRECTIVE,
                 (
+                    "RÈGLE STRICTE DE SÉLECTION DES OUTILS & D'EXÉCUTION RAPIDE :\n"
+                    "- Hiérarchie obligatoire : outil natif spécialisé (computer_screenshot, copy_to_desktop, window_*, process_*, terminal_*, clipboard_*) > outil filesystem > outil terminal > Python.\n"
+                    "- N'utilise JAMAIS Python (run_python) ni write_file pour créer un script intermédiaire lorsqu'un outil natif permet de réaliser l'action.\n"
+                    "- Si 'ÉVIDENCE INITIALE ISSUE DES OUTILS' ci-dessus montre que l'action demandée (ex: capture d'écran enregistrée sur le Bureau avec 'saved_to_desktop': true, ou liste des fenêtres) a DÉJÀ réussi et est vérifiée, NE RAPPELLE AUCUN OUTIL : donne immédiatement la réponse finale claire et concise."
+                ),
+                (
                     "Tu peux appeler les outils déclarés. L'appel d'un outil ne prouve "
                     "pas sa réussite : attends son résultat, observe-le, corrige si "
                     "nécessaire, puis donne une réponse finale. N'invente jamais un "
@@ -624,7 +646,11 @@ class AgentLoop:
                             {"kind": "source", "status": "verified", **source_entry}
                         )
         raw_out = _truncate(execution.output, max_chars)
-        if execution.status == "error":
+        unverified_gui = (
+            isinstance(execution.data, dict)
+            and execution.data.get("verified") is False
+        )
+        if execution.status == "error" or unverified_gui:
             hint = AgentLoop._build_tool_error_hint(execution.tool, execution.summary, raw_out)
             raw_out = f"{raw_out}\n\n{hint}" if raw_out else hint
         return {

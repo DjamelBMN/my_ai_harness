@@ -43,7 +43,15 @@ class Context:
         if self.task_context is not None and hasattr(self.task_context, "record_file"):
             self.task_context.record_file(path)
         if snippet:
-            self.history.append(f"[Fichier joint {path}]: {snippet[:1000]}")
+            # Remplacer tout ancien extrait du même fichier pour éviter les doublons
+            prefix = f"[Fichier joint {path}]:"
+            self.history = [h for h in self.history if not h.startswith(prefix)]
+            self.history.append(f"{prefix} {snippet[:1000]}")
+
+    def clear_stale_files(self) -> None:
+        """Purge les fichiers joints et extraits précédents lorsque l'utilisateur change de sujet ou de niveau."""
+        self.files.clear()
+        self.history = [h for h in self.history if not h.startswith("[Fichier joint ")]
 
     def describe(self) -> str:
         """Produit une description courte du contexte pour l'agent."""

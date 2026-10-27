@@ -193,6 +193,91 @@ class TaskContext:
         ]
         return any(trig in clean for trig in new_task_triggers)
 
+    @staticmethod
+    def is_pivot_request(prompt: str) -> bool:
+        """Détecte si l'utilisateur corrige sa demande, bifurque ou change de niveau/sujet
+        (ex: 'pluto de seconde', 'non fais un exos de seconde', 'autre exercice')."""
+        clean = " ".join((prompt or "").replace("’", "'").strip().lower().split())
+        if not clean:
+            return False
+        pivot_patterns = (
+            r"\b(?:plut[ôo]t|pluto)\b",
+            r"^(?:non|nan|nope|pas\s+ça|pas\s+ca|pas\s+celui)\b",
+            r"\b(?:fais|donne|crée|cree|propose)[-\s]+(?:moi\s+)?(?:un\s+|une\s+)?(?:autre|exos?|exercice|sujet)\b",
+            r"\b(?:de|niveau|en|pour)\s+(?:seconde|2nde|premi[èe]re|1[èe]re|terminale|tle|3[èe]me|sixi[èe]me|coll[èe]ge)\b",
+            r"\b(?:oublie\s+le\s+fichier|sans\s+le\s+fichier|change\s+d'exercice)\b",
+        )
+        return any(re.search(pat, clean, re.IGNORECASE) for pat in pivot_patterns)
+
+    def clear_stale_files(self) -> None:
+        """Détache les anciens fichiers de la tâche lorsque l'utilisateur bifurque vers un nouvel exercice/sujet."""
+        self.files.clear()
+        self.downloaded_file = ""
+        self.artifact_path = ""
+
+    def resolve_intent_directive(
+        self,
+        prompt: str,
+        current_attachments: list[str] | None = None,
+    ) -> str:
+        """Résout les intentions humaines implicites, elliptiques ou contenant des fautes de frappe."""
+        clean = (prompt or "").strip()
+        norm = " ".join(clean.replace("’", "'").lower().split())
+        atts = [a for a in (current_attachments or []) if a]
+
+        # Cas 1 : Une pièce jointe vient d'être envoyée avec un message court, flou ou une coquille ('c est oui ?', 'c quoi', '?')
+        if atts:
+            vague_or_typo_question = (
+                len(norm.split()) <= 5
+                or any(
+                    k in norm
+                    for k in (
+                        "c est oui", "c'est oui", "c est quoi", "c'est quoi", "c quoi",
+                        "qu'est-ce", "quest-ce", "explique", "analyse", "dis-moi", "?",
+                    )
+                )
+            )
+            if vague_or_typo_question:
+                return (
+                    f"[INTENTION EXPLICITE RÉSOLUE SUR PIÈCE JOINTE : L'utilisateur vient de joindre {atts} "
+                    f"avec le message court « {clean} » (même s'il y a une faute de frappe comme 'c est oui ?' pour 'c'est quoi ?'). "
+                    "Ne lui demande JAMAIS de préciser sa question : analyse, résume et explique directement et clairement "
+                    "le contenu de la pièce jointe qui vient d'être transmise.]"
+                )
+
+        # Cas 2 : Pivot / changement de niveau ou de consigne ('pluto de seconde', 'non fais un exos de seconde')
+        if not atts and self.is_pivot_request(norm):
+            prev_user = self.turns[-1].get("user", "") if self.turns else self.initial_objective
+            level_match = re.search(
+                r"\b(seconde|2nde|premi[èe]re|1[èe]re|terminale|tle|3[èe]me|troisi[èe]me)\b",
+                norm,
+            )
+            level_hint = ""
+            if level_match:
+                lvl = level_match.group(1)
+                level_hint = (
+                    f" Niveau exigé : **{lvl.capitalize()}** (respecte strictement le programme officiel de {lvl} : "
+                    "par exemple en Seconde, n'utilise NI logarithme ln(x), NI dérivée f'(x), NI limite en l'infini ; "
+                    "utilise les fonctions de référence, tableaux de valeurs/variations, second degré canonique, géométrie ou probabilités de Seconde)."
+                )
+            return (
+                f"[CORRECTION D'INTENTION / PIVOT PRIORITAIRE : L'utilisateur modifie ou corrige la demande précédente "
+                f"(« {prev_user} ») par : « {clean} ». "
+                "INTERDICTION ABSOLUE de répéter ou de corriger à nouveau l'exercice ou le PDF du tour précédent. "
+                f"Rédige immédiatement un NOUVEAU contenu répondant exactement à « {clean} ».{level_hint}]"
+            )
+
+        # Cas 3 : Demande courte de conversion/export du dernier résultat ('mets-le en word', 'en pdf')
+        if not atts and self.turns and any(
+            k in norm for k in ("en word", "en docx", "fichier word", "en pdf", "sur le bureau")
+        ):
+            return (
+                f"[CONTINUITÉ D'EXPORT : L'utilisateur demande (« {clean} ») de convertir ou d'exporter "
+                "le contenu qui vient d'être élaboré au tour précédent dans le format demandé.]"
+            )
+
+        return ""
+
     def record_turn(
         self,
         user_prompt: str,

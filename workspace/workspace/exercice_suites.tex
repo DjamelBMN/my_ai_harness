@@ -1,0 +1,156 @@
+% Compiler avec XeLaTeX ou LuaLaTeX
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{amsmath,amssymb}
+\usepackage{fontspec}
+\usepackage{unicode-math}
+\usepackage{polyglossia}
+\setmainlanguage{french}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage[margin=2cm,headheight=16pt,headsep=22pt]{geometry}
+\usepackage{enumitem}
+
+% Police principale et police mathématique : Libertinus
+\IfFontExistsTF{Libertinus Serif}
+  {\setmainfont{Libertinus Serif}}
+  {\IfFontExistsTF{Latin Modern Roman}{\setmainfont{Latin Modern Roman}}{\setmainfont{lmroman10-regular.otf}}}
+
+\IfFontExistsTF{Libertinus Math}
+  {\setmathfont{Libertinus Math}}
+  {\IfFontExistsTF{Latin Modern Math}{\setmathfont{Latin Modern Math}}{\setmathfont{latinmodern-math.otf}}}
+
+\linespread{1.07}
+\setlength{\parindent}{0pt}
+\AtBeginDocument{\setlength{\parindent}{0pt}}
+\setlength{\parskip}{0.35em}
+
+% En-tête
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Enseignant de Mathématiques}
+\rhead{Terminale Spécialité Maths}
+\usepackage{lastpage}
+\cfoot{Page \thepage\ / \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\headrule}{\vskip 5pt\hrule width\headwidth height\headrulewidth \vskip-\headrulewidth}
+
+% Configuration des listes
+\setlist[enumerate,1]{itemsep=0.45em, topsep=0.3em, label=\textbf{\arabic*.}}
+\setlist[enumerate,2]{itemsep=0.25em, topsep=0.2em, label=\textbf{\alph*.}}
+
+\newcommand{\exo}[2]{%
+  \vspace{1.5em}%
+  \noindent{\large\textbf{Exercice #1. -- #2}}%
+  \par\vspace{0.35em}%
+  \hrule height 0.5pt%
+  \vspace{0.7em}%
+}
+
+\newcommand{\partie}[1]{%
+  \vspace{0.9em}%
+  \noindent\textbf{#1}%
+  \par\vspace{0.3em}%
+}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE \textbf{Étude de suites, monotonie et convergence}}\\[0.5em]
+  {\large Terminale Spécialité Mathématiques}
+\end{center}
+
+% ---------------------- EXERCICE ----------------------
+\exo{1}{Étude d'une suite arithmético-géométrique et comparaison}
+
+\partie{Partie A : Suite arithmético-géométrique et convergence}
+
+On considère la suite $(u_n)$ définie par son premier terme $u_0 = 1$ et, pour tout entier naturel $n$, par la relation de récurrence :
+$$u_{n+1} = \frac{1}{2}u_n + 3$$
+
+\begin{enumerate}
+  \item Calculer les termes $u_1$ et $u_2$.
+  \item Démontrer par récurrence que pour tout entier naturel $n$, on a : $u_n < 6$.
+  \item Étudier la monotonie de la suite $(u_n)$. En déduire qu'elle converge.
+  \item On définit la suite $(v_n)$ pour tout entier naturel $n$ par : $v_n = u_n - 6$.
+  \begin{enumerate}
+    \item Démontrer que $(v_n)$ est une suite géométrique dont on précisera la raison et le premier terme $v_0$.
+    \item Exprimer $v_n$ puis $u_n$ en fonction de $n$.
+    \item Déterminer la limite de la suite $(u_n)$ lorsque $n$ tend vers $+\infty$.
+  \end{enumerate}
+\end{enumerate}
+
+\partie{Partie B : Comparaison avec une suite arithmétique}
+
+On considère une suite arithmétique $(w_n)$ de premier terme $w_0 = 2$ et de raison $r = 1,5$.
+\begin{enumerate}
+  \item Exprimer $w_n$ en fonction de $n$.
+  \item À partir de quel rang $n_0$ a-t-on $w_n > u_n$ ?
+\end{enumerate}
+
+\newpage
+
+\begin{center}
+  {\LARGE \textbf{Corrigé détaillé}}\\[0.5em]
+  {\large Terminale Spécialité Mathématiques}
+\end{center}
+
+\partie{Partie A}
+
+\begin{enumerate}
+  \item \textbf{Calcul des premiers termes :}
+  \begin{itemize}
+    \item $u_1 = \frac{1}{2}u_0 + 3 = \frac{1}{2}(1) + 3 = 3,5$
+    \item $u_2 = \frac{1}{2}u_1 + 3 = \frac{1}{2}(3,5) + 3 = 4,75$
+  \end{itemize}
+
+  \item \textbf{Démonstration par récurrence :}
+  \begin{itemize}
+    \item \textit{Initialisation :} Pour $n = 0$, $u_0 = 1$ et $1 < 6$, donc la propriété est vraie au rang $0$.
+    \item \textit{Hérédité :} Soit $n \in \mathbb{N}$ fixé. Supposons que $u_n < 6$. Montrons que $u_{n+1} < 6$.
+    Par hypothèse de récurrence :
+    $$u_n < 6 \implies \frac{1}{2}u_n < 3 \implies \frac{1}{2}u_n + 3 < 6 \implies u_{n+1} < 6$$
+    La propriété est donc héréditaire.
+    \item \textit{Conclusion :} Pour tout entier naturel $n$, on a $u_n < 6$.
+  \end{itemize}
+
+  \item \textbf{Monotonie et convergence :}
+  Étudions le signe de $u_{n+1} - u_n$ :
+  $$u_{n+1} - u_n = \frac{1}{2}u_n + 3 - u_n = -\frac{1}{2}u_n + 3 = -\frac{1}{2}(u_n - 6)$$
+  Comme pour tout $n$, $u_n < 6$, on a $u_n - 6 < 0$, ce qui implique que $-\frac{1}{2}(u_n - 6) > 0$.
+  La suite $(u_n)$ est donc strictement croissante.
+  Étant croissante et majorée par $6$, la suite $(u_n)$ converge d'après le théorème de convergence monotone.
+
+  \item \textbf{Suite auxiliaire $(v_n)$ :}
+  \begin{enumerate}
+    \item Pour tout $n \in \mathbb{N}$ :
+    $$v_{n+1} = u_{n+1} - 6 = \left(\frac{1}{2}u_n + 3\right) - 6 = \frac{1}{2}u_n - 3 = \frac{1}{2}(u_n - 6) = \frac{1}{2}v_n$$
+    Ainsi, $(v_n)$ est une suite géométrique de raison $q = \frac{1}{2}$ et de premier terme $v_0 = u_0 - 6 = 1 - 6 = -5$.
+    \item On en déduit l'expression de $v_n$ en fonction de $n$ :
+    $$v_n = v_0 \cdot q^n = -5 \left(\frac{1}{2}\right)^n$$
+    Comme $u_n = v_n + 6$, on obtient :
+    $$u_n = 6 - 5 \left(\frac{1}{2}\right)^n$$
+    \item Puisque $0 < \frac{1}{2} < 1$, on a $\lim_{n \to +\infty} \left(\frac{1}{2}\right)^n = 0$. Par conséquent :
+    $$\lim_{n \to +\infty} u_n = 6$$
+  \end{enumerate}
+\end{enumerate}
+
+\partie{Partie B}
+
+\begin{enumerate}
+  \item \textbf{Expression de la suite arithmétique $(w_n)$ :}
+  La suite $(w_n)$ est arithmétique de premier terme $w_0 = 2$ et de raison $r = 1,5$, donc :
+  $$w_n = w_0 + n \cdot r = 2 + 1,5n$$
+  \item \textbf{Comparaison $w_n > u_n$ :}
+  On cherche le plus petit entier $n$ tel que :
+  $$2 + 1,5n > 6 - 5 \left(\frac{1}{2}\right)^n$$
+  Testons les valeurs de $n$ :
+  \begin{itemize}
+    \item Pour $n = 0$ : $w_0 = 2$ et $u_0 = 1$
+    \item Pour $n = 1$ : $w_1 = 3,5$ et $u_1 = 3,5$ ($w_1 = u_1$)
+    \item Pour $n = 2$ : $w_2 = 5$ et $u_2 = 4,75$ ($w_2 > u_2$)
+  \end{itemize}
+  Le rang recherché à partir duquel la suite arithmétique dépasse strictement la suite $(u_n)$ est $n_0 = 2$.
+\end{enumerate}
+
+\end{document}
