@@ -1,0 +1,26 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.9, pytest-9.1.1, pluggy-1.7.0 -- C:\Users\nanod\AppData\Local\Programs\Python\Python311\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\nanod\Desktop\my_ai_harness
+plugins: anyio-4.10.0
+collecting ... collected 17 items
+
+tests/test_autonomous_web_retrieval.py::TestAutonomousWebRetrieval::test_01_real_download_and_physical_verification PASSED [  5%]
+tests/test_autonomous_web_retrieval.py::TestAutonomousWebRetrieval::test_02_download_links_extraction_from_html PASSED [ 11%]
+tests/test_autonomous_web_retrieval.py::TestAutonomousWebRetrieval::test_03_verifier_rejects_search_without_download PASSED [ 17%]
+tests/test_autonomous_web_retrieval.py::TestAutonomousWebRetrieval::test_04_verifier_accepts_when_document_physically_downloaded PASSED [ 23%]
+tests/test_autonomous_web_retrieval.py::TestAutonomousWebRetrieval::test_05_conversational_continuity_for_retrieval PASSED [ 29%]
+tests/test_autonomous_web_retrieval.py::TestAutonomousWebRetrieval::test_06_exact_bac_retrieval_and_continuity_analysis PASSED [ 35%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_bacblanc_slash_mission_requires_complete_deliverable_without_keywords PASSED [ 41%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_complete_artifacts_pass_only_after_full_review PASSED [ 47%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_e2e_produces_files_reviews_both_and_delivers_only_after_validation PASSED [ 52%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_incomplete_artifact_is_rejected_with_concrete_gaps PASSED [ 58%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_incomplete_result_is_returned_with_explicit_warning PASSED [ 64%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_iteration_exhaustion_returns_best_partial_with_warning PASSED [ 70%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_loader_reads_both_real_latex_templates PASSED [ 76%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_provider_quota_includes_partial_file_already_written PASSED [ 82%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_provider_quota_returns_best_partial_text_and_names_the_cause PASSED [ 88%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_skill_limits_extend_short_cli_loop_and_token_budget_temporarily PASSED [ 94%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_validator_rejects_missing_question_solution_and_inconsistent_points PASSED [100%]
+
+============================= 17 passed in 2.19s ==============================

@@ -1,0 +1,67 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.9, pytest-9.1.1, pluggy-1.7.0 -- C:\Users\nanod\AppData\Local\Programs\Python\Python311\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\nanod\Desktop\my_ai_harness
+plugins: anyio-4.10.0
+collecting ... collected 51 items
+
+tests/test_runtime.py::RouterAndPlannerTests::test_api_harness_registers_available_model_routes_without_network PASSED [  1%]
+tests/test_runtime.py::RouterAndPlannerTests::test_code_un_programme_is_coding_and_selects_code_agent PASSED [  3%]
+tests/test_runtime.py::RouterAndPlannerTests::test_config_loads_complexity_routes PASSED [  5%]
+tests/test_runtime.py::RouterAndPlannerTests::test_planner_honors_explicit_agent_and_detects_ambiguity PASSED [  7%]
+tests/test_runtime.py::RouterAndPlannerTests::test_router_uses_task_route_and_falls_back_when_missing PASSED [  9%]
+tests/test_runtime.py::FilesystemAndDocumentTests::test_corrupt_pdf_is_an_error_and_web_search_does_not_fake_sources PASSED [ 11%]
+tests/test_runtime.py::FilesystemAndDocumentTests::test_documents_text_json_csv_html_and_pdf PASSED [ 13%]
+tests/test_runtime.py::FilesystemAndDocumentTests::test_docx_xlsx_and_pptx_extraction PASSED [ 15%]
+tests/test_runtime.py::FilesystemAndDocumentTests::test_filesystem_is_confined_and_redacts_secrets PASSED [ 17%]
+tests/test_runtime.py::FilesystemAndDocumentTests::test_git_workspace_operations_and_repository_boundary PASSED [ 19%]
+tests/test_runtime.py::FilesystemAndDocumentTests::test_python_script_runs_without_inheriting_api_keys PASSED [ 21%]
+tests/test_runtime.py::FilesystemAndDocumentTests::test_registry_validates_calls_and_obeys_dry_run PASSED [ 23%]
+tests/test_runtime.py::FilesystemAndDocumentTests::test_scanned_pdf_uses_ocr_when_tesseract_is_available PASSED [ 25%]
+tests/test_runtime.py::FilesystemAndDocumentTests::test_test_runner_never_calls_empty_suite_a_pass PASSED [ 27%]
+tests/test_runtime.py::FilesystemAndDocumentTests::test_write_patch_move_delete_and_no_implicit_overwrite PASSED [ 29%]
+tests/test_runtime.py::AgentLoopIntegrationTests::test_cli_and_bacblanc_defaults_allow_long_agent_deliverables PASSED [ 31%]
+tests/test_runtime.py::AgentLoopIntegrationTests::test_code_fix_needs_failure_before_patch_and_pass_after_patch PASSED [ 33%]
+tests/test_runtime.py::AgentLoopIntegrationTests::test_context_manager_bounds_session_history PASSED [ 35%]
+tests/test_runtime.py::AgentLoopIntegrationTests::test_legacy_orchestrator_run_contract_remains_available PASSED [ 37%]
+tests/test_runtime.py::AgentLoopIntegrationTests::test_long_generation_reports_partial_turns_and_exhaustion_reason PASSED [ 39%]
+tests/test_runtime.py::AgentLoopIntegrationTests::test_orchestrator_tool_observation_verification_and_delivery PASSED [ 41%]
+tests/test_runtime.py::AgentLoopIntegrationTests::test_verifier_rejects_a_pass_that_happened_before_a_change PASSED [ 43%]
+tests/test_runtime.py::AgentLoopIntegrationTests::test_verifier_requires_real_test_output_for_test_tasks PASSED [ 45%]
+tests/test_runtime.py::ProviderAdapterTests::test_gemini_lists_only_generate_content_models_and_includes_flash_lite PASSED [ 47%]
+tests/test_runtime.py::ProviderAdapterTests::test_gemini_missing_key_and_claude_local_stubs_are_honest FAILED [ 49%]
+tests/test_runtime.py::ProviderAdapterTests::test_gemini_partial_turn_and_streaming_interface PASSED [ 50%]
+tests/test_runtime.py::ProviderAdapterTests::test_gemini_preserves_thought_signature_and_hides_thought_text PASSED [ 52%]
+tests/test_runtime.py::ProviderAdapterTests::test_gemini_retries_a_transient_service_error_with_a_bound PASSED [ 54%]
+tests/test_runtime.py::ProviderAdapterTests::test_gemini_structured_output_and_grounding_metadata PASSED [ 56%]
+tests/test_runtime.py::ProviderAdapterTests::test_legacy_provider_generate_contracts_return_plain_text PASSED [ 58%]
+tests/test_runtime.py::ProviderAdapterTests::test_ollama_native_tool_call_is_parsed_without_network PASSED [ 60%]
+tests/test_runtime.py::ProviderAdapterTests::test_openai_incomplete_output_is_marked_partial PASSED [ 62%]
+tests/test_runtime.py::ProviderAdapterTests::test_openai_missing_key_fails_before_sdk_or_network PASSED [ 64%]
+tests/test_runtime.py::ProviderAdapterTests::test_openai_native_function_call_round_trip_without_network PASSED [ 66%]
+tests/test_autonomous_web_retrieval.py::TestAutonomousWebRetrieval::test_01_real_download_and_physical_verification PASSED [ 68%]
+tests/test_autonomous_web_retrieval.py::TestAutonomousWebRetrieval::test_02_download_links_extraction_from_html PASSED [ 70%]
+tests/test_autonomous_web_retrieval.py::TestAutonomousWebRetrieval::test_03_verifier_rejects_search_without_download PASSED [ 72%]
+tests/test_autonomous_web_retrieval.py::TestAutonomousWebRetrieval::test_04_verifier_accepts_when_document_physically_downloaded PASSED [ 74%]
+tests/test_autonomous_web_retrieval.py::TestAutonomousWebRetrieval::test_05_conversational_continuity_for_retrieval PASSED [ 76%]
+tests/test_autonomous_web_retrieval.py::TestAutonomousWebRetrieval::test_06_exact_bac_retrieval_and_continuity_analysis PASSED [ 78%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_bacblanc_slash_mission_requires_complete_deliverable_without_keywords PASSED [ 80%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_complete_artifacts_pass_only_after_full_review PASSED [ 82%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_e2e_produces_files_reviews_both_and_delivers_only_after_validation PASSED [ 84%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_incomplete_artifact_is_rejected_with_concrete_gaps PASSED [ 86%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_incomplete_result_is_returned_with_explicit_warning PASSED [ 88%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_iteration_exhaustion_returns_best_partial_with_warning PASSED [ 90%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_loader_reads_both_real_latex_templates PASSED [ 92%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_provider_quota_includes_partial_file_already_written PASSED [ 94%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_provider_quota_returns_best_partial_text_and_names_the_cause PASSED [ 96%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_skill_limits_extend_short_cli_loop_and_token_budget_temporarily PASSED [ 98%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_validator_rejects_missing_question_solution_and_inconsistent_points PASSED [100%]
+
+================================== FAILURES ===================================
+_ ProviderAdapterTests.test_gemini_missing_key_and_claude_local_stubs_are_honest _
+tests\test_runtime.py:751: in test_gemini_missing_key_and_claude_local_stubs_are_honest
+    with self.assertRaises(GeminiProviderError) as captured:
+E   AssertionError: GeminiProviderError not raised
+=========================== short test summary info ===========================
+FAILED tests/test_runtime.py::ProviderAdapterTests::test_gemini_missing_key_and_claude_local_stubs_are_honest
+======================== 1 failed, 50 passed in 6.08s =========================

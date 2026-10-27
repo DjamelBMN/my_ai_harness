@@ -1,11 +1,13 @@
 \documentclass[12pt,a4paper]{article}
 
+% --- Mathématiques de précision ---
 \usepackage{amsmath, amssymb, esvect, mathtools}
 \newcommand{\R}{\mathbb{R}}
 \newcommand{\N}{\mathbb{N}}
 \newcommand{\e}{\mathrm{e}}
 \newcommand{\vect}[1]{\vv{#1}}
 
+% --- Encodage et typographie française ---
 \usepackage[utf8]{inputenc}
 \usepackage{fontspec}
 \usepackage{libertinus-otf}
@@ -13,8 +15,10 @@
 \usepackage{microtype}
 \usepackage{icomma}
 
+% --- Suppression de l'indentation ---
 \setlength{\parindent}{0pt}
 
+% --- Géométrie calibrée (exactement 1 page par exercice) ---
 \usepackage[
     top=1.6cm,
     bottom=1.6cm,
@@ -30,17 +34,22 @@
 \usepackage{tabularx}
 \usepackage{tcolorbox}
 \usepackage{enumitem}
+
+% --- Filigrane et graphisme ---
 \usepackage{eso-pic}
 \usepackage{tikz}
 \usepackage{xcolor}
 
+% --- Réglage des espacements pour affichages mathématiques ---
 \setlength{\abovedisplayskip}{6pt}
 \setlength{\belowdisplayskip}{6pt}
 \setlength{\abovedisplayshortskip}{3pt}
 \setlength{\belowdisplayshortskip}{3pt}
 
+% --- Colonne centrée pour tableau homogène ---
 \newcolumntype{Y}{>{\centering\arraybackslash}X}
 
+% --- Commandes d'exercices aérées ---
 \newcommand{\exercice}[3][5]{%
     \noindent{\Large\textbf{Exercice #2}} \hfill \textbf{#1 points}\\[0.20cm]%
     {\normalsize\textit{#3}}%
@@ -48,217 +57,38 @@
 }
 \newcommand{\partie}[1]{\vspace{0.45cm}\noindent\textbf{\large Partie #1}\par\vspace{0.25cm}}
 
+% --- Listes numérotées : 1. et a. TOUS EN GRAS ---
 \setlist[enumerate,1]{label=\textbf{\arabic*.}, leftmargin=*, itemsep=0.35em, parsep=0pt, topsep=0.2em}
 \setlist[enumerate,2]{label=\textbf{\alph*.}, leftmargin=*, itemsep=0.25em, parsep=0pt, topsep=0.15em}
 
+% --- SQUELETTE : marqueur magenta des zones à remplir (utilisable en texte ET en mode maths) ---
+\newcommand{\ph}[1]{\ifmmode\text{\color{magenta}[#1]}\else\textcolor{magenta}{[#1]}\fi}
+
+% --- En-têtes et pieds de page pour le Sujet 1 ---
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{\small\textit{Bac Blanc -- Spécialité Mathématiques}}
-\fancyhead[C]{\small\textit{Session 2026}}
+\fancyhead[L]{\small\textit{Bac Blanc -- Sujet 1}}
+\fancyhead[C]{\small\textit{Sujet 1 (Jour 1)}}
 \fancyhead[R]{\small\textbf{Term\textsuperscript{spé}}}
 \fancyfoot[C]{\thepage\ / \pageref{LastPage}}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0.4pt}
 
+% =========================================================================
+
 \begin{document}
 
-\thispagestyle{empty}
-
-\noindent
-\begin{minipage}[t]{0.52\textwidth}
-    \textbf{\Large LYCÉE JEAN ROSTAND}\\[0.12cm]
-    \textsc{Année scolaire 2026--2027}\\
-    \textit{Classe de Terminale Générale}
-\end{minipage}
-\hfill
-\begin{minipage}[t]{0.45\textwidth}
-    \raggedleft
-    \textbf{\large BACCALAURÉAT BLANC}\\[0.10cm]
-    \textbf{Épreuve de spécialité}\\[0.10cm]
-    \textit{Session de Printemps}\\[0.12cm]
-    \small Durée : 4 heures
-\end{minipage}
-
-\vspace{0.30cm}
-\hrule height 0.8pt
-\vspace{0.45cm}
-
-\vfill
-
 \begin{center}
-    {\LARGE \textbf{BACCALAURÉAT BLANC}}\\[0.20cm]
-    {\large \textbf{SESSION 2026}}\\[0.15cm]
-    {\textbf{\Large SUJET OFFICIEL COMPILÉ}}\\[0.45cm]
-
-    \begin{tcolorbox}[colback=white, colframe=black, arc=0mm, boxrule=1.5pt, width=0.96\textwidth, top=4mm, bottom=4mm]
-        \centering
-        {\fontsize{26pt}{30pt}\selectfont\textbf{MATHÉMATIQUES}}\\[0.30cm]
-        {\Large \textsc{Épreuve d'Enseignement de Spécialité}}
-    \end{tcolorbox}
-
-    \vspace{0.50cm}
-    {\large \textbf{Durée de l'épreuve : 4 heures}}\\[0.25cm]
-    \textbf{L'usage de la calculatrice avec \underline{mode examen actif} est autorisé.}\\[0.10cm]
-    \textit{L'usage de la calculatrice sans mémoire, « type collège », est autorisé.}
+  {\LARGE \textbf{Bac Blanc : compile}}\\[0.5em]
+  {\large Lycée -- Mathématiques}
 \end{center}
 
-\vfill
+\vspace{0.35cm}\noindent\textbf{\large LIVRAISON PARTIELLE — ÉCHEC DE LA LIVRAISON COMPLÈTE}\par\vspace{0.15cm}
 
-\begin{center}
-\renewcommand{\arraystretch}{1.5}
-\begin{tabularx}{0.96\textwidth}{|>{\centering\arraybackslash\bfseries}m{2.6cm}|*{4}{Y|}>{\centering\arraybackslash\bfseries}m{2.2cm}|}
-    \hline
-    Exercice & \textbf{Exercice 1} & \textbf{Exercice 2} & \textbf{Exercice 3} & \textbf{Exercice 4} & \textbf{Total} \\ \hline
-    Thème    & Analyse et Suites & Géométrie espace & Probabilités & Fonctions et $\ln$ & --- \\ \hline
-    Barème   & 4 points & 5 points & 6 points & 5 points & 20 points \\ \hline
-\end{tabularx}
-\end{center}
+La livraison complète a échoué : GeminiProviderError: Limite de débit locale Gemini atteinte : réessaie dans 21 secondes..
 
-\vfill
+Le résultat fourni ci-dessous est le meilleur contenu déjà produit. Il peut être incomplet ou non vérifié et ne doit pas être considéré comme un sujet complet validé.
 
-\begin{tcolorbox}[colback=white, colframe=black, arc=0mm, boxrule=0.8pt, title=\textbf{\textsc{Consignes aux candidats}}, coltitle=black, colbacktitle=gray!15, top=3mm, bottom=3mm, left=4mm, right=4mm]
-    \small
-    \begin{itemize}[leftmargin=1.5em, itemsep=0.25em, label=---]
-        \item Le sujet comporte \textbf{\pageref{LastPage} pages} numérotées de 1 à \pageref{LastPage}.
-        \item Le candidat doit traiter les \textbf{4 exercices}.
-        \item La qualité de la rédaction, la clarté et la précision des raisonnements seront prises en compte dans l'appréciation des copies.
-        \item Tous les résultats doivent être justifiés, sauf mention contraire explicite.
-    \end{itemize}
-\end{tcolorbox}
-
-\newpage
-
-\exercice[4]{1}{Analyse -- Étude d'une suite numérique et récurrence}
-
-Soit $(u_n)$ la suite définie par $u_0 = 0$ et, pour tout entier naturel $n$,
-\[
-    u_{n+1} = \frac{3u_n + 1}{u_n + 3}\,.
-\]
-
-\partie{A --- Premiers termes et conjecture}
-\begin{enumerate}
-    \item Calculer $u_1$ et $u_2$ sous forme de fractions irréductibles.
-    \item À l'aide de ces valeurs, émettre une conjecture concernant le sens de variation et la majoration de la suite $(u_n)$.
-\end{enumerate}
-
-\partie{B --- Démonstration par récurrence}
-\begin{enumerate}
-    \item Démontrer par récurrence que, pour tout entier naturel $n$, on a $0 \le u_n < 1$.
-    \item Démontrer que, pour tout entier naturel $n$,
-    \[
-        u_{n+1} - u_n = \frac{(1 - u_n)(1 + u_n)}{u_n + 3}\,.
-    \]
-    \item En déduire le sens de variation de la suite $(u_n)$.
-\end{enumerate}
-
-\partie{C --- Convergence et limite}
-\begin{enumerate}
-    \item Justifier que la suite $(u_n)$ est convergente.
-    \item On note $\ell$ la limite de la suite $(u_n)$. Déterminer la valeur exacte de $\ell$ en justifiant par le calcul.
-    \item Soit $v_n = \frac{1 - u_n}{1 + u_n}$ pour tout $n \in \mathbb{N}$. Démontrer que $(v_n)$ est une suite géométrique de raison $q = \frac{1}{2}$.
-    \item Exprimer $v_n$ puis $u_n$ en fonction de $n$, et retrouver $\lim_{n \to +\infty} u_n$.
-\end{enumerate}
-
-\newpage
-
-\exercice[5]{2}{Géométrie dans l'espace}
-
-Dans l'espace muni d'un repère orthonormé $(O\,;\,\vec{i},\,\vec{j},\,\vec{k})$, on considère les points :
-\[
-    A(1\,;\,0\,;\,2), \quad B(0\,;\,2\,;\,1), \quad C(2\,;\,1\,;\,0) \quad \text{et} \quad D(3\,;\,2\,;\,5)\,.
-\]
-
-\partie{A --- Étude du plan $(ABC)$}
-\begin{enumerate}
-    \item Démontrer que les points $A$, $B$ et $C$ ne sont pas alignés, définissant ainsi un plan $(ABC)$.
-    \item Déterminer les coordonnées des vecteurs $\vect{AB}$ et $\vect{AC}$.
-    \item Soit le vecteur $\vec{n}(1\,;\,1\,;\,2)$. Démontrer que $\vec{n}$ est un vecteur normal au plan $(ABC)$.
-    \item En déduire qu'une équation cartésienne du plan $(ABC)$ est :
-    \[
-        x + y + 2z - 5 = 0\,.
-    \]
-\end{enumerate}
-
-\partie{B --- Droite orthogonale et distance}
-\begin{enumerate}
-    \item Déterminer une représentation paramétrique de la droite $\Delta$ passant par le point $D$ et orthogonale au plan $(ABC)$.
-    \item Déterminer les coordonnées du point $H$, projeté orthogonal du point $D$ sur le plan $(ABC)$.
-    \item Calculer la distance du point $D$ au plan $(ABC)$.
-    \item Calculer le volume du tétraèdre $DABC$ en unité cubique.
-\end{enumerate}
-
-\newpage
-
-\exercice[6]{3}{Probabilités et variables aléatoires}
-
-Une entreprise fabrique des composants électroniques destinés à l'industrie. Une étude statistique montre que :
-\begin{itemize}[label=\textbullet]
-    \item $90\%$ des composants produits ne présentent aucun défaut de fabrication.
-    \item Lorsqu'un composant présente un défaut, un système de contrôle automatisé l'accepte avec une probabilité de $0,05$.
-    \item Lorsqu'un composant ne présente aucun défaut, le système de contrôle l'accepte avec une probabilité de $0,98$.
-\end{itemize}
-
-On prélève au hasard un composant dans la production. On définit les événements suivants :
-\begin{itemize}[label=\textbullet]
-    \item $D$ : « Le composant présente un défaut de fabrication. »
-    \item $T$ : « Le système de contrôle accepte le composant. »
-\end{itemize}
-
-\partie{A --- Probabilités conditionnelles}
-\begin{enumerate}
-    \item Traduire les données de l'énoncé à l'aide d'un arbre pondéré.
-    \item Calculer la probabilité que le composant présente un défaut et soit accepté par le système.
-    \item Démontrer que la probabilité que le composant soit accepté par le système de contrôle est $P(T) = 0,8855$.
-    \item Sachant qu'un composant a été accepté par le système, calculer la probabilité qu'il soit sans défaut (on donnera le résultat arrondi au millième).
-\end{enumerate}
-
-\partie{B --- Variable aléatoire et rentabilité}
-L'entreprise commercialise chaque composant accepté au prix de $20$ \texteuro. Si un composant est refusé, il est détruit pour un coût de $2$ \texteuro. De plus, chaque composant vendu et retourné par un client mécontent (ce qui arrive pour $2\%$ des composants acceptés ayant un défaut) entraîne une pénalité de $50$ \texteuro.
-\begin{enumerate}
-    \item Soit $X$ la variable aléatoire donnant le bénéfice algébrique net réalisé par l'entreprise sur un composant prélevé. Déterminer l'ensemble des valeurs prises par $X$.
-    \item Établir la loi de probabilité de la variable aléatoire $X$.
-    \item Calculer l'espérance mathématique de $X$, notée $E(X)$, et interpréter ce résultat pour l'entreprise.
-    \item On prélève un échantillon de $50$ composants indépendants. La taille de la production permet d'assimiler ce prélèvement à un tirage avec remise. Soit $Y$ le nombre de composants acceptés dans cet échantillon.
-    \begin{enumerate}
-        \item Préciser la loi suivie par $Y$ et donner ses paramètres.
-        \item Calculer la probabilité qu'exactement $45$ composants soient acceptés (résultat arrondi à $10^{-3}$ près).
-        \item Calculer la probabilité qu'au moins $48$ composants soient acceptés.
-    \end{enumerate}
-\end{enumerate}
-
-\newpage
-
-\exercice[5]{4}{Fonctions, logarithme et convexité}
-
-\partie{A --- Étude d'une fonction auxiliaire}
-Soit $g$ la fonction définie sur l'intervalle $]0\,;\,+\infty[$ par :
-\[
-    g(x) = x^2 - 1 + \ln(x)\,.
-\]
-\begin{enumerate}
-    \item Déterminer les limites de la fonction $g$ aux bornes de son ensemble de définition.
-    \item Calculer la dérivée $g'(x)$ pour tout $x > 0$ et étudier son signe.
-    \item Dresser le tableau de variations complet de la fonction $g$.
-    \item Démontrer que l'équation $g(x) = 0$ admet une unique solution $\alpha$ sur $]0\,;\,+\infty[$, et donner un encadrement de $\alpha$ d'amplitude $10^{-2}$.
-    \item Déterminer le signe de $g(x)$ selon les valeurs de $x$.
-\end{enumerate}
-
-\partie{B --- Étude d'une fonction principale et convexité}
-Soit $f$ la fonction définie sur $]0\,;\,+\infty[$ par :
-\[
-    f(x) = x - \frac{\ln(x)}{x}\,.
-\]
-On note $\mathcal{C}$ sa courbe représentative dans un repère orthonormé $(O\,;\,\vec{i},\,\vec{j})$.
-\begin{enumerate}
-    \item Déterminer la limite de $f$ en $0^+$, puis interpréter graphiquement ce résultat.
-    \item Déterminer la limite de $f$ en $+\infty$.
-    \item Démontrer que la droite $\mathcal{D}$ d'équation $y = x$ est asymptote oblique à la courbe $\mathcal{C}$ en $+\infty$, et préciser la position relative de $\mathcal{C}$ par rapport à $\mathcal{D}$.
-    \item Démontrer que pour tout $x \in ]0\,;\,+\infty[$, on a :
-    \[
-        f'(x) = \frac{g(x)}{x^2}\,.
-    \]
-    \item En déduire le tableau de variations de la fonction $f$.
-    \item Démontrer que la courbe $\mathcal{C}$ admet un unique point d'inflexion $I$ dont on précisera les coordonnées exactes.
-\end{enumerate}
+Aucun fragment de texte ni fichier partiel lisible n'a pu être conservé.
 
 \end{document}

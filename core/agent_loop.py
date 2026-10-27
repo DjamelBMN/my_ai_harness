@@ -9,6 +9,12 @@
 #   - Prompt initial allégé : évidences et sorties d'outils tronquées.
 #   - Erreurs de quota correctement classées : un simple 429 temporaire n'exclut plus
 #     le provider pour toute la mission (avant : "quota"/"429" dans le texte = exclusion).
+#
+# AMÉLIORATIONS COGNITIVES (Niveau Supérieur) :
+#   - Diagnostic d'auto-correction ciblé check par check (_build_verification_repair_prompt).
+#   - Guidage automatique de réparation sur échec d'outil (_build_tool_error_hint).
+#   - Auto-apprentissage expérientiel en boucle fermée (_record_experiential_lesson).
+#   - Comptage réel des tokens API via usage_metadata / last_usage (_extract_turn_tokens).
 
 from __future__ import annotations
 
@@ -17,7 +23,16 @@ import json
 import re
 import time
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Any
+
+from core.events import HarnessEvent
+from core.planner import Planner
+from core.task import Task, ensure_task
+from core.task_state import AgentResult, PlanStep, TaskState, TaskStatus
+from core.verifier import Verifier
+from tools.registry import ToolCall, ToolExecution, ToolRegistry
 
 
 @dataclass
@@ -27,6 +42,8 @@ class MissionBudget:
     max_tool_calls: int = 50
     max_delegation_depth: int = 3
     tokens_consumed: int = 0
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
     start_time: float = field(default_factory=time.monotonic)
     tool_calls_count: int = 0
     delegation_depth: int = 0
@@ -151,16 +168,6 @@ DEFAULT_FAST_INTENTS = frozenset(
     }
 )
 
-from collections.abc import Callable
-from typing import Any
-
-from core.events import HarnessEvent
-from core.planner import Planner
-from core.task import Task, ensure_task
-from core.task_state import AgentResult, PlanStep, TaskState, TaskStatus
-from core.verifier import Verifier
-from tools.registry import ToolCall, ToolExecution, ToolRegistry
-
 
 class AgentLoop:
     def __init__(
@@ -232,6 +239,198 @@ class AgentLoop:
             return self.tools.get(name).mutates
         except ValueError:
             return False
+
+    # ------------------------------------------------------------------ tokens & diagnostic cognitif
+    @staticmethod
+    def _extract_turn_tokens(provider: Any, turn: Any, prompt: str | None) -> tuple[int, int, int, bool]:
+        """Extrait (prompt_tokens, completion_tokens, total_tokens, is_real) du tour ou du provider."""
+        usage = getattr(turn, "usage", None) or getattr(provider, "last_usage", None)
+        if isinstance(usage, dict):
+            p_tok = int(
+                usage.get("prompt_tokens")
+                or usage.get("input_tokens")
+                or usage.get("prompt_token_count")
+                or 0
+            )
+            c_tok = int(
+                usage.get("completion_tokens")
+                or usage.get("output_tokens")
+                or usage.get("candidates_token_count")
+                or 0
+            )
+            tot = int(usage.get("total_tokens") or usage.get("total_token_count") or (p_tok + c_tok))
+            if tot > 0:
+                return p_tok, c_tok, tot, True
+
+        text = getattr(turn, "text", "") or ""
+        c_approx = max(1, int(len(text.split()) * 1.3)) if text else 0
+        p_approx = max(1, int(len(prompt.split()) * 1.3)) if isinstance(prompt, str) and prompt else 0
+        return p_approx, c_approx, c_approx, False
+
+    @staticmethod
+    def _build_tool_error_hint(tool_name: str, summary: str, output: str) -> str:
+        """Fournit une directive immédiate d'auto-réparation lorsqu'un outil échoue."""
+        combined = f"{summary} {output}".casefold()
+        if tool_name in {"read_file", "read_document"} and any(
+            k in combined for k in ("introuvable", "not found", "no such file", "n'existe pas")
+        ):
+            return (
+                "CONSEIL D'AUTO-RÉPARATION : Le fichier demandé est introuvable à ce chemin. "
+                "Appelle d'abord 'list_files' ou 'find_file' pour localiser le chemin exact dans le workspace."
+            )
+        if tool_name == "patch_file":
+            return (
+                "CONSEIL D'AUTO-RÉPARATION : Le patch n'a pas pu être appliqué. "
+                "Appelle 'read_file' pour observer le contenu exact du fichier ou utilise 'write_file' avec le contenu complet."
+            )
+        if tool_name in {"compile_latex", "compile_document"}:
+            return (
+                "CONSEIL D'AUTO-RÉPARATION : La compilation LaTeX a échoué. "
+                "Analyse la ligne d'erreur signalée, corrige les accolades ou commandes invalides dans le fichier .tex avec 'write_file', puis relance 'compile_latex'."
+            )
+        if tool_name == "web_search":
+            return (
+                "CONSEIL D'AUTO-RÉPARATION : La recherche n'a pas abouti. "
+                "Reformule la requête avec des mots-clés plus courts et ciblés."
+            )
+        if tool_name == "run_tests":
+            return (
+                "CONSEIL D'AUTO-RÉPARATION : Des tests ont échoué. "
+                "Lis la trace d'erreur, corrige le fichier concerné avec 'write_file' ou 'patch_file', puis relance 'run_tests'."
+            )
+        return (
+            f"CONSEIL D'AUTO-RÉPARATION : L'outil '{tool_name}' a retourné une erreur. "
+            "Ne répète pas le même appel avec les mêmes arguments ; adapte ta stratégie."
+        )
+
+    @staticmethod
+    def _build_verification_repair_prompt(verification: dict[str, Any], state: TaskState) -> str:
+        """Construit un plan de réparation ciblé check par check après un échec de vérification."""
+        failed_checks = [
+            chk for chk in verification.get("checks", [])
+            if isinstance(chk, dict) and chk.get("status") == "failed"
+        ]
+        action_directives: list[str] = []
+        action_map = {
+            "file_was_read": (
+                "Appelle immédiatement 'read_file' ou 'read_document' sur le fichier cible avant de répondre."
+            ),
+            "tests_executed_and_passed": (
+                "Appelle l'outil 'run_tests' pour exécuter la suite de tests après ta dernière modification et vérifie qu'elle passe."
+            ),
+            "bug_reproduced_before_change": (
+                "Explique clairement l'état des tests observés et lance 'run_tests' pour valider le comportement."
+            ),
+            "requested_change_exists": (
+                "Applique réellement la modification demandée dans le workspace avec 'write_file' ou 'patch_file'."
+            ),
+            "web_sources_observed": (
+                "Appelle 'web_search' pour consulter de vraies sources Web vérifiables avant de formuler ta réponse."
+            ),
+            "no_agent_substitution": (
+                "Ne génère aucun fichier local de substitution : télécharge uniquement le vrai document distant demandé."
+            ),
+            "chain_of_provenance": (
+                "Télécharge physiquement le document depuis une URL valide vers le workspace et vérifie sa présence."
+            ),
+            "document_retrieved_and_verified": (
+                "Utilise 'web_search' / le téléchargement pour enregistrer réellement le fichier cible sur le disque."
+            ),
+            "artifact_conformance": (
+                "Produis exactement le format de fichier demandé (ex: compile le .tex en .pdf avec 'compile_latex' ou génère le .docx avec 'generate_docx')."
+            ),
+        }
+        for chk in failed_checks:
+            name = str(chk.get("check") or "critère")
+            evidence = str(chk.get("evidence") or "")
+            remedy = action_map.get(
+                name,
+                "Exécute l'outil correspondant pour satisfaire ce critère de manière observable.",
+            )
+            violations = chk.get("violations") or []
+            viol_str = f" ({' '.join(str(v) for v in violations)})" if violations else ""
+            action_directives.append(f"- [{name}] Constat : {evidence}{viol_str} -> Action requise : {remedy}")
+
+        diagnostic_section = (
+            "\n\nPLAN D'AUTO-CORRECTION CIBLÉ (OBLIGATOIRE) :\n" + "\n".join(action_directives)
+            if action_directives
+            else ""
+        )
+        return (
+            "La vérification déterministe n'est pas passée. Ne dis pas que la tâche "
+            "est terminée. Effectue les actions sûres manquantes, demande les "
+            "autorisations nécessaires, puis redonne une réponse finale. Résultats "
+            "de vérification : "
+            + json.dumps(verification, ensure_ascii=False)
+            + diagnostic_section
+        )
+
+    def _record_experiential_lesson(
+        self,
+        agent: Any,
+        task: Task,
+        state: TaskState,
+        correction_count: int,
+    ) -> None:
+        """Enregistre automatiquement une leçon opérationnelle lorsque l'agent a surmonté
+        une erreur d'outil ou une relance de vérification avec succès.
+        """
+        had_tool_errors = any(item.get("status") == "error" for item in state.tool_results)
+        if correction_count <= 0 and not had_tool_errors:
+            return
+
+        failed_tools = [
+            f"{item.get('tool')} ({str(item.get('summary') or '')[:120]})"
+            for item in state.tool_results
+            if item.get("status") == "error"
+        ]
+        successful_tools = [
+            str(item.get("tool"))
+            for item in state.tool_results
+            if item.get("status") == "success" and item.get("tool")
+        ]
+        if not successful_tools and correction_count <= 0:
+            return
+
+        obstacle = (
+            "; ".join(failed_tools[:2])
+            if failed_tools
+            else f"{correction_count} relance(s) de vérification"
+        )
+        resolution = (
+            " -> ".join(dict.fromkeys(successful_tools))
+            if successful_tools
+            else "complétion des contrôles de vérification"
+        )
+        lesson_summary = (
+            f"Mission [{state.intent}] ({ getattr(agent, 'name', 'Agent') }) : "
+            f"obstacle '{obstacle}' résolu avec succès via [{resolution}]."
+        )
+        state.observations.append(
+            {
+                "kind": "experiential_learning",
+                "status": "recorded",
+                "intent": state.intent,
+                "corrections": correction_count,
+                "lesson": lesson_summary,
+            }
+        )
+        if self.reflective_memory is None:
+            return
+
+        try:
+            if hasattr(self.reflective_memory, "record_lesson"):
+                self.reflective_memory.record_lesson(
+                    task_description=task.description[:300],
+                    intent=state.intent,
+                    error_summary=obstacle,
+                    resolution=resolution,
+                    lesson=lesson_summary,
+                )
+            elif hasattr(self.reflective_memory, "add_lesson"):
+                self.reflective_memory.add_lesson(lesson_summary)
+        except Exception:
+            pass
 
     # ------------------------------------------------------------------ voie rapide
     def _is_fast_chat(self, agent, task: Task, state: TaskState) -> bool:
@@ -424,12 +623,16 @@ class AgentLoop:
                         state.observations.append(
                             {"kind": "source", "status": "verified", **source_entry}
                         )
+        raw_out = _truncate(execution.output, max_chars)
+        if execution.status == "error":
+            hint = AgentLoop._build_tool_error_hint(execution.tool, execution.summary, raw_out)
+            raw_out = f"{raw_out}\n\n{hint}" if raw_out else hint
         return {
             "call_id": call_id,
             "name": execution.tool,
             "status": execution.status,
             "summary": execution.summary,
-            "output": wrap_untrusted_data(_truncate(execution.output, max_chars)),
+            "output": wrap_untrusted_data(raw_out),
             "data": execution.data,
         }
 
@@ -825,8 +1028,20 @@ class AgentLoop:
             continuation = turn.continuation
             tool_names = [item.name for item in turn.tool_calls]
             if self.budget is not None:
-                approx_tokens = max(1, int(len(turn.text.split()) * 1.3)) if turn.text else 0
-                self.budget.tokens_consumed += approx_tokens
+                p_tok, c_tok, tot_tok, is_real = self._extract_turn_tokens(provider, turn, prompt)
+                self.budget.prompt_tokens += p_tok
+                self.budget.completion_tokens += c_tok
+                self.budget.tokens_consumed += tot_tok
+                if is_real:
+                    state.observations.append(
+                        {
+                            "kind": "token_usage",
+                            "iteration": iteration,
+                            "prompt_tokens": p_tok,
+                            "completion_tokens": c_tok,
+                            "total_tokens": tot_tok,
+                        }
+                    )
 
             last_turn_summary = (
                 f"text={len(turn.text)} caractère(s), "
@@ -1180,12 +1395,7 @@ class AgentLoop:
                             agent.name,
                         )
                     )
-                    prompt = (
-                        "La vérification déterministe n'est pas passée. Ne dis pas que la tâche "
-                        "est terminée. Effectue les actions sûres manquantes, demande les "
-                        "autorisations nécessaires, puis redonne une réponse finale. Résultats "
-                        "de vérification : " + json.dumps(verification, ensure_ascii=False)
-                    )
+                    prompt = self._build_verification_repair_prompt(verification, state)
                     pending_tool_results = []
                     self._emit("[REPLAN] vérification incomplète; tentative de correction bornée.")
                     continue
@@ -1220,6 +1430,7 @@ class AgentLoop:
 
             state.status = TaskStatus.COMPLETED
             state.completed = True
+            self._record_experiential_lesson(agent, task, state, correction_count)
             self._event("delivery.started", agent=agent.name)
             # Validation honnête du statut des étapes du plan :
             # seules les étapes disposant d'une preuve d'exécution ou de vérification passent à 'completed'.

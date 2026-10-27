@@ -69,6 +69,7 @@ from core.title_generator import generate_task_title
 from core.task_context import TaskContext
 from core.context import Context
 from core.library import LibraryManager
+from core.self_audit import TelemetryStore, analyze as audit_analyze, run_benchmark as audit_run_benchmark
 
 def is_conversational_query(prompt: str) -> bool:
     """Détecte si une requête est une discussion, salutation, question ou explication
@@ -182,6 +183,7 @@ class NeoHarnessRuntimeBridge:
         )
         self.memory = MemoryManager(self.tools)
         self.library = LibraryManager(self.workspace_path, memory_manager=self.memory)
+        self.telemetry = TelemetryStore(self.workspace_path)
         self.model_registry = ModelCapabilityRegistry(
             router=self.orchestrator.router,
             settings=self.settings,
@@ -2927,6 +2929,23 @@ class NeoHarnessRuntimeBridge:
             )
             self.current_task_status = "Terminé"
 
+            try:
+                _chat_failed = answer_text.startswith("Erreur lors de l'échange")
+                self.telemetry.record({
+                    "task_id": task_id,
+                    "benchmark": str(conv.get("title", "")).startswith("[benchmark]"),
+                    "mode": "chat", "intent": "chat", "complexity": "",
+                    "skill": "", "agent": "none",
+                    "provider": used_provider, "model": used_model,
+                    "status": "Erreur" if _chat_failed else "Terminé",
+                    "duration_ms": elapsed_ms, "tokens": calc_tokens, "tools": 0,
+                    "compilation_errors": 0,
+                    "error": answer_text[:300] if _chat_failed else "",
+                    "recent_429": 0, "prompt_chars": len(clean_prompt),
+                })
+            except Exception:
+                pass
+
             return {
                 "ok": True,
                 "task_id": task_id,
@@ -3211,6 +3230,27 @@ class NeoHarnessRuntimeBridge:
             details=task_context.to_dict(),
         )
 
+        try:
+            _rl = self.rate_limit_manager.get_state() if getattr(self, "rate_limit_manager", None) else {}
+            self.telemetry.record({
+                "task_id": task_id,
+                "benchmark": str(conv.get("title", "")).startswith("[benchmark]"),
+                "mode": resolved_mode,
+                "intent": planned_state.intent if planned_state else "local_command",
+                "complexity": planned_state.complexity if planned_state else "",
+                "skill": used_skill, "agent": used_agent,
+                "provider": used_provider, "model": used_model,
+                "status": final_status,
+                "duration_ms": elapsed_ms, "tokens": used_tokens,
+                "tools": len(used_tools),
+                "compilation_errors": len(compilation_errors),
+                "error": (error_text or "")[:300],
+                "recent_429": _rl.get("total_recent_429", 0),
+                "prompt_chars": len(clean_prompt),
+            })
+        except Exception:
+            pass
+
         return {
             "task_id": task_id,
             "status": final_status,
@@ -3221,6 +3261,12 @@ class NeoHarnessRuntimeBridge:
             "preview_artifacts": preview_artifacts,
             "compilation_errors": compilation_errors,
         }
+
+    def get_audit_report(self) -> dict[str, Any]:
+        return audit_analyze(self.telemetry.load(limit=500))
+
+    def run_audit_benchmark(self, *, save_baseline: bool = False) -> dict[str, Any]:
+        return audit_run_benchmark(self, save_baseline=save_baseline)
 
     def stop_active_task(self) -> dict[str, Any]:
         """Interrompt immédiatement la tâche ou l'itération en cours de l'agent."""
@@ -3395,6 +3441,9 @@ class NeoHarnessRuntimeBridge:
                 raise SkillCommandError(f"Usage : /{skill.name} <mission>.")
 
             if skill.agent is not None:
+                registry = self.orchestrator.agent_registry
+                if registry.get(skill.agent.routing_key) is None:
+                    registry.register(skill.agent, key=skill.agent.routing_key)
                 skill_task = Task(
                     description=mission_body,
                     type=skill.agent.routing_key,
@@ -3710,6 +3759,9 @@ class NeoHarnessUIApp:
         if path == "/api/runs":
             return HTTPStatus.OK, self.bridge.get_run_state("current")
 
+        if path == "/api/audit":
+            return HTTPStatus.OK, self.bridge.get_audit_report()
+
         return HTTPStatus.NOT_FOUND, {"error": f"Route GET inconnue : {path}"}
 
     def handle_api_post(self, path: str, body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
@@ -3993,6 +4045,11 @@ class NeoHarnessUIApp:
                     mime_type=mime_t,
                 )
                 return HTTPStatus.OK, uploaded
+
+            if path == "/api/audit/benchmark":
+                return HTTPStatus.OK, self.bridge.run_audit_benchmark(
+                    save_baseline=bool(body.get("save_baseline", False))
+                )
 
             return HTTPStatus.NOT_FOUND, {"error": f"Route POST inconnue : {path}"}
         except FileNotFoundError as error:

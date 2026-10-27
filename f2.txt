@@ -1,0 +1,20 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.9, pytest-9.1.1, pluggy-1.7.0 -- C:\Users\nanod\AppData\Local\Programs\Python\Python311\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\nanod\Desktop\my_ai_harness
+plugins: anyio-4.10.0
+collecting ... collected 11 items
+
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_bacblanc_slash_mission_requires_complete_deliverable_without_keywords PASSED [  9%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_complete_artifacts_pass_only_after_full_review PASSED [ 18%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_e2e_produces_files_reviews_both_and_delivers_only_after_validation PASSED [ 27%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_incomplete_artifact_is_rejected_with_concrete_gaps PASSED [ 36%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_incomplete_result_is_returned_with_explicit_warning PASSED [ 45%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_iteration_exhaustion_returns_best_partial_with_warning PASSED [ 54%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_loader_reads_both_real_latex_templates PASSED [ 63%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_provider_quota_includes_partial_file_already_written PASSED [ 72%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_provider_quota_returns_best_partial_text_and_names_the_cause PASSED [ 81%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_skill_limits_extend_short_cli_loop_and_token_budget_temporarily PASSED [ 90%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_validator_rejects_missing_question_solution_and_inconsistent_points PASSED [100%]
+
+============================= 11 passed in 1.86s ==============================

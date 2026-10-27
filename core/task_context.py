@@ -1,4 +1,4 @@
-# RÔLE DE CE FICHIER :
+﻿# RÔLE DE CE FICHIER :
 # Gère le contexte persistant et structuré de la tâche active dans NeoHarness AI.
 # Lorsqu'une tâche est créée ou sélectionnée, elle devient la tâche active.
 # Toutes les demandes suivantes (ex: « ensuite », « corrige ça », « passe au test suivant »,
@@ -13,6 +13,7 @@ from __future__ import annotations
 import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 
@@ -457,7 +458,7 @@ class TaskContext:
             target_f = self.downloaded_file or self.artifact_path or (self.files[-1] if self.files else "")
             target_desc = f"le fichier '{target_f}'" if target_f else "le document déjà obtenu"
             parts.append(
-                f"\n**DIRECTIVE CONTEXTUELLE (ANALYSE IMMÉDIATE DU MÊME FICHIER) :** L'utilisateur demande d'analyser le document. "
+                f"\n**DIRECTIVE CONTEXTUELLE (ANALYSE DE DOCUMENT TÉLÉCHARGÉ / ANALYSE IMMÉDIATE DU MÊME FICHIER) :** L'utilisateur demande d'analyser le document. "
                 f"Ne recommence PAS la recherche Internet et ne génère PAS de nouveau document de substitution. "
                 f"Lis et analyse directement {target_desc} avec l'outil 'read_document' ou 'read_file'."
             )

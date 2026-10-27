@@ -10,8 +10,8 @@ import sqlite3
 import time
 import uuid
 from contextlib import contextmanager
-from datetime import datetime, timezone
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +19,18 @@ from tools.registry import ToolCall, ToolRegistry
 
 _SENSITIVE = re.compile(
     r"(?i)(api[_ -]?key|secret|password|passwd|token|authorization)\s*[:=]\s*\S+"
+)
+
+_GREETING_ONLY = re.compile(
+    r"^\s*(?:bonjour|bonsoir|salut|hello|hey|coucou|hi|yo|merci|ok|d'accord|super|parfait|ça\s+va|ca\s+va)"
+    r"(?:\s+[a-zà-ÿ]{1,12}){0,2}\s*[!?.…]*\s*$",
+    re.IGNORECASE,
+)
+
+_FILE_REFERENCE_PATTERN = re.compile(
+    r"\b[a-zA-Z0-9_\-À-ÿ]+\.(?:pdf|docx|doc|tex|html?|md|xlsx|pptx|csv|json|py)\b"
+    r"|\b(?:ce\s+pdf|ce\s+document|fichier\s+joint|document\s+désigné|document\s+designe)\b",
+    re.IGNORECASE,
 )
 
 
@@ -128,38 +140,92 @@ class MemoryManager:
         self._save_persistent_memory()
         return it.to_dict()
 
-    def format_for_system_prompt(self) -> str:
-        """Injecte les règles, préférences et contexte actifs dans le prompt de l'agent."""
+    @staticmethod
+    def _is_relevant_to_query(content: str, query: str | None, linked_resource_id: str | None = None) -> bool:
+        """Filtre les entrées liées à des fichiers/documents spécifiques si la requête n'a aucun rapport."""
+        has_file_ref = bool(linked_resource_id or _FILE_REFERENCE_PATTERN.search(content or ""))
+        if query is None:
+            return not has_file_ref
+        clean_q = query.strip()
+        if not clean_q or _GREETING_ONLY.match(clean_q):
+            return False
+        if not has_file_ref:
+            return True
+        q_tokens = {w.casefold() for w in re.findall(r"[a-zA-ZÀ-ÿ0-9_]{3,}", clean_q)}
+        c_tokens = {w.casefold() for w in re.findall(r"[a-zA-ZÀ-ÿ0-9_]{3,}", content or "")}
+        stopwords = {
+            "les", "des", "une", "dans", "pour", "avec", "sur", "par", "que", "qui", "est",
+            "sont", "cette", "cet", "mon", "mes", "ton", "tes", "son", "ses", "plus", "tout",
+            "document", "fichier", "projet", "reference", "référence", "principale", "memoire", "mémoire",
+        }
+        meaningful_overlap = (q_tokens & c_tokens) - stopwords
+        return bool(meaningful_overlap)
+
+    def format_for_system_prompt(self, query: str | None = None) -> str:
+        """Injecte les règles, préférences et contexte actifs dans le prompt de l'agent
+        sans polluer les salutations ou questions sans rapport avec d'anciens documents.
+        """
+        if isinstance(query, str) and _GREETING_ONLY.match(query.strip()):
+            return ""
+
         active = [it for it in self.persistent_items.values() if it.active]
         if not active and not self.preferences and not self.project:
             return ""
 
-        lines = ["\n[MÉMOIRE PERSISTANTE ACTIVE DE L'AGENT]"]
-        rules = [it.content for it in active if it.category == "rule"]
+        rules = [
+            it.content
+            for it in active
+            if it.category == "rule"
+            and self._is_relevant_to_query(it.content, query, it.linked_resource_id)
+        ]
         prefs = [it.content for it in active if it.category == "preference"]
-        ctx = [it.content for it in active if it.category == "context"]
-        know = [it.content for it in active if it.category in {"knowledge", "decision"}]
+        ctx = [
+            it.content
+            for it in active
+            if it.category == "context"
+            and self._is_relevant_to_query(it.content, query, it.linked_resource_id)
+        ]
+        know = [
+            it.content
+            for it in active
+            if it.category in {"knowledge", "decision"}
+            and self._is_relevant_to_query(it.content, query, it.linked_resource_id)
+        ]
+        proj_notes = [
+            pr for pr in self.project[-10:]
+            if self._is_relevant_to_query(pr, query)
+        ]
+
+        if not rules and not prefs and not ctx and not know and not self.preferences and not proj_notes:
+            return ""
+
+        lines = [
+            "\n[MÉMOIRE PERSISTANTE ACTIVE DE L'AGENT — CONTEXTE SILENCIEUX]",
+            "CONSIGNE STRICTE : Ces éléments constituent un contexte de fond silencieux. "
+            "Ne les mentionne JAMAIS spontanément et ne cite aucun document ou fichier issu de cette mémoire "
+            "si la question actuelle de l'utilisateur (ex: salutation, calcul, question générale) n'en parle pas directement.",
+        ]
 
         if rules:
-            lines.append("RÈGLES PERMANENTES À RESPECTER ABSOLUMENT :")
-            for r in rules:
+            lines.append("RÈGLES PERMANENTES À RESPECTER :")
+            for r in rules[:10]:
                 lines.append(f"  • {r}")
         if prefs:
             lines.append("PRÉFÉRENCES UTILISATEUR :")
-            for p in prefs:
+            for p in prefs[:10]:
                 lines.append(f"  • {p}")
         if ctx:
             lines.append("CONTEXTE PROJET & UTILISATEUR :")
-            for c in ctx:
+            for c in ctx[:8]:
                 lines.append(f"  • {c}")
         if know:
             lines.append("CONNAISSANCES PERSISTANTES :")
-            for k in know:
+            for k in know[:8]:
                 lines.append(f"  • {k}")
 
         for k, v in self.preferences.items():
             lines.append(f"  • {k} = {v}")
-        for pr in self.project[-10:]:
+        for pr in proj_notes:
             lines.append(f"  • {pr}")
 
         lines.append("[FIN DE LA MÉMOIRE PERSISTANTE]\n")
@@ -176,7 +242,6 @@ class MemoryManager:
         clean = (prompt or "").strip()
         lower = clean.casefold()
 
-        # Marqueurs de mémoire ou de bibliothèque
         mem_triggers = (
             "mets ça en mémoire", "mets ca en mémoire", "mets ca en memoire", "mets en mémoire",
             "garde en mémoire", "garde en memoire", "garde cette information",
@@ -193,7 +258,6 @@ class MemoryManager:
         if not has_trigger:
             return None
 
-        # 1. Détection combinée Bibliothèque + Mémoire (ex: "Ajoute ce PDF dans ma bibliothèque et retiens que c'est ma référence principale pour ce projet")
         is_library_req = any(kw in lower for kw in ("bibliothèque", "bibliotheque"))
         is_memory_req = any(kw in lower for kw in ("mémoire", "memoire", "mémorise", "memorise", "retiens", "rappelle-toi", "n'oublie pas", "règle", "regle"))
         is_rule = any(kw in lower for kw in ("règle", "regle", "toujours", "ne jamais", "interdit", "obligatoire", "pour les prochaines fois"))
@@ -202,12 +266,9 @@ class MemoryManager:
         created_mem = None
         created_lib = None
 
-        # Extraction de la cible de mémorisation
-        # Si le prompt dit "Mets ça en mémoire" sans texte explicite, on mémorise la dernière réponse ou le contexte
         extracted_content = clean
         for tr in mem_triggers:
             if tr in lower:
-                # Retirer le trigger pour isoler l'information
                 idx = lower.find(tr)
                 after = clean[idx + len(tr):].strip(" :,-—\n")
                 if len(after) > 4:
@@ -215,18 +276,15 @@ class MemoryManager:
                 break
 
         if extracted_content == clean and len(clean.split()) <= 5:
-            # Demande de type "Mets ça en mémoire."
             if last_assistant_answer:
                 extracted_content = last_assistant_answer[:800]
             else:
                 extracted_content = clean
 
-        # 2. Gestion Bibliothèque (fichiers, notes ou ressources)
         if is_library_req and library_manager is not None:
-            # Chercher si un fichier est mentionné (ex: "ce PDF", "derivatives.docx", etc.)
             file_match = re.search(r"\b([a-zA-Z0-9_\-À-ÿ]+\.(?:pdf|docx|tex|html?|md|py|json|csv))\b", clean, re.IGNORECASE)
             ref_path = file_match.group(1) if file_match else None
-            
+
             title = f"Note : {extracted_content[:40]}" if not ref_path else f"Référence {ref_path}"
             cat = "Documents" if ref_path else "Notes"
             typ = Path(ref_path).suffix.lstrip(".").lower() if ref_path else "note"
@@ -241,7 +299,6 @@ class MemoryManager:
                 tags=["persistant", "utilisateur"],
             )
 
-        # 3. Gestion Mémoire
         if is_memory_req or not is_library_req:
             cat = "rule" if is_rule else ("preference" if is_pref else ("context" if any(w in lower for w in ("projet", "utilisateur", "je suis", "référence")) else "knowledge"))
             created_mem = self.add_persistent_item(
@@ -253,7 +310,6 @@ class MemoryManager:
             if created_lib and library_manager is not None:
                 created_lib = library_manager.update_item(created_lib["id"], linked_memory_id=created_mem["id"])
 
-        # Confirmation élégante et sans génération de fichier
         cat_label = {
             "rule": "Règle permanente",
             "preference": "Préférence",
@@ -466,13 +522,31 @@ class ReflectiveMemory:
 
     def record_lesson(
         self,
-        mission_id: str,
-        declencheur_pattern: str,
-        diagnostic: str,
-        regle: str,
+        mission_id: str = "",
+        declencheur_pattern: str = "",
+        diagnostic: str = "",
+        regle: str = "",
         score_utilite: float = 1.0,
         created_at: float | None = None,
+        *,
+        task_description: str = "",
+        intent: str = "",
+        error_summary: str = "",
+        resolution: str = "",
+        lesson: str = "",
     ) -> str:
+        if not mission_id:
+            mission_id = f"auto-{uuid.uuid4().hex[:8]}"
+        if not declencheur_pattern:
+            clean_words = re.findall(r"\w{3,}", f"{intent} {task_description} {error_summary}".lower())
+            declencheur_pattern = " ".join(dict.fromkeys(clean_words))[:200] or "mission_auto"
+        if not diagnostic:
+            diagnostic = error_summary[:300] or f"Obstacle sur mission {intent or 'générale'}"
+        if not regle:
+            regle = lesson[:400] or (
+                f"Pour [{intent}], résoudre '{error_summary[:100]}' via : {resolution[:150]}"
+            )
+
         lesson_id = str(uuid.uuid4())
         now = time.time() if created_at is None else created_at
         with self._connection() as con:
@@ -515,7 +589,6 @@ class ReflectiveMemory:
         extracted: list[dict[str, Any]] = []
         blob = f"{objectif} {history_summary} {error_details}".lower()
 
-        # Règle 1 : Erreur de syntaxe / AST
         if "syntaxerror" in blob or "syntax" in blob:
             lid = self.record_lesson(
                 mission_id=mission_id,
@@ -526,7 +599,6 @@ class ReflectiveMemory:
             )
             extracted.append({"id": lid, "diagnostic": "Syntaxe invalide", "regle": "Valider AST"})
 
-        # Règle 2 : Répétition d'outil en échec
         if "repetition guard" in blob or "échec répétitif" in blob or "failing_tool" in blob:
             lid = self.record_lesson(
                 mission_id=mission_id,
@@ -537,7 +609,6 @@ class ReflectiveMemory:
             )
             extracted.append({"id": lid, "diagnostic": "Répétition outil", "regle": "Changer de stratégie au 2e échec"})
 
-        # Règle 3 : Quota provider ou rate limit
         if "quota" in blob or "rate limit" in blob or "provider failover" in blob:
             lid = self.record_lesson(
                 mission_id=mission_id,
@@ -548,7 +619,6 @@ class ReflectiveMemory:
             )
             extracted.append({"id": lid, "diagnostic": "Quota atteint", "regle": "Failover immédiat"})
 
-        # Règle 4 : Modification non autorisée de test
         if "testtamperingerror" in blob or "tampering" in blob:
             lid = self.record_lesson(
                 mission_id=mission_id,
@@ -559,7 +629,6 @@ class ReflectiveMemory:
             )
             extracted.append({"id": lid, "diagnostic": "Altération test", "regle": "Corriger le code sans toucher aux tests"})
 
-        # Repli si échec générique et aucune leçon extraite
         if statut == "failure" and not extracted:
             clean_obj = " ".join(re.findall(r"\w{3,}", objectif))[:80]
             lid = self.record_lesson(
@@ -581,10 +650,8 @@ class ReflectiveMemory:
     ) -> list[dict[str, Any]]:
         """Interroge FTS5 sur l'objectif et retourne au plus K leçons avec pondération temporelle (decay)."""
         now = time.time() if current_time is None else current_time
-        # Nettoyage de la requête pour FTS5 (conserve mots alphanumériques >= 3 caractères)
         words = re.findall(r"\w{3,}", query)
         if not words:
-            # Requête de secours sur les meilleures leçons
             with self._connection() as con:
                 rows = con.execute(
                     """
@@ -600,7 +667,7 @@ class ReflectiveMemory:
             with self._connection() as con:
                 rows = con.execute(
                     """
-                    SELECT l.id, l.mission_id, l.declencheur_pattern, l.diagnostic, l.regle,
+                    SELECT l.id, l.mission_id, declencheur_pattern, diagnostic, regle,
                            l.score_utilite, l.count_used, l.created_at, l.last_used_at
                     FROM lessons_learned l
                     JOIN lessons_fts f ON l.id = f.lesson_id
@@ -616,7 +683,6 @@ class ReflectiveMemory:
             created = r["created_at"]
             last_used = r["last_used_at"]
             score = float(r["score_utilite"])
-            # Decay factor : les leçons anciennes perdent du poids selon les jours écoulés
             days_elapsed = max(0.0, (now - last_used) / 86400.0)
             effective_score = score * (self.decay_rate ** days_elapsed)
             results.append(
@@ -634,11 +700,9 @@ class ReflectiveMemory:
                 }
             )
 
-        # Trie par score effectif décroissant
         results.sort(key=lambda item: item["effective_score"], reverse=True)
         top = results[:limit]
 
-        # Met à jour count_used et last_used_at pour les leçons sélectionnées
         if top:
             with self._connection() as con:
                 for item in top:

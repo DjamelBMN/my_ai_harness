@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QCM de Mathématiques Interactif</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --success: #10b981;
+            --success-bg: #ecfdf5;
+            --error: #ef4444;
+            --error-bg: #fef2f2;
+            --border-color: #e2e8f0;
+            --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            background-color: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1.25rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-weight: 700;
+            font-size: 1.25rem;
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        nav a {
+            color: var(--text-muted);
+            text-decoration: none;
+            margin-left: 1.5rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        nav a:hover {
+            color: var(--primary);
+        }
+
+        main {
+            flex: 1;
+            max-width: 800px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 3rem 1rem;
+        }
+
+        .hero {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 1rem;
+            box-shadow: var(--shadow);
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            letter-spacing: -0.025em;
+        }
+
+        .hero p {
+            color: var(--text-muted);
+            font-size: 1.05rem;
+        }
+
+        .qcm-container {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .question-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 1rem;
+            box-shadow: var(--shadow);
+            padding: 2rem;
+        }
+
+        .question-title {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin-bottom: 1.25rem;
+            color: var(--text-main);
+        }
+
+        .options-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .option-btn {
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            padding: 0.85rem 1.25rem;
+            border-radius: 0.5rem;
+            text-align: left;
+            font-size: 1rem;
+            font-family: 'Inter', sans-serif;
+            color: var(--text-main);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .option-btn:hover:not(:disabled) {
+            background-color: #f1f5f9;
+            border-color: var(--primary);
+        }
+
+        .option-btn.selected {
+            background-color: #e0e7ff;
+            border-color: var(--primary);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .option-btn.correct {
+            background-color: var(--success-bg) !important;
+            border-color: var(--success) !important;
+            color: #065f46 !important;
+            font-weight: 600;
+        }
+
+        .option-btn.incorrect {
+            background-color: var(--error-bg) !important;
+            border-color: var(--error) !important;
+            color: #991b1b !important;
+        }
+
+        .correction-box {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.95rem;
+            display: none;
+        }
+
+        .correction-box.show {
+            display: block;
+        }
+
+        .correction-box.success {
+            background-color: var(--success-bg);
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .correction-box.error {
+            background-color: var(--error-bg);
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .score-section {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 1rem;
+            box-shadow: var(--shadow);
+            padding: 2rem;
+            text-align: center;
+            margin-top: 2rem;
+            display: none;
+        }
+
+        .score-section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .btn-primary {
+            display: inline-block;
+            margin-top: 1.5rem;
+            padding: 0.75rem 1.5rem;
+            background-color: var(--primary);
+            color: #ffffff;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        footer {
+            text-align: center;
+            padding: 1.5rem;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            border-top: 1px solid var(--border-color);
+            background-color: var(--card-bg);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <a href="#" class="logo">NeoHarness Math</a>
+        <nav>
+            <a href="#">Accueil</a>
+            <a href="#">QCM Interactif</a>
+            <a href="#">À propos</a>
+        </nav>
+    </header>
+
+    <main>
+        <div class="hero">
+            <h1>QCM de Mathématiques</h1>
+            <p>Testez vos connaissances avec ces 5 questions interactives. Cliquez sur votre réponse pour voir instantanément la correction détaillée.</p>
+        </div>
+
+        <div class="qcm-container" id="qcmContainer"></div>
+
+        <div class="score-section" id="scoreSection">
+            <h2>Résultat de votre QCM</h2>
+            <p id="scoreText"></p>
+            <button class="btn-primary" onclick="resetQCM()">Recommencer le QCM</button>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 NeoHarness AI — Tous droits réservés.</p>
+    </footer>
+
+    <script>
+        const questions = [
+            {
+                id: 1,
+                question: "1. Quelle est la dérivée de la fonction f(x) = 3x² - 5x + 2 ?",
+                options: [
+                    "A) 6x - 5",
+                    "B) 3x - 5",
+                    "C) 6x² - 5",
+                    "D) 6x + 2"
+                ],
+                correct: 0,
+                explanation: "Correction : La dérivée de 3x² est 3 × 2x = 6x, celle de -5x est -5, et celle de la constante 2 est 0. Ainsi, f'(x) = 6x - 5."
+            },
+            {
+                id: 2,
+                question: "2. Quelle est la valeur de l'intégrale de 0 à 1 de 2x dx ?",
+                options: [
+                    "A) 0",
+                    "B) 1",
+                    "C) 2",
+                    "D) 0.5"
+                ],
+                correct: 1,
+                explanation: "Correction : Une primitive de 2x est x². En appliquant les bornes de 0 à 1, on obtient 1² - 0² = 1 - 0 = 1."
+            },
+            {
+                id: 3,
+                question: "3. Soit une suite géométrique (un) de premier terme u0 = 3 et de raison q = 2. Quelle est la valeur de u3 ?",
+                options: [
+                    "A) 12",
+                    "B) 18",
+                    "C) 24",
+                    "D) 48"
+                ],
+                correct: 2,
+                explanation: "Correction : Pour une suite géométrique, u_n = u_0 × q^n. Donc u_3 = 3 × 2³ = 3 × 8 = 24."
+            },
+            {
+                id: 4,
+                question: "4. Quelle est la solution de l'équation e^x = 5 ?",
+                options: [
+                    "A) x = 5",
+                    "B) x = ln(5) / e",
+                    "C) x = ln(5)",
+                    "D) x = 5e"
+                ],
+                correct: 2,
+                explanation: "Correction : La fonction exponentielle et la fonction logarithme népérien (ln) sont réciproques. En appliquant ln des deux côtés, on obtient x = ln(5)."
+            },
+            {
+                id: 5,
+                question: "5. Dans un triangle rectangle dont les côtés de l'angle droit mesurent 3 cm et 4 cm, quelle est la longueur de l'hypoténuse ?",
+                options: [
+                    "A) 5 cm",
+                    "B) 6 cm",
+                    "C) 7 cm",
+                    "D) 25 cm"
+                ],
+                correct: 0,
+                explanation: "Correction : D'après le théorème de Pythagore, c² = 3² + 4² = 9 + 16 = 25. Donc c = √25 = 5 cm."
+            }
+        ];
+
+        let userAnswers = {};
+
+        function renderQCM() {
+            const container = document.getElementById('qcmContainer');
+            container.innerHTML = '';
+
+            questions.forEach((q) => {
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `question-${q.id}`;
+
+                let optionsHtml = '';
+                q.options.forEach((opt, optIndex) => {
+                    optionsHtml += `<button class="option-btn" onclick="selectOption(${q.id}, ${optIndex})" id="q${q.id}-opt${optIndex}">${opt}</button>`;
+                });
+
+                card.innerHTML = `
+                    <div class="question-title">${q.question}</div>
+                    <div class="options-list" id="options-${q.id}">
+                        ${optionsHtml}
+                    </div>
+                    <div class="correction-box" id="correction-${q.id}">
+                        ${q.explanation}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function selectOption(questionId, optionIndex) {
+            if (userAnswers[questionId] !== undefined) return;
+
+            userAnswers[questionId] = optionIndex;
+            const question = questions.find(q => q.id === questionId);
+            const optionsList = document.getElementById(`options-${questionId}`).children;
+            const correctionBox = document.getElementById(`correction-${questionId}`);
+
+            for (let i = 0; i < optionsList.length; i++) {
+                optionsList[i].disabled = true;
+                if (i === question.correct) {
+                    optionsList[i].classList.add('correct');
+                } else if (i === optionIndex) {
+                    optionsList[i].classList.add('incorrect');
+                }
+            }
+
+            correctionBox.classList.add('show');
+            if (optionIndex === question.correct) {
+                correctionBox.classList.add('success');
+            } else {
+                correctionBox.classList.add('error');
+            }
+
+            if (Object.keys(userAnswers).length === questions.length) {
+                showScore();
+            }
+        }
+
+        function showScore() {
+            let score = 0;
+            questions.forEach(q => {
+                if (userAnswers[q.id] === q.correct) {
+                    score++;
+                }
+            });
+
+            const scoreSection = document.getElementById('scoreSection');
+            const scoreText = document.getElementById('scoreText');
+            scoreText.innerHTML = `Vous avez obtenu <strong>${score} / ${questions.length}</strong> bonnes réponses.`;
+            scoreSection.style.display = 'block';
+            scoreSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function resetQCM() {
+            userAnswers = {};
+            document.getElementById('scoreSection').style.display = 'none';
+            renderQCM();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        window.onload = renderQCM;
+    </script>
+</body>
+</html>

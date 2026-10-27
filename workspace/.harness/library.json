@@ -1,5 +1,57 @@
 [
   {
+    "id": "lib-19828216",
+    "title": "Test qcm",
+    "category": "Ressources",
+    "type": "python",
+    "path": "test_qcm.py",
+    "summary": "Fichier PYTHON dans l'espace de travail",
+    "content": "import unittest\n\nclass TestQCMMaths(unittest.TestCase):\n    def test_qcm_structure(self):\n        with open('index.html', 'r', encoding='utf-8') as f:\n            content = f.read()\n        self.assertIn('QCM de Mathématiques', content)\n        self.assertIn('question-card', content)\n        self.assertIn('correction-', content)\n\nif __name__ == '__main__':\n    unittest.main()\n",
+    "tags": [
+      "python"
+    ],
+    "size_bytes": 380,
+    "created_at": "2026-10-27T03:06:22.336804+00:00",
+    "updated_at": "2026-10-27T03:06:22.336804+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-39ec35f0",
+    "title": "Index",
+    "category": "Documents",
+    "type": "html",
+    "path": "index.html",
+    "summary": "Fichier HTML dans l'espace de travail",
+    "content": "",
+    "tags": [
+      "html"
+    ],
+    "size_bytes": 4639,
+    "created_at": "2026-10-27T03:05:20.971620+00:00",
+    "updated_at": "2026-10-27T03:05:20.971620+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-2538183d",
+    "title": "Bareme bacblanc",
+    "category": "Documents",
+    "type": "tex",
+    "path": "bareme_bacblanc.tex",
+    "summary": "Fichier TEX dans l'espace de travail",
+    "content": "\\documentclass[a4paper,11pt]{article}\n\\usepackage{amsmath,amssymb,amsfonts}\n\\usepackage{fontspec}\n\\usepackage{libertinus-otf}\n\\usepackage[french]{babel}\n\\usepackage{array}\n\\usepackage{booktabs}\n\\usepackage{longtable}\n\\usepackage{geometry}\n\\usepackage{multirow}\n\\usepackage[table]{xcolor}\n\\usepackage{colortbl}\n\\usepackage{fancyhdr}\n\\usepackage{lastpage}\n\\usepackage{enumitem}\n\\usepackage{eurosym}\n\\usepackage{tikz}\n\\usepackage[most]{tcolorbox}\n\\geometry{\n    a4paper,\n    left=1.1cm,\n    right=1.1cm,\n    top=1.6cm,\n    bottom=1.5cm,\n    headheight=20pt,\n    headsep=10pt,\n    footskip=20pt\n}\n\\setlength{\\parindent}{0pt}\n\\setlength{\\tabcolsep}{4.5pt}\n\\renewcommand{\\arraystretch}{1.18}\n\\setlength{\\aboverulesep}{1.5pt}\n\\setlength{\\belowrulesep}{1.5pt}\n\\definecolor{bleuprimaire}{RGB}{20, 52, 98}\n\\definecolor{bleusecondaire}{RGB}{31, 95, 168}\n\\definecolor{bleufond}{RGB}{238, 244, 251}\n\\definecolor{grisaccent}{RGB}{100, 116, 139}\n\\definecolor{vertvrai}{RGB}{16, 120, 60}\n\\definecolor{rougefaux}{RGB}",
+    "tags": [
+      "tex",
+      "bac"
+    ],
+    "size_bytes": 15855,
+    "created_at": "2026-10-27T02:04:23.905573+00:00",
+    "updated_at": "2026-10-27T02:04:23.905573+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
     "id": "lib-69a45987",
     "title": "Exercice seconde proba",
     "category": "Documents",

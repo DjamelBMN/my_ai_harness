@@ -1,0 +1,50 @@
+{
+  "timestamp": "2026-10-27T01:13:55.756400+00:00",
+  "cases": [
+    {
+      "id": "chat_salut",
+      "mode": "chat",
+      "ms": 3141,
+      "passed": true,
+      "reasons": [],
+      "answer_preview": "Bonjour. Je suis à votre entière disposition. \n\nEn vous basant sur le document *derivatives.pdf* que vous avez désigné c",
+      "provider": "GeminiProvider",
+      "model": "gemini-3.5-flash-lite"
+    },
+    {
+      "id": "chat_calcul",
+      "mode": "chat",
+      "ms": 1030,
+      "passed": true,
+      "reasons": [],
+      "answer_preview": "391",
+      "provider": "GeminiProvider",
+      "model": "gemini-3.5-flash-lite"
+    },
+    {
+      "id": "mono_calcul",
+      "mode": "mono",
+      "ms": 1157,
+      "passed": true,
+      "reasons": [],
+      "answer_preview": "391",
+      "provider": "GeminiProvider",
+      "model": "gemini-3.5-flash-lite"
+    },
+    {
+      "id": "mono_derivee",
+      "mode": "mono",
+      "ms": 1905,
+      "passed": true,
+      "reasons": [],
+      "answer_preview": "La dérivée de la fonction $x^2 + 3x$ est $2x + 3$.",
+      "provider": "GeminiProvider",
+      "model": "gemini-3.5-flash-lite"
+    }
+  ],
+  "total_ms": 7233,
+  "pass_rate": 1.0,
+  "orchestration_overhead_ms": 127,
+  "comparison": null,
+  "baseline_saved": false
+}

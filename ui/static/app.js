@@ -5757,7 +5757,7 @@ function switchRightPanelMode(mode) {
     state.liveCollapsedOnce = false;
     state.activeDocument = null;
     state.pdfDocCache = null;
-    switchRightPanelMode("inspector");
+    if (state.rightPanelMode === "document") closeRightPanel();
     if (state.liveTimerInterval) clearInterval(state.liveTimerInterval);
     state.liveTimerInterval = setInterval(() => {
       if (state.isExecuting && state.liveSteps.length > 0 && !state.liveCollapsedOnce) {

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous" />
-  <link rel="stylesheet" href="/styles.css?v=2.3" />
+  <link rel="stylesheet" href="/styles.css?v=2.4" />
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -34,6 +34,10 @@
       </div>
 
       <div class="topbar-center">
+        <div class="subheader-task-info" id="topbar-task-info">
+          <span class="subheader-title" id="subheader-task-title">Nouvelle tâche</span>
+          <span class="subheader-status" id="subheader-task-desc">Prêt à être configurée</span>
+        </div>
         <!-- Éléments préservés pour compatibilité télémétrie & tests -->
         <button id="btn-open-model-picker" class="topbar-model-pill" style="display: none;" title="Changer de modèle IA">
           <span class="status-dot" id="top-model-dot"></span>
@@ -49,6 +53,38 @@
       </div>
 
       <div class="topbar-right">
+        <div class="subheader-actions" style="position: relative;">
+        <button id="btn-governance-toggle" type="button" class="subheader-governance-pill" title="Mode de gouvernance et contrôles humains (AUTO, ACCEPT, EDIT, PLAN)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+          <span id="governance-badge-label">Gouvernance : AUTO</span>
+          <span id="governance-subtext-label" style="display: none;">AUTO</span>
+          <svg class="caret-svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+        <div id="governance-dropdown" class="governance-popover-menu" style="display: none;">
+          <div class="gov-option-item active" data-gov-mode="AUTO">
+            <div class="gov-option-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></div>
+            <div class="gov-option-text"><strong>Mode AUTO</strong><span>Permissions et exécution autonomes des outils &amp; Skills</span></div>
+            <span class="gov-check">✓</span>
+          </div>
+          <div class="gov-option-item" data-gov-mode="ACCEPT">
+            <div class="gov-option-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></div>
+            <div class="gov-option-text"><strong>Mode ACCEPT</strong><span>Validation humaine requise pour toute action sensible</span></div>
+            <span class="gov-check" style="display: none;">✓</span>
+          </div>
+          <div class="gov-option-item" data-gov-mode="EDIT">
+            <div class="gov-option-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div>
+            <div class="gov-option-text"><strong>Mode EDIT</strong><span>Modifications directes avec aperçu et traçabilité</span></div>
+            <span class="gov-check" style="display: none;">✓</span>
+          </div>
+          <div class="gov-option-item" data-gov-mode="PLAN">
+            <div class="gov-option-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg></div>
+            <div class="gov-option-text"><strong>Mode PLAN</strong><span>Planification &amp; lecture seule — Aucune écriture autorisée</span></div>
+            <span class="gov-check" style="display: none;">✓</span>
+          </div>
+        </div>
+      </div>
         <!-- Badge Opérationnel style maquette -->
         <div class="topbar-operational-badge" id="topbar-operational-status" title="Système opérationnel et connecté aux providers">
           <span class="operational-dot"></span>
@@ -236,56 +272,7 @@
       <!-- 2. CENTER WORKSPACE (ESPACE PRINCIPAL DE CONVERSATION) -->
       <main class="workspace" role="main">
         <!-- Sous-en-tête contextuel style maquette (Titre + Gouvernance) -->
-        <div class="workspace-subheader">
-          <div class="subheader-task-info">
-            <span class="subheader-title" id="subheader-task-title">Nouvelle tâche</span>
-            <span class="subheader-status" id="subheader-task-desc">Prêt à être configurée</span>
-          </div>
-          <div class="subheader-actions" style="position: relative;">
-            <button id="btn-governance-toggle" type="button" class="subheader-governance-pill" title="Mode de gouvernance et contrôles humains (AUTO, ACCEPT, EDIT, PLAN)">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-              </svg>
-              <span id="governance-badge-label">Gouvernance : AUTO</span>
-              <span id="governance-subtext-label" style="display: none;">AUTO</span>
-              <svg class="caret-svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            </button>
-            <div id="governance-dropdown" class="governance-popover-menu" style="display: none;">
-              <div class="gov-option-item active" data-gov-mode="AUTO">
-                <div class="gov-option-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></div>
-                <div class="gov-option-text">
-                  <strong>Mode AUTO</strong>
-                  <span>Permissions et exécution autonomes des outils &amp; Skills</span>
-                </div>
-                <span class="gov-check">✓</span>
-              </div>
-              <div class="gov-option-item" data-gov-mode="ACCEPT">
-                <div class="gov-option-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></div>
-                <div class="gov-option-text">
-                  <strong>Mode ACCEPT</strong>
-                  <span>Validation humaine requise pour toute action sensible</span>
-                </div>
-                <span class="gov-check" style="display: none;">✓</span>
-              </div>
-              <div class="gov-option-item" data-gov-mode="EDIT">
-                <div class="gov-option-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div>
-                <div class="gov-option-text">
-                  <strong>Mode EDIT</strong>
-                  <span>Modifications directes avec aperçu et traçabilité</span>
-                </div>
-                <span class="gov-check" style="display: none;">✓</span>
-              </div>
-              <div class="gov-option-item" data-gov-mode="PLAN">
-                <div class="gov-option-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg></div>
-                <div class="gov-option-text">
-                  <strong>Mode PLAN</strong>
-                  <span>Planification &amp; lecture seule — Aucune écriture autorisée</span>
-                </div>
-                <span class="gov-check" style="display: none;">✓</span>
-              </div>
-            </div>
-          </div>
-        </div>
+
 
         <div id="workspace-scroll" class="workspace-scroll">
           <!-- Écran d'accueil minimaliste éditorial style maquette -->

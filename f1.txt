@@ -1,0 +1,15 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.9, pytest-9.1.1, pluggy-1.7.0 -- C:\Users\nanod\AppData\Local\Programs\Python\Python311\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\nanod\Desktop\my_ai_harness
+plugins: anyio-4.10.0
+collecting ... collected 6 items
+
+tests/test_autonomous_web_retrieval.py::TestAutonomousWebRetrieval::test_01_real_download_and_physical_verification PASSED [ 16%]
+tests/test_autonomous_web_retrieval.py::TestAutonomousWebRetrieval::test_02_download_links_extraction_from_html PASSED [ 33%]
+tests/test_autonomous_web_retrieval.py::TestAutonomousWebRetrieval::test_03_verifier_rejects_search_without_download PASSED [ 50%]
+tests/test_autonomous_web_retrieval.py::TestAutonomousWebRetrieval::test_04_verifier_accepts_when_document_physically_downloaded PASSED [ 66%]
+tests/test_autonomous_web_retrieval.py::TestAutonomousWebRetrieval::test_05_conversational_continuity_for_retrieval PASSED [ 83%]
+tests/test_autonomous_web_retrieval.py::TestAutonomousWebRetrieval::test_06_exact_bac_retrieval_and_continuity_analysis PASSED [100%]
+
+============================== 6 passed in 0.41s ==============================

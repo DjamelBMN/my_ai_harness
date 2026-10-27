@@ -343,12 +343,26 @@ class Verifier:
 
         # CONTRÔLE D'INTÉGRITÉ ET CONFORMITÉ DE L'ARTEFACT PRODUIT (demande -> attendu -> produit)
         art_req = detect_artifact_request(state.user_request, skill=state.skill_name or "")
+        if (must_read or state.intent in {"review", "file_analysis"}) and not must_modify and not must_download:
+            art_req.wants_file = False
+            art_req.formats = []
+
+        specialized_tex_validated = any(
+            isinstance(vr, dict)
+            and vr.get("required")
+            and vr.get("complete")
+            and vr.get("saved_artifact_paths")
+            for vr in state.verification_results
+        )
+        if specialized_tex_validated and "pdf" not in request and art_req.formats == ["pdf"]:
+            art_req.formats = ["tex"]
+
+        # Seuls les fichiers réellement créés/modifiés/compilés/téléchargés par les outils
+        # de cette mission sont des livrables produits (et jamais les fichiers simplement lus).
+        direct_successful = [item for item in state.tool_results if item.get("status") == "success"]
         produced_deliverables = []
-        for item in successful:
+        for item in direct_successful:
             produced_deliverables.extend(classify_origin(item))
-        for pf in state.files:
-            if pf not in [p for p, _ in produced_deliverables]:
-                produced_deliverables.append((pf, "created"))
 
         art_eval = evaluate_artifacts(art_req, produced_deliverables)
         if art_eval["status"] == "failed":
@@ -385,4 +399,3 @@ class Verifier:
         state.verification_results.append(report)
         state.observations.append({"kind": "verification", **report})
         return report
-

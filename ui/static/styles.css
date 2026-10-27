@@ -3370,12 +3370,6 @@ body.is-resizing canvas {
   padding-top: 14px;
   border-top: 1px solid var(--border-subtle);
 }
-  overflow-x: hidden !important;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
 
 .inspector-card {
   background: var(--bg-surface);
@@ -5997,4 +5991,124 @@ textarea.custom-model-input {
   cursor: not-allowed !important;
   transform: none !important;
   box-shadow: none !important;
+}
+
+/* ==========================================================================
+   PREMIUM COMPACT PATCH v2.4 — densité maximale, rendu net au pixel
+   ========================================================================== */
+
+/* --- Netteté globale --- */
+html, body { text-rendering: optimizeLegibility; -webkit-text-size-adjust: 100%; }
+* { scrollbar-width: thin; scrollbar-color: rgba(142, 139, 130, 0.45) transparent; -webkit-tap-highlight-color: transparent; }
+button, input, textarea, select { font-family: inherit; }
+:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; border-radius: 4px; }
+
+/* --- Réparation des onglets Inspecteur (suite à l'étape 3) --- */
+.inspector-content { overflow-x: hidden; }
+.inspector-content:not(:has(> .activity-panel-editorial, > .details-panel-editorial, > .library-tab-container, > .document-tab-card)) {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* --- Topbar unifiée (titre + gouvernance) : 40px --- */
+.topbar { height: 40px; min-height: 40px; padding: 0 10px; gap: 6px; }
+.topbar-left { flex: 0 1 auto; min-width: 0; }
+.topbar-center { flex: 1 1 0; min-width: 0; justify-content: center; }
+.topbar-right { flex: 0 0 auto; gap: 6px; }
+.topbar-icon-btn { width: 26px; height: 26px; }
+.topbar-search-pill { height: 26px; padding: 0 8px; gap: 6px; }
+
+.subheader-task-info {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+.subheader-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  max-width: 46vw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.subheader-status { font-size: 11.5px; white-space: nowrap; }
+.subheader-actions { display: flex; align-items: center; }
+.subheader-governance-pill { height: 26px; padding: 0 9px; font-size: 11.5px; gap: 5px; }
+.governance-popover-menu { top: calc(100% + 8px); }
+
+/* Badge "Opérationnel" : simple pastille (le texte reste en infobulle) */
+.topbar-operational-badge { padding: 0 4px; }
+.topbar-operational-badge span:not(.operational-dot) { display: none; }
+
+/* --- Zone de conversation : largeur maximale, bords minimaux --- */
+.workspace-scroll { padding: 14px 24px 8px; }
+.conversation-stream { max-width: 960px; gap: 18px; padding-bottom: 12px; }
+.message-card { gap: 6px; }
+.message-card.user { max-width: 86%; padding: 8px 14px; }
+.message-card.assistant { padding: 0 2px 8px; }
+.message-card.assistant .message-body {
+  font-size: 16px;
+  line-height: 1.66;
+  font-kerning: normal;
+}
+.md-prose p { margin-bottom: 9px; }
+.md-prose h1, .md-prose h2, .md-prose h3, .md-prose h4 { margin: 14px 0 6px; }
+.md-prose ul, .md-prose ol { margin: 6px 0 10px 22px; }
+.md-prose li { margin-bottom: 4px; line-height: 1.62; }
+
+/* --- Cadre LaTeX : plus de boîte lourde, simple filet latéral --- */
+.latex-editorial-frame {
+  margin: 6px 0;
+  border: 0;
+  border-left: 2px solid var(--border-color);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+.latex-editorial-frame.in-progress { border-left-color: var(--accent-green); box-shadow: none; }
+.latex-frame-header {
+  height: 28px;
+  min-height: 28px;
+  padding: 0 0 0 12px;
+  background: transparent;
+  border-bottom: 0;
+}
+.latex-frame-content {
+  padding: 2px 0 2px 12px;
+  font-family: var(--font-serif);
+  font-size: 16px;
+  line-height: 1.66;
+}
+.math-block {
+  margin: 8px 0;
+  padding: 6px 4px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+/* --- Composer compact, aligné sur la colonne de texte --- */
+.composer-wrapper { padding: 4px 24px 10px; }
+.composer-box, .approval-banner { max-width: 960px; }
+.composer-box { border-radius: 16px; }
+.composer-textarea { min-height: 44px; padding: 11px 16px 4px; }
+.composer-footer { padding: 2px 8px 7px; }
+.composer-bottom-caption { display: none; }
+
+/* --- Responsive --- */
+@media (max-width: 1500px) {
+  .topbar-search-pill > span { display: none; }   /* icônes seules : Rechercher / Bibliothèque */
+}
+@media (max-width: 1180px) {
+  .subheader-status, .topbar-subtext, .topbar-sep { display: none; }
+}
+@media (min-width: 1700px) {
+  .conversation-stream, .composer-box, .approval-banner { max-width: 1080px; }
 }

@@ -1,0 +1,394 @@
+\documentclass[a4paper,11pt]{article}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{fontspec}
+\usepackage{libertinus-otf}
+\usepackage[french]{babel}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{geometry}
+\usepackage{multirow}
+\usepackage[table]{xcolor}
+\usepackage{colortbl}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{enumitem}
+\usepackage{eurosym}
+\usepackage{tikz}
+\usepackage[most]{tcolorbox}
+\geometry{
+    a4paper,
+    left=1.1cm,
+    right=1.1cm,
+    top=1.6cm,
+    bottom=1.5cm,
+    headheight=20pt,
+    headsep=10pt,
+    footskip=20pt
+}
+\setlength{\parindent}{0pt}
+\setlength{\tabcolsep}{4.5pt}
+\renewcommand{\arraystretch}{1.18}
+\setlength{\aboverulesep}{1.5pt}
+\setlength{\belowrulesep}{1.5pt}
+\definecolor{bleuprimaire}{RGB}{20, 52, 98}
+\definecolor{bleusecondaire}{RGB}{31, 95, 168}
+\definecolor{bleufond}{RGB}{238, 244, 251}
+\definecolor{grisaccent}{RGB}{100, 116, 139}
+\definecolor{vertvrai}{RGB}{16, 120, 60}
+\definecolor{rougefaux}{RGB}{195, 20, 20}
+\definecolor{filetgris}{RGB}{220, 226, 235}
+\tikzset{
+    tabcadre/.style={draw=bleuprimaire, line width=0.8pt},
+    tabligne/.style={draw=bleuprimaire!45, line width=0.6pt},
+    tabrep/.style={
+        draw=rougefaux!90,
+        fill=rougefaux!8,
+        text=rougefaux,
+        font=\bfseries\footnotesize,
+        rounded corners=2.5pt,
+        inner sep=1.8pt,
+        line width=0.6pt
+    },
+    tabfleche/.style={
+        ->,
+        >=stealth,
+        thick,
+        draw=bleusecondaire,
+        shorten <= 3pt,
+        shorten >= 3pt
+    }
+}
+\newcommand{\pts}[1]{%
+    \tcbox[on line, size=small, colback=bleufond, colframe=bleusecondaire!50,
+           arc=2.5mm, boxrule=0.6pt, top=1.2pt, bottom=1.2pt, left=4pt, right=4pt]{%
+        \small\bfseries\textcolor{bleuprimaire}{#1}%
+    }%
+}
+\newcommand{\repbox}[1]{%
+    \tcbox[on line, size=small, colback=rougefaux!6, colframe=rougefaux!90,
+           arc=1.2mm, boxrule=0.7pt, top=1pt, bottom=1pt, left=3.5pt, right=3.5pt]{%
+        \bfseries\textcolor{rougefaux}{#1}%
+    }%
+}
+\newcommand{\vrai}{\textcolor{vertvrai}{\textbf{[VRAI]}}}
+\newcommand{\faux}{\textcolor{rougefaux}{\textbf{[FAUX]}}}
+\newcommand{\subpt}[1]{\textcolor{bleusecondaire}{\bfseries [#1]}}
+\newcommand{\tol}[1]{\textcolor{grisaccent}{\footnotesize\textit{(#1)}}}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small\bfseries\textcolor{bleuprimaire}{BAC BLANC} \textcolor{grisaccent}{-- Terminale Spécialité Mathématiques}}
+\rhead{\small\bfseries\textcolor{bleusecondaire}{Barème et Corrigé -- Sujet 1}}
+\cfoot{\small\textcolor{grisaccent}{Page \thepage\ sur \pageref{LastPage}}}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{bleusecondaire!60}\leaders\hrule height \headrulewidth\hfill}}
+\renewcommand{\footrulewidth}{0.3pt}
+\renewcommand{\footrule}{\hbox to\headwidth{\color{filetgris}\leaders\hrule height \footrulewidth\hfill}}
+\newcommand{\ph}[1]{\ifmmode\text{\color{magenta}[#1]}\else\textcolor{magenta}{[#1]}\fi}
+\begin{document}
+\begin{tcolorbox}[
+    enhanced,
+    colback=bleufond,
+    colframe=bleuprimaire,
+    arc=1.6mm,
+    boxrule=0.8pt,
+    top=4pt, bottom=4pt, left=8pt, right=8pt
+]
+    \textbf{\Large\textcolor{bleuprimaire}{Grille d'évaluation chiffrée et Corrigé détaillé}} \hfill \textbf{\Large\textcolor{bleuprimaire}{Total : 20 points}} \\[0.15em]
+    \textbf{\textcolor{bleusecondaire}{Sujet 1 (Mars 2027)}} \hspace{0.2cm}\textcolor{grisaccent}{\textbullet}\hspace{0.2cm} \textcolor{grisaccent}{Bac Blanc Mathématiques -- Terminale Spécialité} \hfill \small\textcolor{grisaccent}{Durée : 4 heures \textbullet\ Calculatrice autorisée}
+\end{tcolorbox}
+\vspace{0.10cm}
+\begin{longtable}{
+    >{\centering\arraybackslash\bfseries}p{1.1cm}
+    >{\raggedright\arraybackslash\bfseries}p{4.1cm}
+    !{\color{filetgris}\vrule width 0.7pt}
+    >{\raggedright\arraybackslash}p{11.1cm}
+    >{\centering\arraybackslash}p{1.2cm}
+}
+\toprule[1.2pt]
+\rowcolor{bleuprimaire}
+\textcolor{white}{\bfseries Réf.} &
+\textcolor{white}{\bfseries Compétence / Question} &
+\textcolor{white}{\bfseries Critères d'évaluation \& corrigé détaillé} &
+\textcolor{white}{\bfseries Barème} \\
+\midrule[1pt]
+\endfirsthead
+\toprule[1.2pt]
+\rowcolor{bleuprimaire}
+\textcolor{white}{\bfseries Réf.} &
+\textcolor{white}{\bfseries Compétence / Question} &
+\textcolor{white}{\bfseries Critères d'évaluation \& corrigé détaillé} &
+\textcolor{white}{\bfseries Barème} \\
+\midrule[1pt]
+\endhead
+\rowcolor{bleusecondaire!15}
+\multicolumn{4}{l}{
+    \bfseries\textcolor{bleuprimaire}{\large Exercice 1 \hspace{0.2cm}\textbullet\hspace{0.2cm} Algèbre, suites et fonctions} \hfill \bfseries 4 points
+} \\* \midrule[0.6pt]
+\textbf{Q.1} &
+Raisonnement par récurrence &
+\vrai\newline
+\textbullet\ \subpt{0,75} Initialisation et hérédité validées.\newline
+\textbullet\ \subpt{0,25} Conclusion rigoureuse : \repbox{Pour tout $n$, $u_n \le 3$}. &
+\pts{1,00} \\
+\cmidrule(lr){2-4}
+\textbf{Q.2} &
+Dérivation et convexité &
+\vrai\newline
+\textbullet\ \subpt{0,50} Calcul rigoureux de $f''(x) = (x - 2)\mathrm{e}^{-x}$.\newline
+\textbullet\ \subpt{0,50} Annulation avec changement de signe en $x = 2$ : \repbox{1 point d'inflexion}. &
+\pts{1,00} \\
+\cmidrule(lr){2-4}
+\textbf{Q.3} &
+Géométrie dans l'espace &
+\faux\newline
+\textbullet\ \subpt{0,50} Identification des vecteurs $\vec{u}$ et $\vec{n}$.\newline
+\textbullet\ \subpt{0,50} Produit scalaire $\vec{u}\cdot\vec{n} = 6 \neq 0$ : \repbox{sécante et non strictement parallèle}. &
+\pts{1,00} \\
+\cmidrule(lr){2-4}
+\textbf{Q.4} &
+Calcul intégral &
+\vrai\newline
+\textbullet\ \subpt{0,50} Détermination de la primitive $\frac{1}{2}\mathrm{e}^{x^2}$.\newline
+\textbullet\ \subpt{0,50} Évaluation des bornes : \repbox{$I = \frac{\mathrm{e}-1}{2}$}. &
+\pts{1,00} \\
+\midrule[1pt]
+\rowcolor{bleusecondaire!15}
+\multicolumn{4}{l}{
+    \bfseries\textcolor{bleuprimaire}{\large Exercice 2 \hspace{0.2cm}\textbullet\hspace{0.2cm} Géométrie dans l'espace} \hfill \bfseries 5 points
+} \\* \midrule[0.6pt]
+\rowcolor{bleusecondaire!10}
+\multicolumn{4}{l}{%
+    \bfseries\textcolor{bleuprimaire}{\textsc{Partie A}} \;\textcolor{grisaccent}{\textbullet}\; \textcolor{bleuprimaire}{Nature du triangle et plan ABC} \hfill \textcolor{bleusecondaire}{\bfseries 2,50 points}%
+} \\* \midrule[0.5pt]
+\textbf{A.1} &
+Vecteurs et non-alignement &
+\textbullet\ \subpt{0,25} Calcul de $\vec{AB}$ et $\vec{AC}$.\newline
+\textbullet\ \subpt{0,25} Non-colinéarité : \repbox{points non alignés, plan $\mathcal{P}$ défini}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{A.2} &
+Produit scalaire et distances &
+\textbullet\ \subpt{0,25} Calcul de $\vec{AB}\cdot\vec{AC} = 3$.\newline
+\textbullet\ \subpt{0,50} Longueurs égales $AB=AC=BC=\sqrt{6}$ : \repbox{Triangle équilatéral}. &
+\pts{0,75} \\
+\cmidrule(lr){2-4}
+\textbf{A.3} &
+Orthogonalité et vecteur normal &
+\textbullet\ \subpt{0,50} Vérification $\vec{n}\cdot\vec{AB}=0$ et $\vec{n}\cdot\vec{AC}=0$ : \repbox{$\vec{n}$ normal à $\mathcal{P}$}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{A.4} &
+Équation cartésienne &
+\textbullet\ \subpt{0,25} Forme $x+y+z+d=0$.\newline
+\textbullet\ \subpt{0,50} Détermination de $d = -3$ : \repbox{x + y + z - 3 = 0}. &
+\pts{0,75} \\
+\midrule[0.6pt]
+\rowcolor{bleusecondaire!10}
+\multicolumn{4}{l}{%
+    \bfseries\textcolor{bleuprimaire}{\textsc{Partie B}} \;\textcolor{grisaccent}{\textbullet}\; \textcolor{bleuprimaire}{Droite orthogonale et distance} \hfill \textcolor{bleusecondaire}{\bfseries 2,50 points}%
+} \\* \midrule[0.5pt]
+\textbf{B.1.a} &
+Représentation paramétrique &
+\textbullet\ \subpt{0,50} Utilisation du point $D$ et vecteur $\vec{n}$ : \repbox{Système paramétrique valide}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{B.1.b} &
+Intersection droite-plan &
+\textbullet\ \subpt{0,25} Résolution pour $t = -3$.\newline
+\textbullet\ \subpt{0,25} Coordonnées du projeté : \repbox{H(0; 1; 2)}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{B.1.c} &
+Calcul de distance &
+\textbullet\ \subpt{0,50} Norme du vecteur $DH$ : \repbox{3\sqrt{3}}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{B.2.a} &
+Aire géométrique &
+\textbullet\ \subpt{0,50} Formule $\frac{1}{2}\|\vec{AB}\times\vec{AC}\|$ ou trigonométrique : \repbox{3\sqrt{3}/2}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{B.2.b} &
+Volume du tétraèdre &
+\textbullet\ \subpt{0,50} $\frac{1}{3} \times \text{Aire} \times \text{hauteur}$ : \repbox{3/2}. &
+\pts{0,50} \\
+\midrule[1pt]
+\rowcolor{bleusecondaire!15}
+\multicolumn{4}{l}{
+    \bfseries\textcolor{bleuprimaire}{\large Exercice 3 \hspace{0.2cm}\textbullet\hspace{0.2cm} Probabilités et variables aléatoires} \hfill \bfseries 6 points
+} \\* \midrule[0.6pt]
+\rowcolor{bleusecondaire!10}
+\multicolumn{4}{l}{%
+    \bfseries\textcolor{bleuprimaire}{\textsc{Partie A}} \;\textcolor{grisaccent}{\textbullet}\; \textcolor{bleuprimaire}{Probabilités conditionnelles} \hfill \textcolor{bleusecondaire}{\bfseries 2,50 points}%
+} \\* \midrule[0.5pt]
+\textbf{A.1} &
+Arbre pondéré &
+\textbullet\ \subpt{0,50} Construction correcte des branches et probabilités : \repbox{Arbre complet validé}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{A.2} &
+Probabilité intersection &
+\textbullet\ \subpt{0,25} Formule $P(P\cap R)$.\newline
+\textbullet\ \subpt{0,50} Résultat numérique : \repbox{0,255}. &
+\pts{0,75} \\
+\cmidrule(lr){2-4}
+\textbf{A.3.a} &
+Probabilités totales &
+\textbullet\ \subpt{0,50} Somme des chemins conduisant à $R$ : \repbox{0,675}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{A.3.b} &
+Probabilité conditionnelle inverse &
+\textbullet\ \subpt{0,25} Quotient $P(P\cap R)/P(R)$ : \repbox{0,378}. &
+\pts{0,25} \\
+\cmidrule(lr){2-4}
+\textbf{A.4} &
+Synthèse &
+\textbullet\ \subpt{0,50} Analyse critique pertinente : \repbox{Fidélisation accrue par l'option}. &
+\pts{0,50} \\
+\midrule[0.6pt]
+\rowcolor{bleusecondaire!10}
+\multicolumn{4}{l}{%
+    \bfseries\textcolor{bleuprimaire}{\textsc{Partie B}} \;\textcolor{grisaccent}{\textbullet}\; \textcolor{bleuprimaire}{Loi binomiale et concentration} \hfill \textcolor{bleusecondaire}{\bfseries 3,50 points}%
+} \\* \midrule[0.5pt]
+\textbf{B.1} &
+Modélisation loi binomiale &
+\textbullet\ \subpt{0,25} Indépendance et répétition.\newline
+\textbullet\ \subpt{0,25} Paramètres : \repbox{$\mathcal{B}(40; 0,675)$}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{B.2} &
+Calcul binomial ponctuel &
+\textbullet\ \subpt{0,25} Application formule.\newline
+\textbullet\ \subpt{0,25} Résultat : \repbox{0,113}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{B.3.a} &
+Espérance mathématique &
+\textbullet\ \subpt{0,25} $E(X) = np$ : \repbox{27}. &
+\pts{0,25} \\
+\cmidrule(lr){2-4}
+\textbf{B.3.b} &
+Écart-type &
+\textbullet\ \subpt{0,50} $\sigma(X) = \sqrt{np(1-p)}$ : \repbox{2,96}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{B.3.c} &
+Intervalle de fluctuation &
+\textbullet\ \subpt{0,50} Intervalle $[21; 33]$ par Tchebychev/Gauss : \repbox{[21 ; 33]}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{B.4} &
+Interprétation &
+\textbullet\ \subpt{0,50} Cohérence marketing : \repbox{Fluctuation normale attendue}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{B.5.a} &
+Algorithmique Python &
+\textbullet\ \subpt{0,25} Syntaxe correcte \texttt{scipy.stats} : \repbox{Fonction valide}. &
+\pts{0,25} \\
+\cmidrule(lr){2-4}
+\textbf{B.5.b} &
+Portée pratique &
+\textbullet\ \subpt{0,50} Analyse gestion des risques : \repbox{Aide à la décision}. &
+\pts{0,50} \\
+\midrule[1pt]
+\rowcolor{bleusecondaire!15}
+\multicolumn{4}{l}{
+    \bfseries\textcolor{bleuprimaire}{\large Exercice 4 \hspace{0.2cm}\textbullet\hspace{0.2cm} Analyse de fonctions et convexité} \hfill \bfseries 5 points
+} \\* \midrule[0.6pt]
+\rowcolor{bleusecondaire!10}
+\multicolumn{4}{l}{%
+    \bfseries\textcolor{bleuprimaire}{\textsc{Partie A}} \;\textcolor{grisaccent}{\textbullet}\; \textcolor{bleuprimaire}{Étude de la fonction auxiliaire} \hfill \textcolor{bleusecondaire}{\bfseries 2,00 points}%
+} \\* \midrule[0.5pt]
+\textbf{A.1} &
+Variations de $g$ &
+\textbullet\ \subpt{0,25} Dérivée $1 + 1/x > 0$.\newline
+\textbullet\ \subpt{0,25} Sens de variation : \repbox{Strictement croissante}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{A.2} &
+Signe de $g(x)$ &
+\textbullet\ \subpt{0,50} $g(1) = 0$ et stricte monotonie : \repbox{Négatif sur $]0,1[$, positif sur $]1,+\infty[$}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{A.3} &
+Théorème de la bijection (TVI) &
+\textbullet\ \subpt{0,50} Continuité, stricte monotonie et encadrement des images : \repbox{Unique solution $\alpha$}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{A.4} &
+Encadrement numérique &
+\textbullet\ \subpt{0,50} Balayage ou dichotomie : \repbox{$\alpha \approx 0,28$}. &
+\pts{0,50} \\
+\midrule[0.6pt]
+\rowcolor{bleusecondaire!10}
+\multicolumn{4}{l}{%
+    \bfseries\textcolor{bleuprimaire}{\textsc{Partie B}} \;\textcolor{grisaccent}{\textbullet}\; \textcolor{bleuprimaire}{Étude de la fonction principale f} \hfill \textcolor{bleusecondaire}{\bfseries 3,00 points}%
+} \\* \midrule[0.5pt]
+\textbf{B.1} &
+Limite en 0 et asymptote &
+\textbullet\ \subpt{0,50} Calcul limite $+\infty$.\newline
+\textbullet\ \subpt{0,25} Interprétation : \repbox{Asymptote verticale x = 0}. &
+\pts{0,75} \\
+\cmidrule(lr){2-4}
+\textbf{B.2} &
+Limite en $+\infty$ &
+\textbullet\ \subpt{0,25} Croissances comparées.\newline
+\textbullet\ \subpt{0,25} Résultat : \repbox{$+\infty$}. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{B.3} &
+Lien dérivée et $g(x)$ &
+\textbullet\ \subpt{0,25} Calcul $f'(x) = g(x)/x$.\newline
+\textbullet\ \subpt{0,25} Signe identique à $g(x)$. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{B.4} &
+Tableau de variations &
+\textbullet\ \subpt{0,25} Décroissante puis croissante.\newline
+\textbullet\ \subpt{0,25} Minimum en $1$ égal à $0$. &
+\pts{0,50} \\
+\cmidrule(lr){2-4}
+\textbf{B.5.a} &
+Convexité et dérivée seconde &
+\textbullet\ \subpt{0,25} Calcul $f''(x) = \frac{2-\ln x}{x^2}$. &
+\pts{0,25} \\
+\cmidrule(lr){2-4}
+\textbf{B.5.b} &
+Point d'inflexion &
+\textbullet\ \subpt{0,50} Annulation en changeant de signe en $x = \mathrm{e}^2$ : \repbox{Point d'inflexion en $\mathrm{e}^2$}. &
+\pts{0,50} \\
+\midrule[1.2pt]
+\rowcolor{bleuprimaire}
+\multicolumn{3}{r}{\textcolor{white}{\bfseries\large TOTAL GÉNÉRAL}} &
+\textcolor{white}{\bfseries\large 20 pts} \\
+\bottomrule[1.2pt]
+\end{longtable}
+\vspace{0.08cm}
+\begin{tcolorbox}[
+    enhanced,
+    colback=white,
+    colframe=bleuprimaire,
+    boxrule=0.7pt,
+    leftrule=3.5pt,
+    arc=1.5mm,
+    title={\bfseries Consignes communes d'harmonisation (Règles d'or)},
+    coltitle=bleuprimaire,
+    colbacktitle=bleufond,
+    titlerule=0.3pt,
+    top=4pt, bottom=4pt, left=8pt, right=8pt
+]
+\small
+\begin{itemize}[leftmargin=*, label=\textcolor{bleusecondaire}{\small\textbullet}, itemsep=8pt, topsep=1pt, parsep=0pt]
+    \item \textbf{Valorisation des initiatives} : Toute démarche pertinente, même interrompue, doit recevoir une notation partielle (0,25 à 0,5 pt).
+    \item \textbf{Rigueur de rédaction} : Exiger la citation des théorèmes (TVI, récurrence, convergence monotone) et la vérification de leurs hypothèses.
+    \item \textbf{Cohérence des résultats} : Un résultat intermédiaire erroné mais exploité correctement par la suite ne doit pas pénaliser doublement le candidat.
+    \item \textbf{Notation des QCM} : Les réponses aux exercices de type Vrai/Faux sans justification ne rapportent aucun point.
+    \item \textbf{Unités et notations} : Veiller à la rigueur des notations vectorielles et à la présence des unités dans les calculs d'aires et de volumes.
+    \item \textbf{Calculatrice} : Valider l'utilisation des modes examens et l'exactitude des arrondis demandés au millième.
+    \item \textbf{Harmonisation} : Harmoniser la notation au sein de l'équipe pédagogique lors de la commission de correction.
+\end{itemize}
+\end{tcolorbox}
+\end{document}

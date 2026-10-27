@@ -291,6 +291,8 @@ class GeminiProvider(BaseProvider):
                 category="configuration",
             )
         self.model = model.strip() if model else DEFAULT_MODEL
+        self.last_used_model: str = self.model
+        self.last_usage: dict[str, int] = {}
         self._client = None
         self._verified = False
         self._available_models: dict[str, str] = {}
@@ -300,16 +302,41 @@ class GeminiProvider(BaseProvider):
         self.enable_extended_thinking = False
         self.stream_callback: Any = None
 
+    def _is_real_sdk_client(self) -> bool:
+        """Retourne True uniquement lorsque self._client est le vrai client google.genai."""
+        if self._client is None:
+            return True
+        mod = getattr(type(self._client), "__module__", "") or ""
+        return mod.startswith("google")
+
+    def _record_usage(self, response_or_chunk: Any) -> None:
+        """Extrait usage_metadata de la réponse Gemini et met à jour self.last_usage."""
+        meta = getattr(response_or_chunk, "usage_metadata", None)
+        if meta is None:
+            return
+        try:
+            prompt_tok = int(getattr(meta, "prompt_token_count", 0) or 0)
+            cand_tok = int(getattr(meta, "candidates_token_count", 0) or 0)
+            total_tok = int(getattr(meta, "total_token_count", 0) or (prompt_tok + cand_tok))
+            if total_tok > 0 or prompt_tok > 0 or cand_tok > 0:
+                self.last_usage = {
+                    "prompt_tokens": prompt_tok,
+                    "completion_tokens": cand_tok,
+                    "total_tokens": total_tok or (prompt_tok + cand_tok),
+                }
+        except Exception:
+            pass
+
     # ------------------------------------------------------------------ client
     def _get_client(self):
+        if self._client is not None:
+            return self._client
         api_key = os.environ.get("GEMINI_API_KEY", "").strip()
         if not api_key:
             raise GeminiProviderError(
                 "GEMINI_API_KEY n'est pas configurée.",
                 category="missing_key",
             )
-        if self._client is not None:
-            return self._client
 
         try:
             from google import genai
@@ -400,6 +427,7 @@ class GeminiProvider(BaseProvider):
                 status=404,
             )
         if status == 400:
+            print(f"[GeminiProvider] HTTP 400 pendant {phase} : {msg_str[:400]}", flush=True)
             return GeminiProviderError(
                 "Gemini — configuration invalide : requête ou modèle incompatible "
                 "avec l'API.",
@@ -468,8 +496,6 @@ class GeminiProvider(BaseProvider):
 
         primary = self.model
         if primary and self._available_models and primary not in self._available_models:
-            # Identifiant inexistant pour cette clé : on cherche l'identifiant réel le plus proche
-            # (ex. "gemini-3.5-flash-lite" -> "gemini-3.5-flash-lite-preview-xx").
             close = sorted(
                 (m for m in self._available_models if m.startswith(primary) or primary.startswith(m)),
                 key=len,
@@ -498,7 +524,7 @@ class GeminiProvider(BaseProvider):
         scope: str = "base",
     ) -> Any:
         """Point d'entrée UNIQUE des appels API : limiteur, retries bornés, repli de modèle."""
-        if not self._available_models:
+        if not self._available_models and not self._verified:
             try:
                 self.list_available_models()  # mis en cache 5 min, évite les 404 sur des identifiants inconnus
             except GeminiProviderError as error:
@@ -526,11 +552,13 @@ class GeminiProvider(BaseProvider):
             raise self._final_error(candidates, kinds, phase, None, scope)
 
         max_wait = _max_retry_wait()
+        use_rate_limiter = self._is_real_sdk_client()
         last_mapped: GeminiProviderError | None = None
 
         for model in usable:
             for attempt in range(self.max_retries + 1):
-                _get_limiter().acquire(max_wait)  # peut lever rate_limit local (0 requête API)
+                if use_rate_limiter:
+                    _get_limiter().acquire(max_wait)  # peut lever rate_limit local (0 requête API)
                 try:
                     result = call(model)
                 except Exception as error:
@@ -588,9 +616,9 @@ class GeminiProvider(BaseProvider):
 
                     raise mapped from None
                 else:
+                    self.last_used_model = model
                     if model != self.model:
-                        print(f"[GeminiProvider] Bascule sur le modèle {model}", flush=True)
-                        self.model = model
+                        print(f"[GeminiProvider] Repli ponctuel sur le modèle {model}", flush=True)
                     return result
 
         raise self._final_error(candidates, kinds, phase, last_mapped, scope)
@@ -674,7 +702,9 @@ class GeminiProvider(BaseProvider):
             options: dict[str, Any] = {"model": model, "contents": contents}
             if cfg is not None:
                 options["config"] = cfg
-            return client.models.generate_content(**options)
+            resp = client.models.generate_content(**options)
+            self._record_usage(resp)
+            return resp
 
         return self._execute(call, phase, scope=scope)
 
@@ -682,7 +712,11 @@ class GeminiProvider(BaseProvider):
     def list_available_models(self) -> list[dict[str, str]]:
         """Liste les modèles accessibles qui prennent en charge generateContent (cache 5 min)."""
         now = time.monotonic()
-        if GeminiProvider._cached_models and (now - GeminiProvider._cached_models_time < 300.0):
+        if (
+            self._client is None
+            and GeminiProvider._cached_models
+            and (now - GeminiProvider._cached_models_time < 300.0)
+        ):
             self._available_models = {
                 item["model"]: item["display_name"] for item in GeminiProvider._cached_models
             }
@@ -734,6 +768,7 @@ class GeminiProvider(BaseProvider):
                 category="configuration",
             )
         self.model = model
+        self.last_used_model = model
         self._verified = True
 
     def with_model(self, model: str) -> "GeminiProvider":
@@ -768,9 +803,10 @@ class GeminiProvider(BaseProvider):
                 category="configuration",
             )
         if self.model not in self._available_models:
-            # Plutôt que de bloquer, on se rabat sur un modèle de repli réellement accessible.
-            replacement = next(
-                (m for m in DEFAULT_FALLBACK_MODELS if m in self._available_models), None
+            replacement = (
+                next((m for m in DEFAULT_FALLBACK_MODELS if m in self._available_models), None)
+                if self.model in DEFAULT_FALLBACK_MODELS and self._is_real_sdk_client()
+                else None
             )
             if replacement is None:
                 raise GeminiProviderError(
@@ -783,6 +819,7 @@ class GeminiProvider(BaseProvider):
                 flush=True,
             )
             self.model = replacement
+            self.last_used_model = replacement
         self._verified = True
 
     # -------------------------------------------------------------- génération
@@ -858,6 +895,7 @@ class GeminiProvider(BaseProvider):
             # On lit jusqu'au premier texte ici : une erreur de quota survient
             # avant le premier fragment et peut donc encore déclencher un repli.
             for chunk in iterator:
+                self._record_usage(chunk)
                 text = getattr(chunk, "text", "")
                 if isinstance(text, str) and text:
                     return text, iterator
@@ -868,6 +906,7 @@ class GeminiProvider(BaseProvider):
             yield first
         try:
             for chunk in iterator:
+                self._record_usage(chunk)
                 text = getattr(chunk, "text", "")
                 if isinstance(text, str) and text:
                     yield text
@@ -881,11 +920,15 @@ class GeminiProvider(BaseProvider):
         all_parts: list = []
         last_candidate = None
         stream_grounding = None
+        last_usage_meta = None
         try:
             stream = self._get_client().models.generate_content_stream(
                 model=model, contents=contents, config=cfg
             )
             for chunk in stream:
+                self._record_usage(chunk)
+                if getattr(chunk, "usage_metadata", None) is not None:
+                    last_usage_meta = chunk.usage_metadata
                 cands = getattr(chunk, "candidates", None) or []
                 if not cands:
                     continue
@@ -912,6 +955,7 @@ class GeminiProvider(BaseProvider):
             return None
         return SimpleNamespace(
             text="".join(streamed_text),
+            usage_metadata=last_usage_meta,
             candidates=[
                 SimpleNamespace(
                     content=types.Content(role="model", parts=all_parts),
@@ -1012,12 +1056,15 @@ class GeminiProvider(BaseProvider):
                     scope=scope,
                 )
                 if streamed is not None:
+                    self._record_usage(streamed)
                     return streamed
-            return self._execute(
+            resp = self._execute(
                 lambda m: client.models.generate_content(model=m, contents=contents, config=cfg),
                 phase,
                 scope=scope,
             )
+            self._record_usage(resp)
+            return resp
 
         try:
             response = run(config, "search" if builtin_google_search else "base")

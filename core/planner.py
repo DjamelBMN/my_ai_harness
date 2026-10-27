@@ -33,6 +33,9 @@ class Planner:
 
     def plan(self, task: Task | str) -> TaskState:
         task = ensure_task(task)
+        if task.skill is None and task.type.strip().lower() in {"bacblancagent", "bacblanc", "exerciceagent", "dmagent"}:
+            task.type = "researcher"
+            task.explicit_agent = False
         request = task.description.strip()
         if not request:
             raise ClarificationRequired("Décris la mission que tu veux confier au harness.")
