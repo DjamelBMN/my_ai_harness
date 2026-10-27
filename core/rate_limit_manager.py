@@ -2,6 +2,13 @@
 # Gestionnaire centralisé de concurrence LLM, limitation de débit (RateLimitManager),
 # absorption intelligente des erreurs 429 avec exponential backoff + jitter,
 # et Circuit Breaker par provider pour protéger les quotas Free Tier et API payantes.
+#
+# VERSION CORRIGÉE :
+#   - un 429 temporaire n'ouvre plus le Circuit Breaker pour 60 s (cooldown court, Retry-After respecté)
+#   - plus de faux positif "quota" : détection stricte (quotaId PerDay, marqueurs précis)
+#   - les erreurs déjà traitées par GeminiProvider (retries + repli de modèle + cooldowns)
+#     ne sont PAS retentées ici (évite le double retry et l'ouverture inutile du breaker)
+#   - CircuitBreakerOpenError expose retry_after/category pour que AgentLoop attende puis réessaie
 
 from __future__ import annotations
 
@@ -15,6 +22,14 @@ import time
 from typing import Any, Callable
 
 from providers.base_provider import AgentTurn, BaseProvider
+
+try:  # classification fiable et partagée avec providers/gemini.py
+    from providers.gemini import is_gemini_quota_exhausted as _gemini_quota_exhausted
+except Exception:  # pragma: no cover - module absent ou SDK manquant
+    _gemini_quota_exhausted = None
+
+# Cooldown maximum du breaker pour un 429 TEMPORAIRE (le quota journalier garde cooldown_after_429).
+TEMP_429_MAX_COOLDOWN = 15.0
 
 
 class ExecutionMode(str, Enum):
@@ -34,7 +49,18 @@ class RateLimitExhaustedError(RuntimeError):
 
 
 class CircuitBreakerOpenError(RuntimeError):
-    """Exception levée lorsque le Circuit Breaker est ouvert et qu'aucun fallback n'est disponible."""
+    """Exception levée lorsque le Circuit Breaker est ouvert et qu'aucun fallback n'est disponible.
+
+    `category` et `retry_after` permettent à AgentLoop d'attendre puis de réessayer
+    au lieu d'abandonner la mission.
+    """
+
+    category = "rate_limit"
+    is_quota_exhausted = False
+
+    def __init__(self, message: str = "", retry_after: float | None = None) -> None:
+        super().__init__(message)
+        self.retry_after = retry_after
 
 
 @dataclass
@@ -159,19 +185,23 @@ def extract_retry_after(error: Exception) -> float | None:
     """Extrait le délai Retry-After (en secondes) depuis l'exception, headers ou message."""
     if error is None:
         return None
-    if hasattr(error, "retry_after") and isinstance(error.retry_after, (int, float)):
-        return float(error.retry_after)
+    value = getattr(error, "retry_after", None)
+    if isinstance(value, (int, float)) and value > 0:
+        return float(value)
 
     # 1. Headers HTTP
     for holder in (getattr(error, "response", None), error):
         headers = getattr(holder, "headers", None)
-        if isinstance(headers, dict):
-            for k, v in headers.items():
-                if str(k).lower() in ("retry-after", "retry_after"):
-                    try:
-                        return float(v)
-                    except (ValueError, TypeError):
-                        pass
+        if headers is not None and hasattr(headers, "items"):
+            try:
+                for k, v in headers.items():
+                    if str(k).lower() in ("retry-after", "retry_after"):
+                        try:
+                            return float(v)
+                        except (ValueError, TypeError):
+                            pass
+            except Exception:
+                pass
 
     # 2. Détails structurés Google RPC
     details = getattr(error, "details", None) or []
@@ -209,35 +239,48 @@ def extract_retry_after(error: Exception) -> float | None:
     return None
 
 
+# Marqueurs d'épuisement DÉFINITIF. Volontairement SANS "current plan" / "plan and billing" :
+# ces mots figurent dans le message standard de TOUS les 429 (même ceux par minute).
+_PERMANENT_MARKERS = (
+    "perday",
+    "per day",
+    "requests per day",
+    "daily quota",
+    "daily limit",
+    "for the day",
+    "billing not enabled",
+    "free_tier_requests_per_day",
+    "credit balance",
+    "insufficient_quota",
+    "prepayment credits",
+    "quotas épuisés",
+    "quota réellement épuisé",
+)
+
+
 def is_permanent_quota_exhausted(error: Exception) -> bool:
     """Distingue un quota réellement épuisé (journalier/compte) d'un 429 temporaire (RPM/TPM)."""
     if error is None:
         return False
     if getattr(error, "is_quota_exhausted", False) or getattr(error, "category", "") == "quota_exhausted":
         return True
-
+    if str(getattr(error, "category", "")).casefold() == "rate_limit":
+        return False
+    if _gemini_quota_exhausted is not None:
+        try:
+            if _gemini_quota_exhausted(error):
+                return True
+        except Exception:
+            pass
     msg = str(error).lower()
-    exhausted_markers = (
-        "perday",
-        "per day",
-        "requests per day",
-        "daily quota",
-        "daily limit",
-        "for the day",
-        "billing not enabled",
-        "free_tier_requests_per_day",
-        "current plan",
-        "plan and billing",
-        "credit balance",
-        "insufficient_quota",
-        "quotas épuisés",
-        "quota réellement épuisé",
-    )
-    return any(marker in msg for marker in exhausted_markers)
+    return any(marker in msg for marker in _PERMANENT_MARKERS)
 
 
 def is_rate_limit_error(error: Exception) -> bool:
-    """Détecte de manière fiable si une exception correspond à une erreur 429 ou Rate Limit."""
+    """Détecte de manière fiable si une exception correspond à une erreur 429 ou Rate Limit.
+
+    Le mot « quota » seul ou un « 429 » isolé dans un texte ne suffisent plus.
+    """
     if error is None:
         return False
     if str(getattr(error, "category", "")).casefold() in {"quota", "rate_limit", "quota_exhausted", "429"}:
@@ -246,13 +289,13 @@ def is_rate_limit_error(error: Exception) -> bool:
     if status == 429:
         return True
     msg = str(error).casefold().replace("_", " ")
+    if re.search(r"(?:http|status|error|code)\D{0,3}429\b", msg):
+        return True
     return any(
         marker in msg
         for marker in (
-            "429",
             "rate limit",
             "ratelimit",
-            "quota",
             "too many requests",
             "resource exhausted",
             "exceeded your current quota",
@@ -361,19 +404,40 @@ class RateLimitManager:
         """Alias pratique de get_circuit_status."""
         return self.get_circuit_status(provider_name)
 
+    def reset_circuit(self, provider_name: str | None = None) -> None:
+        """Ferme immédiatement le Circuit Breaker (un provider ou tous)."""
+        with self._lock:
+            targets = (
+                [(provider_name or "default").lower().strip()]
+                if provider_name
+                else list(self._provider_circuits)
+            )
+            for name in targets:
+                circuit = self._provider_circuits.get(name)
+                if circuit is not None:
+                    circuit.state = CircuitState.CLOSED
+                    circuit.consecutive_429s = 0
+                    circuit.cooldown_until = 0.0
+
+    def _temp_cooldown(self, retry_after: float | None = None) -> float:
+        """Cooldown court pour un 429 temporaire : jamais plus de TEMP_429_MAX_COOLDOWN secondes."""
+        base = retry_after if retry_after and retry_after > 0 else TEMP_429_MAX_COOLDOWN
+        return max(1.0, min(base, self.cooldown_after_429, TEMP_429_MAX_COOLDOWN))
+
     def record_429(self, provider_name: str) -> None:
         """Enregistre une erreur 429 sur le provider et déclenche le Circuit Breaker si seuil atteint."""
         p_norm = (provider_name or "default").lower().strip()
         circuit = self.get_circuit_status(p_norm)
         with self._lock:
             now = time.monotonic()
-            circuit.record_429(now, self.circuit_breaker_threshold, self.cooldown_after_429)
+            cooldown = self._temp_cooldown()
+            circuit.record_429(now, self.circuit_breaker_threshold, cooldown)
             if circuit.state == CircuitState.OPEN:
                 self._emit(
                     "llm.circuit_open",
                     {
                         "provider": p_norm,
-                        "cooldown_seconds": self.cooldown_after_429,
+                        "cooldown_seconds": cooldown,
                         "consecutive_429s": circuit.consecutive_429s,
                     },
                 )
@@ -400,7 +464,8 @@ class RateLimitManager:
             if circuit.is_cooling_down(now):
                 rem = circuit.remaining_cooldown(now)
                 raise CircuitBreakerOpenError(
-                    f"Le provider '{p_name}' est en cooldown (Circuit Breaker ouvert pour encore {rem}s)."
+                    f"Le provider '{p_name}' est en cooldown (Circuit Breaker ouvert pour encore {rem}s).",
+                    retry_after=rem,
                 )
             self._queued_calls += 1
             circuit.total_calls += 1
@@ -574,7 +639,6 @@ class RateLimitManager:
     def get_state(self) -> dict[str, Any]:
         """Retourne un snapshot complet de l'état du gestionnaire pour l'UI et les tests."""
         with self._lock:
-            now = time.monotonic()
             circuits_dict = {}
             total_recent_429 = 0
             for name, c in self._provider_circuits.items():
@@ -670,7 +734,8 @@ class RateLimitManager:
                     return effective_fallback(*args, **kwargs)
                 raise CircuitBreakerOpenError(
                     f"Le provider '{p_name}' est en cooldown (Circuit Breaker ouvert pour encore {rem}s). "
-                    "Nouvelle tentative ultérieure requise pour préserver vos quotas."
+                    "Nouvelle tentative ultérieure requise pour préserver vos quotas.",
+                    retry_after=rem,
                 )
 
         # 2. Mise en file d'attente globale
@@ -748,6 +813,26 @@ class RateLimitManager:
                     return result
 
                 except Exception as exc:
+                    # Erreur DÉJÀ traitée par le provider (GeminiProvider : retries, repli de
+                    # modèle, cooldowns propres). On ne la retente pas ici et on n'ouvre pas le
+                    # breaker : on la remonte telle quelle (avec category/retry_after) à AgentLoop.
+                    if hasattr(exc, "is_quota_exhausted") and hasattr(exc, "category"):
+                        category = str(getattr(exc, "category", "")).casefold()
+                        if getattr(exc, "is_quota_exhausted", False) or category in {"rate_limit", "quota_exhausted"}:
+                            self._emit(
+                                "llm.rate_limited",
+                                {
+                                    "provider": p_name,
+                                    "agent": agent_name,
+                                    "attempt": attempt,
+                                    "error": str(exc),
+                                },
+                            )
+                            if self.fallback_enabled and effective_fallback is not None:
+                                print("[Orchestrator] Fallback provider utilisé", flush=True)
+                                return effective_fallback(*args, **kwargs)
+                        raise
+
                     if is_rate_limit_error(exc):
                         now = time.monotonic()
                         if is_gemini:
@@ -783,6 +868,7 @@ class RateLimitManager:
                             ) from exc
 
                         # 429 temporaire
+                        api_retry_after = extract_retry_after(exc)
                         with self._lock:
                             circuit.rate_limited_calls += 1
                             circuit.consecutive_429s += 1
@@ -800,16 +886,17 @@ class RateLimitManager:
                             },
                         )
 
-                        # Déclenchement du Circuit Breaker si seuil dépassé
+                        # Déclenchement du Circuit Breaker si seuil dépassé (cooldown COURT)
                         if circuit.consecutive_429s >= self.circuit_breaker_threshold:
+                            cooldown = self._temp_cooldown(api_retry_after)
                             with self._lock:
                                 circuit.state = CircuitState.OPEN
-                                circuit.cooldown_until = now + self.cooldown_after_429
+                                circuit.cooldown_until = now + cooldown
                             self._emit(
                                 "llm.circuit_open",
                                 {
                                     "provider": p_name,
-                                    "cooldown_seconds": self.cooldown_after_429,
+                                    "cooldown_seconds": cooldown,
                                     "consecutive_429s": circuit.consecutive_429s,
                                 },
                             )
@@ -818,7 +905,6 @@ class RateLimitManager:
                                 return effective_fallback(*args, **kwargs)
 
                         if attempt < self.max_retries:
-                            api_retry_after = extract_retry_after(exc)
                             backoff_delay = self.calculate_backoff(attempt)
                             if api_retry_after is not None and api_retry_after > 0:
                                 delay = round(api_retry_after + random.uniform(*self.jitter_range), 2)
@@ -848,7 +934,7 @@ class RateLimitManager:
                                 return effective_fallback(*args, **kwargs)
                             raise RateLimitExhaustedError(
                                 f"Limite de débit (429) persistante sur le provider '{p_name}' "
-                                f"après {attempt} tentatives de retry. Quotas épuisés."
+                                f"après {attempt} tentatives de retry."
                             ) from exc
                     else:
                         raise
@@ -1082,7 +1168,7 @@ class RateLimitedProviderProxy(BaseProvider):
         return getattr(self._target, name)
 
     def __setattr__(self, name: str, value: Any) -> None:
-        if name in ("_target", "_rlm", "_agent_name"):
+        if name in ("_target", "_rlm", "_agent_name", "_fallback_getter"):
             super().__setattr__(name, value)
         else:
             setattr(self._target, name, value)

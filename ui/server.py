@@ -76,6 +76,8 @@ def is_conversational_query(prompt: str) -> bool:
     p = (prompt or '').strip().casefold()
     if not p:
         return True
+    if re.match(r"^/(?:exercice|dm|bacblanc)\b", p):
+        return False
     explicit_file_triggers = (
         'fichier', 'document', 'pdf', 'docx', 'word', 'latex', '.tex', '.html',
         'sujet de bac', 'bac blanc', 'devoir maison', 'livrable', 'exporte', 'exporter',
@@ -399,7 +401,7 @@ class NeoHarnessRuntimeBridge:
             return {
                 "default_provider": "gemini",
                 "providers": {
-                    "gemini": {"model": "gemini-3.6-flash", "enabled": True},
+                    "gemini": {"model": "gemini-3.5-flash-lite", "enabled": True},
                     "ollama": {"model": "qwen3:1.7b", "enabled": True},
                     "openai": {"model": "gpt-5-mini", "enabled": True},
                     "mistral": {"model": "mistral-small-latest", "enabled": True},
@@ -435,8 +437,8 @@ class NeoHarnessRuntimeBridge:
         providers_cfg = self.settings.get("providers", {})
         routing_cfg = self.settings.get("routing", {})
 
-        gemini_model = str(providers_cfg.get("gemini", {}).get("model") or "gemini-3.6-flash")
-        lite_model = str(routing_cfg.get("simple") or "gemini-3.6-flash")
+        gemini_model = str(providers_cfg.get("gemini", {}).get("model") or "gemini-3.5-flash-lite")
+        lite_model = str(providers_cfg.get("gemini_flash_lite", {}).get("model") or "gemini-3.5-flash-lite")
         openai_model = str(providers_cfg.get("openai", {}).get("model") or "gpt-5-mini")
         mistral_model = str(providers_cfg.get("mistral", {}).get("model") or "mistral-small-latest")
         ollama_model = str(providers_cfg.get("ollama", {}).get("model") or OllamaProvider.DEFAULT_MODEL)
@@ -2161,10 +2163,6 @@ class NeoHarnessRuntimeBridge:
                 has_tex_file = True
             except Exception:
                 pass
-                modified_paths.append(rel_tex)
-                has_tex_file = True
-            except Exception:
-                pass
 
         # 3. Compilation automatique avec Tectonic des fichiers .tex créés ou modifiés durant la tâche
         compiled_pdf_paths: set[str] = set()
@@ -2843,7 +2841,9 @@ class NeoHarnessRuntimeBridge:
             self.current_task_status = "Discussion"
             self._ensure_routed_providers_ready()
             try:
-                provider = self.orchestrator.router.providers.get("gemini") or self.orchestrator.router.get_provider("agent", intent="chat")
+                _router = self.orchestrator.router
+                _router.get_provider("researcher", intent="general_question", complexity="simple")
+                provider = _router.providers.get(_router.last_provider_key)
             except Exception:
                 prov_key = self.orchestrator.router.session_provider_key
                 provider = self.orchestrator.router.providers.get(prov_key)
@@ -2878,11 +2878,24 @@ class NeoHarnessRuntimeBridge:
             if snippets:
                 prompt_for_chat += "\n\n" + "\n\n".join(snippets)
 
+            _stream_parts: list[str] = []
             try:
-                answer_text = provider.generate(prompt=prompt_for_chat).strip()
+                if hasattr(provider, "generate_stream"):
+                    for _chunk in provider.generate_stream(prompt_for_chat):
+                        _stream_parts.append(_chunk)
+                        self.event_bus.emit_stream_delta(
+                            delta=_chunk, accumulated="".join(_stream_parts)
+                        )
+                    answer_text = "".join(_stream_parts).strip()
+                    if not answer_text:
+                        answer_text = provider.generate(prompt=prompt_for_chat).strip()
+                else:
+                    answer_text = provider.generate(prompt=prompt_for_chat).strip()
             except Exception as err:
-                answer_text = f"Erreur lors de l'échange direct avec {used_provider} : {err}"
-
+                if _stream_parts:
+                    answer_text = "".join(_stream_parts).strip() + f"\n\n[Réponse interrompue : {err}]"
+                else:
+                    answer_text = f"Erreur lors de l'échange direct avec {used_provider} : {err}"
             elapsed_ms = int((monotonic() - started_mono) * 1000)
             calc_tokens = max(1, int(len(prompt_for_chat) / 3.8 + len(answer_text) / 3.8))
             assistant_msg = {
@@ -2937,7 +2950,9 @@ class NeoHarnessRuntimeBridge:
             }
 
         # Snapshot des fichiers du workspace avant exécution pour calcul de diff réel
+        _t_snap = monotonic()
         before_snapshot = self._snapshot_workspace()
+        print(f"[PERF] snapshot avant : {int((monotonic() - _t_snap) * 1000)} ms ({len(before_snapshot)} fichiers)")
 
         # 1. Événements de contexte et mémoire
         self.event_bus.emit_normalized(
@@ -3987,6 +4002,15 @@ class NeoHarnessUIApp:
         except Exception as error:
             return HTTPStatus.INTERNAL_SERVER_ERROR, {"error": f"{type(error).__name__}: {error}"}
 
+class QuietThreadingHTTPServer(ThreadingHTTPServer):
+    """Ignore les coupures de connexion normales du navigateur (refresh, onglet fermé, SSE)."""
+
+    def handle_error(self, request, client_address) -> None:
+        import sys
+        exc = sys.exc_info()[1]
+        if isinstance(exc, (ConnectionAbortedError, ConnectionResetError, BrokenPipeError)):
+            return
+        super().handle_error(request, client_address)
 
 def create_http_server(
     host: str = "127.0.0.1",
@@ -4513,7 +4537,7 @@ window.MathJax = {{
             status, payload = ui_app.handle_api_post(route, body if isinstance(body, dict) else {})
             self._send_json(status, payload)
 
-    server = ThreadingHTTPServer((host, port), RequestHandler)
+    server = QuietThreadingHTTPServer((host, port), RequestHandler)
     server.ui_app = ui_app  # type: ignore[attr-defined]
     return server
 

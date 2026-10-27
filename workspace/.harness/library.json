@@ -1,5 +1,41 @@
 [
   {
+    "id": "lib-69a45987",
+    "title": "Exercice seconde proba",
+    "category": "Documents",
+    "type": "pdf",
+    "path": "exercice_seconde_proba.pdf",
+    "summary": "Document PDF compilé",
+    "content": "",
+    "tags": [
+      "pdf",
+      "exercice"
+    ],
+    "size_bytes": 27183,
+    "created_at": "2026-10-27T00:57:19.896943+00:00",
+    "updated_at": "2026-10-27T00:57:19.896943+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-696306e6",
+    "title": "Exercice seconde proba",
+    "category": "Documents",
+    "type": "tex",
+    "path": "exercice_seconde_proba.tex",
+    "summary": "Fichier TEX dans l'espace de travail",
+    "content": "\\documentclass[11pt,a4paper]{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage[french]{babel}\n\\usepackage{amsmath,amssymb,amsthm}\n\\usepackage{geometry}\n\\geometry{margin=2.5cm}\n\n\\title{Exercice de Probabilités - Classe de Seconde}\n\\author{NeoHarness AI}\n\\date{}\n\n\\begin{document}\n\n\\maketitle\n\n\\section{Rappels de cours}\nUne expérience aléatoire est une expérience dont on connaît les résultats possibles (issues) sans pouvoir prédire avec certitude lequel va se produire. L'ensemble de toutes les issues forme l'univers $\\Omega$.\n\\begin{itemize}\n    \\item \\textbf{Équiprobabilité :} $P(A) = \\frac{\\text{nombre d'issues favorables à } A}{\\text{nombre total d'issues de } \\Omega}$.\n    \\item \\textbf{Propriétés :} $0 \\le P(A) \\le 1$, $P(\\bar{A}) = 1 - P(A)$.\n    \\item \\textbf{Union :} $P(A \\cup B) = P(A) + P(B) - P(A \\cap B)$.\n\\end{itemize}\n\n\\section{Exercice type et corrigé}\n\n\\subsection{Énoncé}\nDans un lycée, on interroge un groupe de 200 élèves sur leur pratique sportive ",
+    "tags": [
+      "tex",
+      "exercice"
+    ],
+    "size_bytes": 1896,
+    "created_at": "2026-10-27T00:57:12.862334+00:00",
+    "updated_at": "2026-10-27T00:57:12.862334+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
     "id": "lib-f93f393d",
     "title": "Formules test",
     "category": "Notes",

@@ -3,7 +3,7 @@
     "source_kind": "web_download",
     "origin_url": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
     "resolved_domain": "www.w3.org",
-    "download_timestamp": "2026-10-26T00:21:37.799109+00:00",
+    "download_timestamp": "2026-10-27T00:44:16.920900+00:00",
     "local_path": "downloads/dummy_w3c_test.pdf",
     "file_size": 13264,
     "sha256": "3df79d34abbca99308e79cb94461c1893582604d68329a41fd4bec1885e6adb4",
@@ -170,7 +170,7 @@
     "source_kind": "web_download",
     "origin_url": "https://eduscol.education.fr/bac2026.pdf",
     "resolved_domain": "eduscol.education.fr",
-    "download_timestamp": "2026-10-26T00:21:54.765338+00:00",
+    "download_timestamp": "2026-10-27T00:44:32.913323+00:00",
     "local_path": "downloads/bac_2026_maths_metropole_1.pdf",
     "file_size": 47,
     "sha256": "3ad0936d0e78731987bb581e307df5228163c41825bcdd66f54d3ef5f15c9dd1",
@@ -228,7 +228,7 @@
     "source_kind": "web_download",
     "origin_url": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
     "resolved_domain": "www.w3.org",
-    "download_timestamp": "2026-10-26T00:21:55.772241+00:00",
+    "download_timestamp": "2026-10-27T00:44:33.879368+00:00",
     "local_path": "downloads/dummy_alt_test.pdf",
     "file_size": 13264,
     "sha256": "3df79d34abbca99308e79cb94461c1893582604d68329a41fd4bec1885e6adb4",
@@ -283,7 +283,7 @@
       {
         "url": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
         "strategy": "direct",
-        "timestamp": "2026-10-26T00:21:55.576700+00:00"
+        "timestamp": "2026-10-27T00:44:33.724813+00:00"
       }
     ],
     "anti_substitution": true
@@ -292,7 +292,7 @@
     "source_kind": "web_download",
     "origin_url": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
     "resolved_domain": "www.w3.org",
-    "download_timestamp": "2026-10-26T00:21:59.761071+00:00",
+    "download_timestamp": "2026-10-27T00:44:36.764757+00:00",
     "local_path": "downloads/dummy_spy_test.pdf",
     "file_size": 13264,
     "sha256": "3df79d34abbca99308e79cb94461c1893582604d68329a41fd4bec1885e6adb4",
@@ -347,7 +347,7 @@
       {
         "url": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
         "strategy": "direct",
-        "timestamp": "2026-10-26T00:21:59.588475+00:00"
+        "timestamp": "2026-10-27T00:44:36.626803+00:00"
       }
     ],
     "anti_substitution": true
@@ -356,7 +356,7 @@
     "source_kind": "web_download",
     "origin_url": "https://eduscol.education.fr/sujet_bac.pdf",
     "resolved_domain": "eduscol.education.fr",
-    "download_timestamp": "2026-10-26T00:21:59.776052+00:00",
+    "download_timestamp": "2026-10-27T00:44:36.826686+00:00",
     "local_path": "downloads/bac_maths_test_mismatch.pdf",
     "file_size": 54,
     "sha256": "698cc7a78219d003651e34a73b5040eaf02f5cb6beecb75cb11ad6876d647ea2",
@@ -414,7 +414,7 @@
     "source_kind": "web_download",
     "origin_url": "https://www.formulaires.service-public.fr/gf/cerfa_15776.do",
     "resolved_domain": "www.formulaires.service-public.fr",
-    "download_timestamp": "2026-10-26T00:22:03.837536+00:00",
+    "download_timestamp": "2026-10-27T00:44:37.891720+00:00",
     "local_path": "downloads/cerfa_15776_02_officiel.pdf",
     "file_size": 651214,
     "sha256": "c28daa99c33ce605a93b50cdbc2cabfc52ee489b3ff236b27071d9dec4061ae7",

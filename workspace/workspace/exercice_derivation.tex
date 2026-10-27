@@ -1,0 +1,109 @@
+% Compiler avec XeLaTeX ou LuaLaTeX
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{amsmath,amssymb}
+\usepackage{fontspec}
+\usepackage{unicode-math}
+\usepackage{polyglossia}
+\setmainlanguage{french}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage[margin=2cm,headheight=16pt,headsep=22pt]{geometry}
+\usepackage{enumitem}
+
+% Police principale et police mathématique : Libertinus
+\IfFontExistsTF{Libertinus Serif}
+  {\setmainfont{Libertinus Serif}}
+  {\IfFontExistsTF{Latin Modern Roman}{\setmainfont{Latin Modern Roman}}{\setmainfont{lmroman10-regular.otf}}}
+
+\IfFontExistsTF{Libertinus Math}
+  {\setmathfont{Libertinus Math}}
+  {\IfFontExistsTF{Latin Modern Math}{\setmathfont{Latin Modern Math}}{\setmathfont{latinmodern-math.otf}}}
+
+\linespread{1.07}
+\setlength{\parindent}{0pt}
+\AtBeginDocument{\setlength{\parindent}{0pt}}
+\setlength{\parskip}{0.35em}
+
+% En-tête
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Professeur de Mathématiques}
+\rhead{Terminale Spécialité / Supérieur}
+% Pagination : « Page X / Y » centrée en pied de page
+\usepackage{lastpage}
+\cfoot{Page \thepage\ / \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\headrule}{\vskip 5pt\hrule width\headwidth height\headrulewidth \vskip-\headrulewidth}
+
+% Configuration des listes
+\setlist[enumerate,1]{itemsep=0.45em, topsep=0.3em, label=\textbf{\arabic*.}}
+\setlist[enumerate,2]{itemsep=0.25em, topsep=0.2em, label=\textbf{\alph*.}}
+
+% Commande exercice
+\newcommand{\exo}[2]{%
+  \vspace{1.5em}%
+  \noindent{\large\textbf{Exercice #1. -- #2}}%
+  \par\vspace{0.35em}%
+  \hrule height 0.5pt%
+  \vspace{0.7em}%
+}
+
+\newcommand{\partie}[1]{%
+  \vspace{0.9em}%
+  \noindent\textbf{#1}%
+  \par\vspace{0.3em}%
+}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE \textbf{Entraînement aux Formules de Dérivation}}\\[0.5em]
+  {\large Analyse -- Calculs de dérivées}
+\end{center}
+
+\exo{1}{Calculs de dérivées de fonctions usuelles et composées}
+
+On considère les différentes fonctions définies sur leur ensemble de dérivabilité $\mathcal{D}$. Pour chacune des fonctions suivantes, déterminer l'expression de sa fonction dérivée $f'(x)$.
+
+\begin{enumerate}
+  \item $f_1(x) = 4x^3 - 5x^2 + 7x - 3$ sur $\mathbb{R}$.
+  \item $f_2(x) = (2x^2 - 3x + 1)(4x + 5)$ sur $\mathbb{R}$.
+  \item $f_3(x) = \frac{3x - 1}{x^2 + 2}$ sur $\mathbb{R}$.
+  \item $f_4(x) = (5x - 2)^4$ sur $\mathbb{R}$.
+  \item $f_5(x) = x^2 e^{3x}$ sur $\mathbb{R}$.
+\end{enumerate}
+
+\partie{Corrigé détaillé}
+
+\begin{enumerate}
+  \item \textbf{Dérivée d'une fonction polynôme ($f_1$)}  
+  La fonction $f_1$ est une somme de monômes. En utilisant les formules de dérivation usuelles ($(x^n)' = n x^{n-1}$ et $(kx)' = k$), on obtient pour tout $x \in \mathbb{R}$ :
+  $$f_1'(x) = 4 \times (3x^2) - 5 \times (2x) + 7 \times 1 - 0 = 12x^2 - 10x + 7$$
+
+  \item \textbf{Dérivée d'un produit ($f_2$)}  
+  La fonction $f_2$ est de la forme $u \times v$ avec $u(x) = 2x^2 - 3x + 1$ et $v(x) = 4x + 5$.  
+  Leurs dérivées respectives sont $u'(x) = 4x - 3$ et $v'(x) = 4$.  
+  En appliquant la formule du produit $(u \times v)' = u'v + uv'$ :
+  $$f_2'(x) = (4x - 3)(4x + 5) + (2x^2 - 3x + 1) \times 4$$
+  $$f_2'(x) = (16x^2 + 20x - 12x - 15) + (8x^2 - 12x + 4) = 24x^2 - 4x - 11$$
+
+  \item \textbf{Dérivée d'un quotient ($f_3$)}  
+  La fonction $f_3$ est de la forme $\frac{u}{v}$ avec $u(x) = 3x - 1$ et $v(x) = x^2 + 2$.  
+  Leurs dérivées sont $u'(x) = 3$ et $v'(x) = 2x$. Le dénominateur ne s'annulant jamais sur $\mathbb{R}$ ($x^2 + 2 \ge 2$).  
+  En appliquant la formule du quotient $\left(\frac{u}{v}\right)' = \frac{u'v - uv'}{v^2}$ :
+  $$f_3'(x) = \frac{3(x^2 + 2) - (3x - 1)(2x)}{(x^2 + 2)^2} = \frac{3x^2 + 6 - 6x^2 + 2x}{(x^2 + 2)^2} = \frac{-3x^2 + 2x + 6}{(x^2 + 2)^2}$$
+
+  \item \textbf{Dérivée d'une fonction composée de type $u^n$ ($f_4$)}  
+  La fonction $f_4$ est de la forme $u^4$ avec $u(x) = 5x - 2$, donc $u'(x) = 5$.  
+  En utilisant la formule $(u^n)' = n \cdot u' \cdot u^{n-1}$ :
+  $$f_4'(x) = 4 \times 5 \times (5x - 2)^3 = 20(5x - 2)^3$$
+
+  \item \textbf{Dérivée du produit d'une fonction polynomiale et d'une exponentielle ($f_5$)}  
+  La fonction $f_5$ est de la forme $u \times v$ avec $u(x) = x^2$ et $v(x) = e^{3x}$.  
+  Leurs dérivées sont $u'(x) = 2x$ et $v'(x) = 3e^{3x}$.  
+  En appliquant la formule du produit :
+  $$f_5'(x) = 2x \times e^{3x} + x^2 \times 3e^{3x} = (3x^2 + 2x)e^{3x}$$
+\end{enumerate}
+
+\end{document}

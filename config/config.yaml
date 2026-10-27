@@ -44,7 +44,10 @@ providers:
     model: "qwen3:1.7b"
   gemini:
     enabled: true
-    model: "gemini-3.6-flash"
+    model: "gemini-3.5-flash-lite"
+  gemini_flash_lite:
+    enabled: true
+    model: "gemini-3.5-flash-lite"
   mistral:
     enabled: true
     model: "mistral-small-latest"
@@ -53,13 +56,13 @@ providers:
 
 agents:
   coder:
-    provider: ollama
+    provider: gemini
   tester:
-    provider: ollama
+    provider: gemini_flash_lite
   reviewer:
-    provider: ollama
+    provider: gemini
   researcher:
-    provider: ollama
+    provider: gemini_flash_lite
 
 # Préférences par intention. Le routeur retombe sur le provider sélectionné si
 # le provider préféré n'est pas présent ou n'est pas configuré pour cette session.

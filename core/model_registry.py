@@ -408,7 +408,7 @@ class ModelCapabilityRegistry:
         gemini_model = (
             gemini_provider.get_model_name()
             if isinstance(gemini_provider, GeminiProvider) and gemini_provider.model
-            else str(gemini_cfg.get("model") or "gemini-3.6-flash")
+            else str(gemini_cfg.get("model") or "gemini-3.5-flash-lite")
         )
         _add_entry(
             entry_id="gemini",

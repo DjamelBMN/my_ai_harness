@@ -1,0 +1,369 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.9, pytest-9.1.1, pluggy-1.7.0 -- C:\Users\nanod\AppData\Local\Programs\Python\Python311\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\nanod\Desktop\my_ai_harness
+plugins: anyio-4.10.0
+collecting ... C:\Users\nanod\Desktop\my_ai_harness\core\tdd_engine.py:11: PytestCollectionWarning: cannot collect test class 'TestTamperingError' because it has a __init__ constructor (from: tests/test_tdd_and_critic.py)
+  class TestTamperingError(RuntimeError):
+collected 284 items
+
+tests/test_agent_loop_characterization.py::AgentLoopCharacterizationTests::test_01_tool_call_and_observation_feeding PASSED [  0%]
+tests/test_agent_loop_characterization.py::AgentLoopCharacterizationTests::test_02_direct_final_answer PASSED [  0%]
+tests/test_agent_loop_characterization.py::AgentLoopCharacterizationTests::test_03_verification_failure_and_repair PASSED [  1%]
+tests/test_agent_loop_characterization.py::AgentLoopCharacterizationTests::test_04_iteration_limit_exhaustion PASSED [  1%]
+tests/test_agent_loop_characterization.py::AgentLoopCharacterizationTests::test_05_max_tool_calls_limit PASSED [  1%]
+tests/test_agent_loop_characterization.py::AgentLoopCharacterizationTests::test_06_user_stop_request PASSED [  2%]
+tests/test_agent_loop_characterization.py::AgentLoopCharacterizationTests::test_07_delegation_execution PASSED [  2%]
+tests/test_agent_loop_characterization.py::AgentLoopCharacterizationTests::test_08_partial_delivery_on_failure PASSED [  2%]
+tests/test_autonomous_production_reinforcement.py::TestAutonomousProductionReinforcement::test_advanced_math_representations PASSED [  3%]
+tests/test_autonomous_production_reinforcement.py::TestAutonomousProductionReinforcement::test_docx_generation PASSED [  3%]
+tests/test_autonomous_production_reinforcement.py::TestAutonomousProductionReinforcement::test_docx_integrity PASSED [  3%]
+tests/test_autonomous_production_reinforcement.py::TestAutonomousProductionReinforcement::test_download_vs_generation PASSED [  4%]
+tests/test_autonomous_production_reinforcement.py::TestAutonomousProductionReinforcement::test_dynamic_filename PASSED [  4%]
+tests/test_autonomous_production_reinforcement.py::TestAutonomousProductionReinforcement::test_image_transcription_fidelity PASSED [  4%]
+tests/test_autonomous_production_reinforcement.py::TestAutonomousProductionReinforcement::test_no_unrequested_artifact PASSED [  5%]
+tests/test_autonomous_production_reinforcement.py::TestAutonomousProductionReinforcement::test_pdf_only_when_requested PASSED [  5%]
+tests/test_autonomous_production_reinforcement.py::TestAutonomousProductionReinforcement::test_task_context_continuity PASSED [  5%]
+tests/test_autonomous_production_reinforcement.py::TestAutonomousProductionReinforcement::test_unreadable_image_detection PASSED [  6%]
+tests/test_autonomous_web_retrieval.py::TestAutonomousWebRetrieval::test_01_real_download_and_physical_verification PASSED [  6%]
+tests/test_autonomous_web_retrieval.py::TestAutonomousWebRetrieval::test_02_download_links_extraction_from_html PASSED [  7%]
+tests/test_autonomous_web_retrieval.py::TestAutonomousWebRetrieval::test_03_verifier_rejects_search_without_download PASSED [  7%]
+tests/test_autonomous_web_retrieval.py::TestAutonomousWebRetrieval::test_04_verifier_accepts_when_document_physically_downloaded PASSED [  7%]
+tests/test_autonomous_web_retrieval.py::TestAutonomousWebRetrieval::test_05_conversational_continuity_for_retrieval FAILED [  8%]
+tests/test_autonomous_web_retrieval.py::TestAutonomousWebRetrieval::test_06_exact_bac_retrieval_and_continuity_analysis PASSED [  8%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_bacblanc_slash_mission_requires_complete_deliverable_without_keywords PASSED [  8%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_complete_artifacts_pass_only_after_full_review PASSED [  9%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_e2e_produces_files_reviews_both_and_delivers_only_after_validation FAILED [  9%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_incomplete_artifact_is_rejected_with_concrete_gaps PASSED [  9%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_incomplete_result_is_returned_with_explicit_warning PASSED [ 10%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_iteration_exhaustion_returns_best_partial_with_warning PASSED [ 10%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_loader_reads_both_real_latex_templates PASSED [ 10%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_provider_quota_includes_partial_file_already_written PASSED [ 11%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_provider_quota_returns_best_partial_text_and_names_the_cause PASSED [ 11%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_skill_limits_extend_short_cli_loop_and_token_budget_temporarily PASSED [ 11%]
+tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_validator_rejects_missing_question_solution_and_inconsistent_points PASSED [ 12%]
+tests/test_checkpoint_backtracking.py::TestCheckpointBacktracking::test_01_create_checkpoint_and_rollback PASSED [ 12%]
+tests/test_checkpoint_backtracking.py::TestCheckpointBacktracking::test_02_shadow_repo_does_not_pollute_user_git_log PASSED [ 13%]
+tests/test_checkpoint_backtracking.py::TestCheckpointBacktracking::test_03_deadlock_detection_and_mark_dead_end PASSED [ 13%]
+tests/test_checkpoint_backtracking.py::TestCheckpointBacktracking::test_04_candidate_branches_exploration PASSED [ 13%]
+tests/test_compiler_autofix.py::TestCompilerAutofix::test_01_missing_brace_autofix PASSED [ 14%]
+tests/test_compiler_autofix.py::TestCompilerAutofix::test_02_unescaped_ampersand_autofix PASSED [ 14%]
+tests/test_compiler_autofix.py::TestCompilerAutofix::test_03_nonexistent_package_autofix PASSED [ 14%]
+tests/test_compiler_autofix.py::TestCompilerAutofix::test_04_unfixable_error_stops_cleanly_incomplete PASSED [ 15%]
+tests/test_compiler_autofix.py::TestCompilerAutofix::test_05_cascade_error_single_root_cause PASSED [ 15%]
+tests/test_compiler_autofix.py::TestCompilerAutofix::test_06_worsening_error_triggers_rollback PASSED [ 15%]
+tests/test_conversational_memory.py::TestConversationalMemory::test_atomic_clock_link_autonomous_choice PASSED [ 16%]
+tests/test_conversational_memory.py::TestConversationalMemory::test_multi_turn_curriculum_continuity PASSED [ 16%]
+tests/test_conversational_memory.py::TestConversationalMemory::test_product_comparison_sequence PASSED [ 16%]
+tests/test_conversational_memory.py::TestConversationalMemory::test_task_isolation_between_conversations PASSED [ 17%]
+tests/test_dag_orchestration.py::TestDAGOrchestration::test_01_dag_validation_and_cycle_detection PASSED [ 17%]
+tests/test_dag_orchestration.py::TestDAGOrchestration::test_02_parallel_wave_execution PASSED [ 17%]
+tests/test_dag_orchestration.py::TestDAGOrchestration::test_03_context_isolation_and_artifact_propagation PASSED [ 18%]
+tests/test_dag_orchestration.py::TestDAGOrchestration::test_04_node_failure_and_downstream_blocking PASSED [ 18%]
+tests/test_dag_orchestration.py::TestDAGOrchestration::test_05_critic_verdict_and_targeted_remediation PASSED [ 19%]
+tests/test_dag_orchestration.py::TestDAGOrchestration::test_06_event_sink_notifications PASSED [ 19%]
+tests/test_dag_orchestration.py::TestDAGOrchestration::test_07_delegation_engine_dag_tool PASSED [ 19%]
+tests/test_download_mission_isolation_and_integrity.py::TestDownloadMissionIsolationAndIntegrity::test_01_task_isolation_task_b_never_returns_task_a_artifact PASSED [ 20%]
+tests/test_download_mission_isolation_and_integrity.py::TestDownloadMissionIsolationAndIntegrity::test_02_web_search_multi_strategy_failover_before_abandon PASSED [ 20%]
+tests/test_download_mission_isolation_and_integrity.py::TestDownloadMissionIsolationAndIntegrity::test_03_pdf_link_discovery_triggers_download_resource PASSED [ 20%]
+tests/test_download_mission_isolation_and_integrity.py::TestDownloadMissionIsolationAndIntegrity::test_04_mismatched_local_pdf_is_semantically_rejected PASSED [ 21%]
+tests/test_download_mission_isolation_and_integrity.py::TestDownloadMissionIsolationAndIntegrity::test_05_real_download_cerfa_15776_02_with_provenance_and_hash PASSED [ 21%]
+tests/test_download_mission_isolation_and_integrity.py::TestDownloadMissionIsolationAndIntegrity::test_06_conversational_continuity_analyse_le_without_refetching PASSED [ 21%]
+tests/test_dynamic_browser.py::TestDynamicBrowser::test_01_graceful_degradation_when_playwright_disabled PASSED [ 22%]
+tests/test_dynamic_browser.py::TestDynamicBrowser::test_02_structured_dom_extraction_on_local_page PASSED [ 22%]
+tests/test_dynamic_browser.py::TestDynamicBrowser::test_03_respect_of_robots_txt_blocking PASSED [ 22%]
+tests/test_dynamic_browser.py::TestDynamicBrowser::test_04_physical_download_with_integrity_and_magic_bytes PASSED [ 23%]
+tests/test_e2e_scenarios.py::TestNeoHarnessE2E::test_e2e_01_real_file_upload_and_agent_consumption PASSED [ 23%]
+tests/test_e2e_scenarios.py::TestNeoHarnessE2E::test_e2e_02_real_html_css_js_artifact_rendering PASSED [ 23%]
+tests/test_e2e_scenarios.py::TestNeoHarnessE2E::test_e2e_03_real_python_project_execution_and_plot_generation PASSED [ 24%]
+tests/test_e2e_scenarios.py::TestNeoHarnessE2E::test_e2e_04_real_python_auto_repair_and_reexecution PASSED [ 24%]
+tests/test_e2e_scenarios.py::TestNeoHarnessE2E::test_e2e_05_real_latex_tectonic_compilation_and_binary_validation PASSED [ 25%]
+tests/test_e2e_scenarios.py::TestNeoHarnessE2E::test_e2e_06_real_mermaid_diagram_validation PASSED [ 25%]
+tests/test_e2e_scenarios.py::TestNeoHarnessE2E::test_e2e_07_real_markdown_katex_validation PASSED [ 25%]
+tests/test_e2e_scenarios.py::TestNeoHarnessE2E::test_e2e_08_real_json_validation PASSED [ 26%]
+tests/test_e2e_scenarios.py::TestNeoHarnessE2E::test_e2e_09_real_svg_validation_and_repair PASSED [ 26%]
+tests/test_e2e_scenarios.py::TestNeoHarnessE2E::test_e2e_10_complete_agentic_mission_lifecycle PASSED [ 26%]
+tests/test_evals_runner.py::TestEvalsRunner::test_run_eval_suite_small PASSED [ 27%]
+tests/test_evals_runner.py::TestEvalsRunner::test_run_single_eval_with_mock_provider PASSED [ 27%]
+tests/test_general_skills.py::GeneralSkillTests::test_accept_mode_asks_and_obeys_confirmation PASSED [ 27%]
+tests/test_general_skills.py::GeneralSkillTests::test_all_general_skills_are_discovered_and_loaded 
+tests/test_general_skills.py::GeneralSkillTests::test_all_general_skills_are_discovered_and_loaded PASSED [ 28%]
+tests/test_general_skills.py::GeneralSkillTests::test_any_task_skill_inherits_plan_mode PASSED [ 28%]
+tests/test_general_skills.py::GeneralSkillTests::test_auto_mode_uses_existing_autonomous_permissions_and_respects_dry_run PASSED [ 28%]
+tests/test_general_skills.py::GeneralSkillTests::test_auto_routes_and_runs_through_existing_agent_loop PASSED [ 29%]
+tests/test_general_skills.py::GeneralSkillTests::test_auto_routes_coding_and_limits_tools_to_intent_requirements PASSED [ 29%]
+tests/test_general_skills.py::GeneralSkillTests::test_bacblanc_plan_mode_cannot_write_even_if_provider_requests_it PASSED [ 29%]
+tests/test_general_skills.py::GeneralSkillTests::test_compare_keeps_successful_models_when_one_fails PASSED [ 30%]
+tests/test_general_skills.py::GeneralSkillTests::test_delegated_agent_inherits_parent_mode PASSED [ 30%]
+tests/test_general_skills.py::GeneralSkillTests::test_diagnostic_reports_components_and_does_not_claim_tests_pass PASSED [ 30%]
+tests/test_general_skills.py::GeneralSkillTests::test_direct_agent_slash_commands_inherit_global_mode 
+tests/test_general_skills.py::GeneralSkillTests::test_direct_agent_slash_commands_inherit_global_mode PASSED [ 31%]
+tests/test_general_skills.py::GeneralSkillTests::test_edit_mode_previews_and_permits_file_edits_without_disabling_other_permissions PASSED [ 31%]
+tests/test_general_skills.py::GeneralSkillTests::test_export_generates_real_workspace_artifacts_and_checks_formats 
+tests/test_general_skills.py::GeneralSkillTests::test_export_generates_real_workspace_artifacts_and_checks_formats PASSED [ 32%]
+tests/test_general_skills.py::GeneralSkillTests::test_memory_scopes_are_separate_and_sensitive_notes_are_rejected PASSED [ 32%]
+tests/test_general_skills.py::GeneralSkillTests::test_mode_panel_has_active_indicator_and_ascii_fallback PASSED [ 32%]
+tests/test_general_skills.py::GeneralSkillTests::test_mode_skill_displays_table_and_changes_global_policy PASSED [ 33%]
+tests/test_general_skills.py::GeneralSkillTests::test_model_status_hides_key_and_model_switch_is_dynamic PASSED [ 33%]
+tests/test_general_skills.py::GeneralSkillTests::test_plan_is_a_no_api_no_write_preview PASSED [ 33%]
+tests/test_general_skills.py::GeneralSkillTests::test_plan_mode_blocks_mutation_at_shared_permission_layer PASSED [ 34%]
+tests/test_general_skills.py::GeneralSkillTests::test_prompt_toolkit_backtab_binding_returns_shift_tab_immediately PASSED [ 34%]
+tests/test_general_skills.py::GeneralSkillTests::test_quota_failure_emits_provider_and_delivery_events PASSED [ 34%]
+tests/test_general_skills.py::GeneralSkillTests::test_quota_failure_keeps_selected_mode PASSED [ 35%]
+tests/test_general_skills.py::GeneralSkillTests::test_ready_banner_displays_interactive_mode_panel PASSED [ 35%]
+tests/test_general_skills.py::GeneralSkillTests::test_route_skill_runs_selector_and_router PASSED [ 35%]
+tests/test_general_skills.py::GeneralSkillTests::test_shift_tab_input_and_mode_cycle PASSED [ 36%]
+tests/test_general_skills.py::GeneralSkillTests::test_skill_dispatch_reuses_legacy_agents_and_injects_skill_instructions PASSED [ 36%]
+tests/test_general_skills.py::GeneralSkillTests::test_task_skills_dispatch_to_existing_agents 
+tests/test_general_skills.py::GeneralSkillTests::test_task_skills_dispatch_to_existing_agents PASSED [ 36%]
+tests/test_general_skills.py::GeneralSkillTests::test_workflow_command_uses_agent_loop_and_skill_instructions PASSED [ 37%]
+tests/test_html_rendering_pipeline.py::NeoHarnessHtmlPipelineTests::test_01_compile_html_valid_page PASSED [ 37%]
+tests/test_html_rendering_pipeline.py::NeoHarnessHtmlPipelineTests::test_02_compile_html_auto_repairs_missing_structure PASSED [ 38%]
+tests/test_html_rendering_pipeline.py::NeoHarnessHtmlPipelineTests::test_03_compile_html_catches_js_syntax_error PASSED [ 38%]
+tests/test_html_rendering_pipeline.py::NeoHarnessHtmlPipelineTests::test_04_bridge_compile_workspace_html PASSED [ 38%]
+tests/test_html_rendering_pipeline.py::NeoHarnessHtmlPipelineTests::test_05_api_compile_html_endpoint PASSED [ 39%]
+tests/test_html_rendering_pipeline.py::NeoHarnessHtmlPipelineTests::test_06_task_execution_with_html_produces_artifact FAILED [ 39%]
+tests/test_live_activity_ui.py::TestLiveActivityUI::test_01_sse_event_ordering_strictly_increasing_seq PASSED [ 39%]
+tests/test_live_activity_ui.py::TestLiveActivityUI::test_02_sse_reconnection_with_last_event_id PASSED [ 40%]
+tests/test_live_activity_ui.py::TestLiveActivityUI::test_03_stop_button_interrupts_within_one_second PASSED [ 40%]
+tests/test_live_activity_ui.py::TestLiveActivityUI::test_04_xss_escaping_in_tool_and_event_data PASSED [ 40%]
+tests/test_live_activity_ui.py::TestLiveActivityUI::test_05_api_runs_recovery_state_on_page_reload PASSED [ 41%]
+tests/test_math_tikz.py::TestMathTikZFigures::test_01_variation_table_log_rational PASSED [ 41%]
+tests/test_math_tikz.py::TestMathTikZFigures::test_02_sign_table_trinomial PASSED [ 41%]
+tests/test_math_tikz.py::TestMathTikZFigures::test_03_probability_tree_sum_validation PASSED [ 42%]
+tests/test_math_tikz.py::TestMathTikZFigures::test_04_strict_math_oracle_rejection PASSED [ 42%]
+tests/test_math_tikz.py::TestMathTikZFigures::test_05_vertical_asymptote_and_infinite_limits PASSED [ 42%]
+tests/test_math_tikz.py::TestMathTikZFigures::test_06_template_compilation_zero_errors_and_overfull PASSED [ 43%]
+tests/test_math_tikz.py::TestMathTikZFigures::test_07_rasterized_inspection_no_empty_page_no_overflow PASSED [ 43%]
+tests/test_math_tikz.py::TestMathTikZFigures::test_08_student_version_blanks PASSED [ 44%]
+tests/test_matplotlib_headless_rendering.py::TestMatplotlibHeadlessRendering::test_01_matplotlib_show_without_savefig_produces_valid_png_in_output PASSED [ 44%]
+tests/test_matplotlib_headless_rendering.py::TestMatplotlibHeadlessRendering::test_02_multiple_figures_captured_in_order PASSED [ 44%]
+tests/test_matplotlib_headless_rendering.py::TestMatplotlibHeadlessRendering::test_03_run_python_tool_captures_figures_cleanly PASSED [ 45%]
+tests/test_metrics_sink.py::TestMetricsSink::test_metrics_lifecycle_recording PASSED [ 45%]
+tests/test_mistral.py::MistralProviderTests::test_lists_only_accessible_chat_models_and_selects_one PASSED [ 45%]
+tests/test_mistral.py::MistralProviderTests::test_missing_key_fails_before_sdk_or_network PASSED [ 46%]
+tests/test_mistral.py::MistralProviderTests::test_model_discovery_reports_safe_type_error_detail PASSED [ 46%]
+tests/test_mistral.py::MistralProviderTests::test_models_without_native_function_calling_keep_text_fallback PASSED [ 46%]
+tests/test_mistral.py::MistralProviderTests::test_native_tool_call_round_trip_preserves_mistral_messages PASSED [ 47%]
+tests/test_mistral.py::MistralProviderTests::test_outdated_brotli_is_detected_before_creating_client PASSED [ 47%]
+tests/test_mistral.py::MistralProviderTests::test_outdated_sdk_gets_clear_upgrade_message PASSED [ 47%]
+tests/test_mistral.py::MistralProviderTests::test_reported_brotli_type_error_has_targeted_remedy PASSED [ 48%]
+tests/test_mistral.py::MistralProviderTests::test_sdk_error_does_not_leak_raw_error_text PASSED [ 48%]
+tests/test_mistral.py::MistralProviderTests::test_type_error_keeps_safe_diagnostic_detail PASSED [ 48%]
+tests/test_mistral.py::MistralMenuTests::test_api_menu_offers_each_accessible_mistral_model PASSED [ 49%]
+tests/test_mistral.py::MistralMenuTests::test_harness_registers_selected_mistral_provider PASSED [ 49%]
+tests/test_mistral.py::MistralMenuTests::test_missing_mistral_key_is_not_selectable PASSED [ 50%]
+tests/test_mistral.py::MistralMenuTests::test_mistral_config_is_parsed PASSED [ 50%]
+tests/test_multi_agent_hierarchy.py::TestMultiAgentHierarchy::test_01_manager_to_workers_to_critic_success PASSED [ 50%]
+tests/test_multi_agent_hierarchy.py::TestMultiAgentHierarchy::test_02_critic_rejection_and_remediation_loop PASSED [ 51%]
+tests/test_multi_agent_hierarchy.py::TestMultiAgentHierarchy::test_03_cyclic_delegation_cut PASSED [ 51%]
+tests/test_multi_agent_hierarchy.py::TestMultiAgentHierarchy::test_04_worker_context_strict_isolation PASSED [ 51%]
+tests/test_multi_agent_runtime.py::IntentDecisionTests::test_ambiguous_python_requests_clarification PASSED [ 52%]
+tests/test_multi_agent_runtime.py::IntentDecisionTests::test_compound_missions_declare_secondaries PASSED [ 52%]
+tests/test_multi_agent_runtime.py::IntentDecisionTests::test_user_language_maps_to_expected_intents_and_flags 
+tests/test_multi_agent_runtime.py::IntentDecisionTests::test_user_language_maps_to_expected_intents_and_flags PASSED [ 52%]
+tests/test_multi_agent_runtime.py::AgentRegistryTests::test_discovery_and_alias_lookup PASSED [ 53%]
+tests/test_multi_agent_runtime.py::AgentRegistryTests::test_dynamic_plugin_is_discovered_and_selected_without_router_changes PASSED [ 53%]
+tests/test_multi_agent_runtime.py::AgentRegistryTests::test_invalid_agent_is_rejected PASSED [ 53%]
+tests/test_multi_agent_runtime.py::DelegationAndRuntimeTests::test_code_un_programme_selects_code_agent_and_runs_real_file_tools PASSED [ 54%]
+tests/test_multi_agent_runtime.py::DelegationAndRuntimeTests::test_coordinator_bounds_depth_and_detects_repeated_subtask PASSED [ 54%]
+tests/test_multi_agent_runtime.py::DelegationAndRuntimeTests::test_e2e_real_tools_and_generic_multi_agent_handoff PASSED [ 54%]
+tests/test_phase0c_sanitization.py::TestPhase0CSanitization::test_01_no_backdoor_and_no_false_success_on_provider_failure PASSED [ 55%]
+tests/test_phase0c_sanitization.py::TestPhase0CSanitization::test_03_word_boundary_regex_avoids_false_substring_triggers PASSED [ 55%]
+tests/test_phase0c_sanitization.py::TestPhase0CSanitization::test_04_provider_failover_cycle_breaker PASSED [ 55%]
+tests/test_phase0c_sanitization.py::TestPhase0CSanitization::test_05_untrusted_data_wrapping_in_tool_output PASSED [ 56%]
+tests/test_phase0c_sanitization.py::TestPhase0CSanitization::test_07_state_hygiene_and_initialization PASSED [ 56%]
+tests/test_phase0c_sanitization.py::TestPhase0CSanitization::test_08_repetition_guard_stops_loop_on_3_identical_failures PASSED [ 57%]
+tests/test_phase0c_sanitization.py::TestPhase0CSanitization::test_09_mission_budget_limits PASSED [ 57%]
+tests/test_phase0c_sanitization.py::TestPhase0CSanitization::test_10_honest_plan_step_status_no_blanket_completed PASSED [ 57%]
+tests/test_phase4_tools_and_context.py::TestPhase4ToolsAndContext::test_01_edit_file_unique_replacement_success PASSED [ 58%]
+tests/test_phase4_tools_and_context.py::TestPhase4ToolsAndContext::test_02_edit_file_ambiguous_string_rejected PASSED [ 58%]
+tests/test_phase4_tools_and_context.py::TestPhase4ToolsAndContext::test_03_edit_file_syntax_error_rollback PASSED [ 58%]
+tests/test_phase4_tools_and_context.py::TestPhase4ToolsAndContext::test_04_view_file_bounded_pagination PASSED [ 59%]
+tests/test_phase4_tools_and_context.py::TestPhase4ToolsAndContext::test_05_search_code_ignores_git_and_node_modules PASSED [ 59%]
+tests/test_phase4_tools_and_context.py::TestPhase4ToolsAndContext::test_06_truncate_output_head_and_tail PASSED [ 59%]
+tests/test_phase4_tools_and_context.py::TestPhase4ToolsAndContext::test_07_context_manager_preserves_facts_and_decisions PASSED [ 60%]
+tests/test_python_result_rendering.py::TestPythonResultRendering::test_python_calculation_script_execution_and_metrics PASSED [ 60%]
+tests/test_python_result_rendering.py::TestPythonResultRendering::test_python_matplotlib_real_png_generation PASSED [ 60%]
+tests/test_python_result_rendering.py::TestPythonResultRendering::test_python_syntax_error_reporting PASSED [ 61%]
+tests/test_rate_limit_and_agent_modes.py::TestRateLimitAndAgentModes::test_429_backoff PASSED [ 61%]
+tests/test_rate_limit_and_agent_modes.py::TestRateLimitAndAgentModes::test_429_jitter PASSED [ 61%]
+tests/test_rate_limit_and_agent_modes.py::TestRateLimitAndAgentModes::test_chat_mode_configuration_and_token_efficiency PASSED [ 62%]
+tests/test_rate_limit_and_agent_modes.py::TestRateLimitAndAgentModes::test_chat_mode_direct_provider_call PASSED [ 62%]
+tests/test_rate_limit_and_agent_modes.py::TestRateLimitAndAgentModes::test_circuit_breaker PASSED [ 63%]
+tests/test_rate_limit_and_agent_modes.py::TestRateLimitAndAgentModes::test_dag_mono_execution PASSED [ 63%]
+tests/test_rate_limit_and_agent_modes.py::TestRateLimitAndAgentModes::test_dag_multi_execution PASSED [ 63%]
+tests/test_rate_limit_and_agent_modes.py::TestRateLimitAndAgentModes::test_fallback_provider_on_failure PASSED [ 64%]
+tests/test_rate_limit_and_agent_modes.py::TestRateLimitAndAgentModes::test_gemini_provider_429_temporary_exponential_backoff FAILED [ 64%]
+tests/test_rate_limit_and_agent_modes.py::TestRateLimitAndAgentModes::test_gemini_provider_quota_exhausted_stops_immediately FAILED [ 64%]
+tests/test_rate_limit_and_agent_modes.py::TestRateLimitAndAgentModes::test_gemini_provider_respects_retry_after PASSED [ 65%]
+tests/test_rate_limit_and_agent_modes.py::TestRateLimitAndAgentModes::test_mono_mode_allows_one_agent PASSED [ 65%]
+tests/test_rate_limit_and_agent_modes.py::TestRateLimitAndAgentModes::test_multi_agent_gemini_concurrency_semaphore PASSED [ 65%]
+tests/test_rate_limit_and_agent_modes.py::TestRateLimitAndAgentModes::test_multi_mode_respects_max_parallel_agents PASSED [ 66%]
+tests/test_rate_limit_and_agent_modes.py::TestRateLimitAndAgentModes::test_no_uncontrolled_parallel_calls PASSED [ 66%]
+tests/test_rate_limit_and_agent_modes.py::TestRateLimitAndAgentModes::test_provider_cooldown FAILED [ 66%]
+tests/test_rate_limit_and_agent_modes.py::TestRateLimitAndAgentModes::test_rate_limit_queue PASSED [ 67%]
+tests/test_reflective_memory.py::TestReflectiveMemory::test_01_sqlite_and_fts5_persistence PASSED [ 67%]
+tests/test_reflective_memory.py::TestReflectiveMemory::test_02_automatic_lesson_extraction_after_failure PASSED [ 67%]
+tests/test_reflective_memory.py::TestReflectiveMemory::test_03_injection_in_planner_for_similar_pattern PASSED [ 68%]
+tests/test_reflective_memory.py::TestReflectiveMemory::test_04_score_decay_when_not_used PASSED [ 68%]
+tests/test_runtime.py::RouterAndPlannerTests::test_api_harness_registers_available_model_routes_without_network PASSED [ 69%]
+tests/test_runtime.py::RouterAndPlannerTests::test_code_un_programme_is_coding_and_selects_code_agent PASSED [ 69%]
+tests/test_runtime.py::RouterAndPlannerTests::test_config_loads_complexity_routes PASSED [ 69%]
+tests/test_runtime.py::RouterAndPlannerTests::test_planner_honors_explicit_agent_and_detects_ambiguity PASSED [ 70%]
+tests/test_runtime.py::RouterAndPlannerTests::test_router_uses_task_route_and_falls_back_when_missing PASSED [ 70%]
+tests/test_runtime.py::FilesystemAndDocumentTests::test_corrupt_pdf_is_an_error_and_web_search_does_not_fake_sources PASSED [ 70%]
+tests/test_runtime.py::FilesystemAndDocumentTests::test_documents_text_json_csv_html_and_pdf PASSED [ 71%]
+tests/test_runtime.py::FilesystemAndDocumentTests::test_docx_xlsx_and_pptx_extraction PASSED [ 71%]
+tests/test_runtime.py::FilesystemAndDocumentTests::test_filesystem_is_confined_and_redacts_secrets PASSED [ 71%]
+tests/test_runtime.py::FilesystemAndDocumentTests::test_git_workspace_operations_and_repository_boundary PASSED [ 72%]
+tests/test_runtime.py::FilesystemAndDocumentTests::test_python_script_runs_without_inheriting_api_keys PASSED [ 72%]
+tests/test_runtime.py::FilesystemAndDocumentTests::test_registry_validates_calls_and_obeys_dry_run PASSED [ 72%]
+tests/test_runtime.py::FilesystemAndDocumentTests::test_scanned_pdf_uses_ocr_when_tesseract_is_available PASSED [ 73%]
+tests/test_runtime.py::FilesystemAndDocumentTests::test_test_runner_never_calls_empty_suite_a_pass PASSED [ 73%]
+tests/test_runtime.py::FilesystemAndDocumentTests::test_write_patch_move_delete_and_no_implicit_overwrite PASSED [ 73%]
+tests/test_runtime.py::AgentLoopIntegrationTests::test_cli_and_bacblanc_defaults_allow_long_agent_deliverables PASSED [ 74%]
+tests/test_runtime.py::AgentLoopIntegrationTests::test_code_fix_needs_failure_before_patch_and_pass_after_patch PASSED [ 74%]
+tests/test_runtime.py::AgentLoopIntegrationTests::test_context_manager_bounds_session_history PASSED [ 75%]
+tests/test_runtime.py::AgentLoopIntegrationTests::test_legacy_orchestrator_run_contract_remains_available PASSED [ 75%]
+tests/test_runtime.py::AgentLoopIntegrationTests::test_long_generation_reports_partial_turns_and_exhaustion_reason PASSED [ 75%]
+tests/test_runtime.py::AgentLoopIntegrationTests::test_orchestrator_tool_observation_verification_and_delivery PASSED [ 76%]
+tests/test_runtime.py::AgentLoopIntegrationTests::test_verifier_rejects_a_pass_that_happened_before_a_change PASSED [ 76%]
+tests/test_runtime.py::AgentLoopIntegrationTests::test_verifier_requires_real_test_output_for_test_tasks PASSED [ 76%]
+tests/test_runtime.py::ProviderAdapterTests::test_gemini_lists_only_generate_content_models_and_includes_flash_lite PASSED [ 77%]
+tests/test_runtime.py::ProviderAdapterTests::test_gemini_missing_key_and_claude_local_stubs_are_honest FAILED [ 77%]
+tests/test_runtime.py::ProviderAdapterTests::test_gemini_partial_turn_and_streaming_interface FAILED [ 77%]
+tests/test_runtime.py::ProviderAdapterTests::test_gemini_preserves_thought_signature_and_hides_thought_text FAILED [ 78%]
+tests/test_runtime.py::ProviderAdapterTests::test_gemini_retries_a_transient_service_error_with_a_bound FAILED [ 78%]
+tests/test_runtime.py::ProviderAdapterTests::test_gemini_structured_output_and_grounding_metadata FAILED [ 78%]
+tests/test_runtime.py::ProviderAdapterTests::test_legacy_provider_generate_contracts_return_plain_text FAILED [ 79%]
+tests/test_runtime.py::ProviderAdapterTests::test_ollama_native_tool_call_is_parsed_without_network PASSED [ 79%]
+tests/test_runtime.py::ProviderAdapterTests::test_openai_incomplete_output_is_marked_partial PASSED [ 79%]
+tests/test_runtime.py::ProviderAdapterTests::test_openai_missing_key_fails_before_sdk_or_network PASSED [ 80%]
+tests/test_runtime.py::ProviderAdapterTests::test_openai_native_function_call_round_trip_without_network PASSED [ 80%]
+tests/test_sidebar_task_titles.py::TestSidebarTaskTitles::test_01_user_specified_examples PASSED [ 80%]
+tests/test_sidebar_task_titles.py::TestSidebarTaskTitles::test_02_no_raw_user_prompt_or_slashes PASSED [ 81%]
+tests/test_sidebar_task_titles.py::TestSidebarTaskTitles::test_03_create_conversation_cleans_initial_title PASSED [ 81%]
+tests/test_sidebar_task_titles.py::TestSidebarTaskTitles::test_04_title_stability_in_conversation_state PASSED [ 82%]
+tests/test_skills.py::SkillCommandTests::test_all_legacy_agent_prefixes_still_dispatch 
+tests/test_skills.py::SkillCommandTests::test_all_legacy_agent_prefixes_still_dispatch PASSED [ 82%]
+tests/test_skills.py::SkillCommandTests::test_bacblanc_without_mission_is_detected PASSED [ 82%]
+tests/test_skills.py::SkillCommandTests::test_invalid_skill_configuration_reports_a_clear_error PASSED [ 83%]
+tests/test_skills.py::SkillCommandTests::test_legacy_agent_prefix_and_normal_query_still_use_planner PASSED [ 83%]
+tests/test_skills.py::SkillCommandTests::test_skill_md_directory_is_auto_discovered PASSED [ 83%]
+tests/test_skills.py::SkillCommandTests::test_slash_command_splits_skill_and_mission PASSED [ 84%]
+tests/test_skills.py::SkillCommandTests::test_slash_skill_reaches_skill_agent_before_agent_override PASSED [ 84%]
+tests/test_skills.py::SkillCommandTests::test_unknown_slash_skill_is_explicit_error PASSED [ 84%]
+tests/test_task_context_continuity.py::TestTaskContextContinuity::test_01_continuity_request_detection PASSED [ 85%]
+tests/test_task_context_continuity.py::TestTaskContextContinuity::test_02_intent_engine_continuity_resolution PASSED [ 85%]
+tests/test_task_context_continuity.py::TestTaskContextContinuity::test_03_task_context_serialization_and_errors PASSED [ 85%]
+tests/test_task_context_continuity.py::TestTaskContextContinuity::test_04_bridge_multi_turn_continuity_without_spurious_tasks 
+
+================================== FAILURES ===================================
+_ TestAutonomousWebRetrieval.test_05_conversational_continuity_for_retrieval __
+tests\test_autonomous_web_retrieval.py:211: in test_05_conversational_continuity_for_retrieval
+    self.assertIn("ANALYSE DE DOCUMENT TÉLÉCHARGÉ", p_ana)
+E   AssertionError: 'ANALYSE DE DOCUMENT TÉLÉCHARGÉ' not found in "### MÉMOIRE CONVERSATIONNELLE & CONTEXTE DE LA TÂCHE ACTIVE (OBLIGATOIRE)\n- Objectif initial : Trouve le sujet 1 de mathématiques du bac 2026 et télécharge-le.\n- État actuel : idle\n- Sources et URLs consultées :\n  * [Web] Eduscol Sujet 1 -> https://eduscol.education.fr/sujet1.pdf\n\n**DIRECTIVE CONTEXTUELLE (ANALYSE IMMÉDIATE DU MÊME FICHIER) :** L'utilisateur demande d'analyser le document. Ne recommence PAS la recherche Internet et ne génère PAS de nouveau document de substitution. Lis et analyse directement le document déjà obtenu avec l'outil 'read_document' ou 'read_file'.\n\n### DEMANDE UTILISATEUR :\nanalyse-le"
+_ BacBlancCompletionTests.test_e2e_produces_files_reviews_both_and_delivers_only_after_validation _
+tests\test_bacblanc_completion.py:516: in test_e2e_produces_files_reviews_both_and_delivers_only_after_validation
+    self.assertNotEqual(result.status, "incomplete")
+E   AssertionError: 'incomplete' == 'incomplete'
+_ NeoHarnessHtmlPipelineTests.test_06_task_execution_with_html_produces_artifact _
+tests\test_html_rendering_pipeline.py:109: in test_06_task_execution_with_html_produces_artifact
+    self.assertIn(res["status"], {"Terminé", "Partiel"})
+E   AssertionError: 'Erreur' not found in {'Terminé', 'Partiel'}
+---------------------------- Captured stdout call -----------------------------
+[PERF] snapshot avant : 0 ms (0 fichiers)
+_ TestRateLimitAndAgentModes.test_gemini_provider_429_temporary_exponential_backoff _
+tests\test_rate_limit_and_agent_modes.py:407: in test_gemini_provider_429_temporary_exponential_backoff
+    self.assertIn("[GeminiProvider] 429 détecté", output)
+E   AssertionError: '[GeminiProvider] 429 détecté' not found in '[GeminiProvider] 429 temporaire détecté\n[GeminiProvider] Retry dans 0.3 secondes\n'
+_ TestRateLimitAndAgentModes.test_gemini_provider_quota_exhausted_stops_immediately _
+tests\test_rate_limit_and_agent_modes.py:463: in test_gemini_provider_quota_exhausted_stops_immediately
+    self.assertEqual(call_count, 1)
+E   AssertionError: 6 != 1
+______________ TestRateLimitAndAgentModes.test_provider_cooldown ______________
+tests\test_rate_limit_and_agent_modes.py:242: in test_provider_cooldown
+    self.assertTrue(
+E   AssertionError: False is not true : Le provider doit redevenir disponible une fois la durée de cooldown écoulée.
+_ ProviderAdapterTests.test_gemini_missing_key_and_claude_local_stubs_are_honest _
+tests\test_runtime.py:751: in test_gemini_missing_key_and_claude_local_stubs_are_honest
+    with self.assertRaises(GeminiProviderError) as captured:
+E   AssertionError: GeminiProviderError not raised
+____ ProviderAdapterTests.test_gemini_partial_turn_and_streaming_interface ____
+tests\test_runtime.py:799: in test_gemini_partial_turn_and_streaming_interface
+    turn = provider.generate_agent_turn("continue", [])
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+providers\gemini.py:1023: in generate_agent_turn
+    response = run(config, "search" if builtin_google_search else "base")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+providers\gemini.py:1016: in run
+    return self._execute(
+providers\gemini.py:526: in _execute
+    raise self._final_error(candidates, kinds, phase, None, scope)
+E   providers.gemini.GeminiProviderError: Quota Gemini épuisé sur tous les modèles essayés (gemini-3.5-flash-lite) pendant la génération avec outils. Attends la réinitialisation journalière, change de clé ou active la facturation.
+_ ProviderAdapterTests.test_gemini_preserves_thought_signature_and_hides_thought_text _
+tests\test_runtime.py:698: in test_gemini_preserves_thought_signature_and_hides_thought_text
+    turn = provider.generate_agent_turn(
+providers\gemini.py:1023: in generate_agent_turn
+    response = run(config, "search" if builtin_google_search else "base")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+providers\gemini.py:1016: in run
+    return self._execute(
+providers\gemini.py:526: in _execute
+    raise self._final_error(candidates, kinds, phase, None, scope)
+E   providers.gemini.GeminiProviderError: Quota Gemini épuisé sur tous les modèles essayés (gemini-3.5-flash-lite) pendant la génération avec outils. Attends la réinitialisation journalière, change de clé ou active la facturation.
+_ ProviderAdapterTests.test_gemini_retries_a_transient_service_error_with_a_bound _
+tests\test_runtime.py:775: in test_gemini_retries_a_transient_service_error_with_a_bound
+    self.assertEqual(provider.generate("hello"), "recovered")
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+providers\gemini.py:796: in generate
+    response = self._generate_content(prompt, phase="la génération")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+providers\gemini.py:679: in _generate_content
+    return self._execute(call, phase, scope=scope)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+providers\gemini.py:526: in _execute
+    raise self._final_error(candidates, kinds, phase, None, scope)
+E   providers.gemini.GeminiProviderError: Quota Gemini épuisé sur tous les modèles essayés (gemini-3.5-flash-lite) pendant la génération. Attends la réinitialisation journalière, change de clé ou active la facturation.
+__ ProviderAdapterTests.test_gemini_structured_output_and_grounding_metadata __
+tests\test_runtime.py:720: in test_gemini_structured_output_and_grounding_metadata
+    parsed = provider.generate_structured(
+providers\gemini.py:826: in generate_structured
+    response = self._generate_content(
+providers\gemini.py:679: in _generate_content
+    return self._execute(call, phase, scope=scope)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+providers\gemini.py:526: in _execute
+    raise self._final_error(candidates, kinds, phase, None, scope)
+E   providers.gemini.GeminiProviderError: Quota Gemini épuisé sur tous les modèles essayés (gemini-3.5-flash-lite) pendant la génération structurée. Attends la réinitialisation journalière, change de clé ou active la facturation.
+_ ProviderAdapterTests.test_legacy_provider_generate_contracts_return_plain_text _
+tests\test_runtime.py:579: in test_legacy_provider_generate_contracts_return_plain_text
+    self.assertEqual(gemini_provider.generate("prompt"), "Gemini text")
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+providers\gemini.py:796: in generate
+    response = self._generate_content(prompt, phase="la génération")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+providers\gemini.py:679: in _generate_content
+    return self._execute(call, phase, scope=scope)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+providers\gemini.py:526: in _execute
+    raise self._final_error(candidates, kinds, phase, None, scope)
+E   providers.gemini.GeminiProviderError: Quota Gemini épuisé sur tous les modèles essayés (gemini-3.5-flash-lite) pendant la génération. Attends la réinitialisation journalière, change de clé ou active la facturation.
+=========================== short test summary info ===========================
+FAILED tests/test_autonomous_web_retrieval.py::TestAutonomousWebRetrieval::test_05_conversational_continuity_for_retrieval
+FAILED tests/test_bacblanc_completion.py::BacBlancCompletionTests::test_e2e_produces_files_reviews_both_and_delivers_only_after_validation
+FAILED tests/test_html_rendering_pipeline.py::NeoHarnessHtmlPipelineTests::test_06_task_execution_with_html_produces_artifact
+FAILED tests/test_rate_limit_and_agent_modes.py::TestRateLimitAndAgentModes::test_gemini_provider_429_temporary_exponential_backoff
+FAILED tests/test_rate_limit_and_agent_modes.py::TestRateLimitAndAgentModes::test_gemini_provider_quota_exhausted_stops_immediately
+FAILED tests/test_rate_limit_and_agent_modes.py::TestRateLimitAndAgentModes::test_provider_cooldown
+FAILED tests/test_runtime.py::ProviderAdapterTests::test_gemini_missing_key_and_claude_local_stubs_are_honest
+FAILED tests/test_runtime.py::ProviderAdapterTests::test_gemini_partial_turn_and_streaming_interface
+FAILED tests/test_runtime.py::ProviderAdapterTests::test_gemini_preserves_thought_signature_and_hides_thought_text
+FAILED tests/test_runtime.py::ProviderAdapterTests::test_gemini_retries_a_transient_service_error_with_a_bound
+FAILED tests/test_runtime.py::ProviderAdapterTests::test_gemini_structured_output_and_grounding_metadata
+FAILED tests/test_runtime.py::ProviderAdapterTests::test_legacy_provider_generate_contracts_return_plain_text
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! KeyboardInterrupt !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+C:\Users\nanod\AppData\Local\Programs\Python\Python311\Lib\socket.py:706: KeyboardInterrupt
+(to show a full traceback on KeyboardInterrupt use --full-trace)
+======= 12 failed, 232 passed, 42 subtests passed in 556.68s (0:09:16) ========

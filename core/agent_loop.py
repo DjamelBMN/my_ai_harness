@@ -1,6 +1,14 @@
 # RÔLE DE CE FICHIER :
 # Exécute le cycle planifier/appeler le modèle/outils/observer/vérifier/corriger.
 # Orchestrator le pilote; ToolRegistry applique les autorisations avant les actions.
+#
+# OPTIMISATIONS DE VITESSE (version rapide) :
+#   - Voie rapide "chat" : une conversation simple = UN SEUL appel modèle en streaming
+#     (pas d'outils, pas d'observations initiales, pas de plan injecté, pas de vérification).
+#   - Observations initiales exécutées en parallèle (execute_many).
+#   - Prompt initial allégé : évidences et sorties d'outils tronquées.
+#   - Erreurs de quota correctement classées : un simple 429 temporaire n'exclut plus
+#     le provider pour toute la mission (avant : "quota"/"429" dans le texte = exclusion).
 
 from __future__ import annotations
 
@@ -93,6 +101,56 @@ def wrap_untrusted_data(content: str) -> str:
 {content}
 </donnees_non_fiables>"""
 
+
+def _truncate(text: Any, limit: int) -> str:
+    """Tronque un texte trop long pour limiter les tokens d'entrée (donc la latence)."""
+    value = text if isinstance(text, str) else ("" if text is None else str(text))
+    if limit <= 0 or len(value) <= limit:
+        return value
+    head = int(limit * 0.7)
+    tail = limit - head
+    omitted = len(value) - limit
+    return f"{value[:head]}\n[... {omitted} caractères omis ...]\n{value[-tail:]}"
+
+
+def _provider_family(name: str) -> set[str]:
+    """Ensemble des clés désignant un même fournisseur (pour les exclusions de repli)."""
+    low = (name or "").lower()
+    family = {low} if low else set()
+    if "gemini" in low:
+        family.update({"gemini", "gemini_flash_lite", "gemini_pro", "geminiprovider"})
+    elif "ollama" in low:
+        family.update({"ollama", "ollamaprovider"})
+    elif "openai" in low:
+        family.update({"openai", "openaiprovider", "gpt-4o", "gpt-4o-mini"})
+    elif "mistral" in low:
+        family.update({"mistral", "mistralprovider"})
+    return family
+
+
+_CHAT_DIRECTIVE = (
+    "DIRECTIVE STRICTE SUR LA RÉPONSE AU CHAT :\n"
+    "- Réponds UNIQUEMENT et DIRECTEMENT au sujet de la demande de l'utilisateur (l'exercice mathématique complet avec questions et corrigé, ou l'explication demandée).\n"
+    "- NE PARLE JAMAIS de fichiers générés, de noms ou chemins ('workspace/...', '.docx', '.tex', '.pdf'), de compilateur, d'outils appelés (generate_docx, tectonic, pandoc...) ni de vérifications ou d'erreurs.\n"
+    "- L'interface graphique s'occupe déjà d'afficher et de télécharger les fichiers automatiquement. Ta réponse textuelle doit être 100% propre, humaine et pédagogique."
+)
+
+# Intentions considérées comme de la simple conversation (voie rapide).
+# À ADAPTER aux noms réellement produits par core/intent_engine.py.
+DEFAULT_FAST_INTENTS = frozenset(
+    {
+        "chat",
+        "conversation",
+        "question",
+        "qa",
+        "explain",
+        "explanation",
+        "general",
+        "simple",
+        "smalltalk",
+    }
+)
+
 from collections.abc import Callable
 from typing import Any
 
@@ -118,6 +176,10 @@ class AgentLoop:
         emit: Callable[[str], None] | None = print,
         event_sink: Callable[[HarnessEvent], None] | None = None,
         stream_callback: Callable[[str, str], None] | None = None,
+        fast_chat: bool = True,
+        fast_intents: frozenset[str] | set[str] | None = None,
+        max_tool_output_chars: int = 20_000,
+        max_evidence_chars: int = 4_000,
     ) -> None:
         self.tools = tools
         self.reflective_memory = reflective_memory
@@ -129,6 +191,10 @@ class AgentLoop:
         self.emit = emit
         self.event_sink = event_sink
         self.stream_callback = stream_callback
+        self.fast_chat = fast_chat
+        self.fast_intents = frozenset(fast_intents) if fast_intents else DEFAULT_FAST_INTENTS
+        self.max_tool_output_chars = max_tool_output_chars
+        self.max_evidence_chars = max_evidence_chars
         self.events: list[HarnessEvent] = []
         self.delegation_engine = None
         self.router = None
@@ -167,6 +233,44 @@ class AgentLoop:
         except ValueError:
             return False
 
+    # ------------------------------------------------------------------ voie rapide
+    def _is_fast_chat(self, agent, task: Task, state: TaskState) -> bool:
+        """Vrai si la demande peut être traitée en UN seul appel modèle, sans outils.
+
+        Conditions : aucune mission d'outil/fichier/web/délégation/skill, aucun
+        validateur spécialisé, et intention de type conversation (ou task.fast_mode=True).
+        Pour forcer le mode complet : task.fast_mode = False.
+        """
+        if not self.fast_chat:
+            return False
+        explicit = getattr(task, "fast_mode", None)
+        if explicit is False:
+            return False
+        decision = state.intent_decision if isinstance(state.intent_decision, dict) else {}
+        blockers = (
+            getattr(state, "requires_web_search", False),
+            decision.get("required_tools"),
+            decision.get("secondary_agents"),
+            decision.get("files_required"),
+            getattr(task, "deep_reflection", False),
+            getattr(task, "enable_dag", False),
+            getattr(task, "allowed_tools", None),
+            getattr(task, "skill", None),
+            getattr(task, "skill_name", None),
+            callable(getattr(agent, "validate_final_answer", None)),
+        )
+        if any(blockers):
+            return False
+        if explicit is True:
+            return True
+        intent = getattr(state, "intent", "")
+        intent = str(getattr(intent, "value", intent)).lower()
+        return intent in self.fast_intents
+
+    def _fast_prompt(self, agent, task: Task) -> str:
+        return "\n\n".join([agent.build_prompt(task), _CHAT_DIRECTIVE])
+
+    # ------------------------------------------------------------------ prompt complet
     def _initial_prompt(
         self,
         agent,
@@ -176,7 +280,11 @@ class AgentLoop:
     ) -> str:
         plan_lines = [f"{index + 1}. {step.description}" for index, step in enumerate(state.plan)]
         evidence = [
-            {"tool": item.tool, "status": item.status, "output": item.output}
+            {
+                "tool": item.tool,
+                "status": item.status,
+                "output": _truncate(item.output, self.max_evidence_chars),
+            }
             for item in initial_results
         ]
         lessons_block = ""
@@ -209,12 +317,7 @@ class AgentLoop:
                     "- Tu disposes d'un mandat d'orchestrateur. Décompose les problèmes complexes en sous-tâches coordonnées et utilise activement la délégation multi-agents (delegate_to_agent ou delegate_dag) pour confier des sous-missions spécialisées (recherche, conception, implémentation, revue).\n"
                     "- Synthétise les résultats de chaque agent pour fournir une réponse complète, rigoureuse et de haut niveau."
                 ) if getattr(task, "deep_reflection", False) else "",
-                (
-                    "DIRECTIVE STRICTE SUR LA RÉPONSE AU CHAT :\n"
-                    "- Réponds UNIQUEMENT et DIRECTEMENT au sujet de la demande de l'utilisateur (l'exercice mathématique complet avec questions et corrigé, ou l'explication demandée).\n"
-                    "- NE PARLE JAMAIS de fichiers générés, de noms ou chemins ('workspace/...', '.docx', '.tex', '.pdf'), de compilateur, d'outils appelés (generate_docx, tectonic, pandoc...) ni de vérifications ou d'erreurs.\n"
-                    "- L'interface graphique s'occupe déjà d'afficher et de télécharger les fichiers automatiquement. Ta réponse textuelle doit être 100% propre, humaine et pédagogique."
-                ),
+                _CHAT_DIRECTIVE,
                 (
                     "Tu peux appeler les outils déclarés. L'appel d'un outil ne prouve "
                     "pas sa réussite : attends son résultat, observe-le, corrige si "
@@ -239,10 +342,10 @@ class AgentLoop:
         ]
         return "\n\n".join(part for part in parts if part)
 
+    # ------------------------------------------------------------------ observations
     def _run_initial_observations(
         self, state: TaskState, provider: Any = None
     ) -> list[ToolExecution]:
-        executions = []
         discovered_names = {tool.name for tool in self.tools.discover()}
         initial_calls = list(self.planner.initial_observation_tools(state))
         if (
@@ -255,9 +358,12 @@ class AgentLoop:
         ):
             initial_calls.append(("web_search", {"query": state.user_request}))
 
-        for name, arguments in initial_calls:
-            if name not in discovered_names:
-                continue
+        valid = [(name, args) for name, args in initial_calls if name in discovered_names]
+        if not valid:
+            return []
+
+        calls: list[ToolCall] = []
+        for name, arguments in valid:
             target = self._target_label(arguments).strip()
             self._emit(
                 f"[TOOL] {name}{self._target_label(arguments)} (perception initiale)"
@@ -266,15 +372,29 @@ class AgentLoop:
             state.observations.append(
                 {"kind": "tool_call", "tool": name, "target": target}
             )
-            execution = self.tools.execute(ToolCall(name=name, arguments=arguments))
-            self._record_execution(state, execution, call_id="planner")
+            calls.append(ToolCall(name=name, arguments=arguments))
+
+        # Exécution parallèle des observations indépendantes.
+        if len(calls) > 1:
+            executions = list(self.tools.execute_many(calls))
+        else:
+            executions = [self.tools.execute(calls[0])]
+
+        for call, execution in zip(calls, executions):
+            self._record_execution(
+                state, execution, call_id="planner", max_chars=self.max_tool_output_chars
+            )
             self._emit(f"[RESULT] {execution.status}: {execution.summary}")
-            self._event("tool.completed", tool=name, status=execution.status)
-            executions.append(execution)
+            self._event("tool.completed", tool=call.name, status=execution.status)
         return executions
 
     @staticmethod
-    def _record_execution(state: TaskState, execution: ToolExecution, call_id: str) -> dict[str, Any]:
+    def _record_execution(
+        state: TaskState,
+        execution: ToolExecution,
+        call_id: str,
+        max_chars: int = 20_000,
+    ) -> dict[str, Any]:
         record = execution.to_dict()
         record["call_id"] = call_id
         record["name"] = execution.tool
@@ -309,89 +429,23 @@ class AgentLoop:
             "name": execution.tool,
             "status": execution.status,
             "summary": execution.summary,
-            "output": wrap_untrusted_data(execution.output),
+            "output": wrap_untrusted_data(_truncate(execution.output, max_chars)),
             "data": execution.data,
         }
 
-    def run(
+    # ------------------------------------------------------------------ schémas d'outils
+    def _build_schemas(
         self,
         agent,
-        task: Task | str,
-        state: TaskState | None = None,
-        *,
-        delegation_stack: tuple[tuple[str, str], ...] | None = None,
-    ) -> AgentResult:
-        task = ensure_task(task, default_type=getattr(agent, "routing_key", "researcher") or "researcher")
-        if agent.provider is None:
-            raise RuntimeError("L'agent doit recevoir son provider via ModelRouter avant AgentLoop.")
-        state = state or self.planner.plan(task)
-        task.mode = self.tools.permissions.mode
-        state.mode = task.mode
-        state.status = TaskStatus.UNDERSTANDING
-        provider = agent.provider
-        self._event(
-            "agent.started",
-            agent=agent.name,
-            skill=getattr(task.skill, "name", None) or task.skill_name,
-            mode=task.mode,
-        )
-        skill_config = getattr(agent, "skill_config", {})
-        if not isinstance(skill_config, dict):
-            skill_config = {}
-        configured_iterations = skill_config.get("max_iterations")
-        iteration_limit = self.max_iterations
-        if (
-            isinstance(configured_iterations, int)
-            and not isinstance(configured_iterations, bool)
-            and 1 <= configured_iterations <= 32
-        ):
-            iteration_limit = max(iteration_limit, configured_iterations)
-        configured_output_tokens = skill_config.get("max_output_tokens")
-        if not state.agent_history:
-            state.agent_history.append(agent.name)
-        if delegation_stack is None:
-            delegation_stack = (
-                (agent.routing_key, " ".join(task.description.casefold().split())),
-            )
-        self._emit(f"[TASK] {state.task_id} | intent={state.intent} | agent={agent.name}")
-        self._emit(f"[MODE] {task.mode}")
-        self._emit("[PLAN]")
-        for index, step in enumerate(state.plan, start=1):
-            self._emit(f"  {index}. {step.description}")
-        self._emit(f"[MODEL] {provider.get_name()} / {provider.get_model_name()}")
-
-        if state.plan:
-            self._event(
-                "plan.created",
-                plan_steps=[
-                    {"id": idx, "description": s.description, "status": s.status}
-                    for idx, s in enumerate(state.plan, start=1)
-                ],
-                total_steps=len(state.plan),
-            )
-
-        state.status = TaskStatus.PLANNING
-        if state.plan:
-            state.plan[0].status = "in_progress"
-            self._event(
-                "plan.step_started",
-                step_index=1,
-                description=state.plan[0].description,
-            )
-        self.budget = MissionBudget()
-        initial_results = self._run_initial_observations(state, provider=provider)
-        prompt: str | None = self._initial_prompt(agent, task, state, initial_results)
-        continuation: Any = None
-        pending_tool_results: list[dict[str, Any]] = []
+        task: Task,
+        state: TaskState,
+        provider: Any,
+        mission_tools: set[str],
+        allowed_tools: Any,
+    ) -> list[dict[str, Any]]:
         schemas = self.tools.schemas()
-        mission_tools = set(state.intent_decision.get("required_tools", []))
         if mission_tools:
             schemas = [item for item in schemas if item.get("name") in mission_tools]
-        allowed_tools = (
-            task.allowed_tools
-            if task.allowed_tools is not None
-            else getattr(agent, "allowed_tools", None)
-        )
         if allowed_tools is not None:
             permitted = set(allowed_tools)
             schemas = [item for item in schemas if item.get("name") in permitted]
@@ -455,6 +509,101 @@ class AgentLoop:
                 if item.get("builtin") == "google_search"
                 or not self._tool_mutates(item.get("name", ""))
             ]
+        return schemas
+
+    # ------------------------------------------------------------------ boucle principale
+    def run(
+        self,
+        agent,
+        task: Task | str,
+        state: TaskState | None = None,
+        *,
+        delegation_stack: tuple[tuple[str, str], ...] | None = None,
+    ) -> AgentResult:
+        task = ensure_task(task, default_type=getattr(agent, "routing_key", "researcher") or "researcher")
+        if agent.provider is None:
+            raise RuntimeError("L'agent doit recevoir son provider via ModelRouter avant AgentLoop.")
+        state = state or self.planner.plan(task)
+        task.mode = self.tools.permissions.mode
+        state.mode = task.mode
+        state.status = TaskStatus.UNDERSTANDING
+        provider = agent.provider
+        self.consecutive_tool_failures.clear()
+        fast = self._is_fast_chat(agent, task, state)
+        self._event(
+            "agent.started",
+            agent=agent.name,
+            skill=getattr(task.skill, "name", None) or task.skill_name,
+            mode=task.mode,
+        )
+        skill_config = getattr(agent, "skill_config", {})
+        if not isinstance(skill_config, dict):
+            skill_config = {}
+        configured_iterations = skill_config.get("max_iterations")
+        iteration_limit = self.max_iterations
+        if (
+            isinstance(configured_iterations, int)
+            and not isinstance(configured_iterations, bool)
+            and 1 <= configured_iterations <= 32
+        ):
+            iteration_limit = max(iteration_limit, configured_iterations)
+        if fast:
+            iteration_limit = min(iteration_limit, 3)
+        configured_output_tokens = skill_config.get("max_output_tokens")
+        if not state.agent_history:
+            state.agent_history.append(agent.name)
+        if delegation_stack is None:
+            delegation_stack = (
+                (agent.routing_key, " ".join(task.description.casefold().split())),
+            )
+        self._emit(f"[TASK] {state.task_id} | intent={state.intent} | agent={agent.name}")
+        self._emit(f"[MODE] {task.mode}")
+        if fast:
+            self._emit("[FAST CHAT] voie rapide : 1 appel modèle, sans outils ni vérification.")
+        self._emit("[PLAN]")
+        for index, step in enumerate(state.plan, start=1):
+            self._emit(f"  {index}. {step.description}")
+        self._emit(f"[MODEL] {provider.get_name()} / {provider.get_model_name()}")
+
+        if state.plan:
+            self._event(
+                "plan.created",
+                plan_steps=[
+                    {"id": idx, "description": s.description, "status": s.status}
+                    for idx, s in enumerate(state.plan, start=1)
+                ],
+                total_steps=len(state.plan),
+            )
+
+        state.status = TaskStatus.PLANNING
+        if state.plan:
+            state.plan[0].status = "in_progress"
+            self._event(
+                "plan.step_started",
+                step_index=1,
+                description=state.plan[0].description,
+            )
+        self.budget = MissionBudget()
+
+        mission_tools = set(state.intent_decision.get("required_tools", []))
+        allowed_tools = (
+            task.allowed_tools
+            if task.allowed_tools is not None
+            else getattr(agent, "allowed_tools", None)
+        )
+        if fast:
+            initial_results: list[ToolExecution] = []
+            prompt: str | None = self._fast_prompt(agent, task)
+            schemas: list[dict[str, Any]] = []
+        else:
+            initial_results = self._run_initial_observations(state, provider=provider)
+            prompt = self._initial_prompt(agent, task, state, initial_results)
+            schemas = self._build_schemas(
+                agent, task, state, provider, mission_tools, allowed_tools
+            )
+
+        continuation: Any = None
+        pending_tool_results: list[dict[str, Any]] = []
         total_calls = 0
         correction_count = 0
         partial_turns = 0
@@ -511,6 +660,7 @@ class AgentLoop:
                     self._emit("[AGENT LOOP] Arrêt demandé par l'utilisateur.")
                     state.status = TaskStatus.FAILED
                     return self._failure_result(state, "Exécution arrêtée par l'utilisateur.")
+                streamed_in_turn = False
                 try:
                     active_schemas = schemas
                     if state.sources:
@@ -537,7 +687,6 @@ class AgentLoop:
                             original_output_tokens or 0,
                             configured_output_tokens,
                         )
-                    streamed_in_turn = False
                     if self.stream_callback is not None:
                         def _on_chunk(delta: str, acc: str) -> None:
                             nonlocal streamed_in_turn
@@ -580,48 +729,47 @@ class AgentLoop:
                 except Exception as error:
                     attempt += 1
                     provider_error = f"{type(error).__name__}: {error}"
-                    quota_or_rate_limit = self._is_quota_or_rate_limit(error)
+                    kind = self._classify_provider_error(error)
                     category = str(getattr(error, "category", "provider"))
                     provider_name = provider.get_name()
+                    family = _provider_family(provider_name)
                     self._event(
                         "provider.error",
                         provider=provider_name,
-                        category="quota" if quota_or_rate_limit else category,
+                        category="quota" if kind != "other" else category,
                         iteration=iteration,
                     )
                     state.errors.append(
                         {"phase": "provider", "iteration": iteration, "message": provider_error}
                     )
-                    self._emit(
-                        f"[PROVIDER ERROR] Provider : {provider_name} | "
-                        f"Cause : {'quota atteint' if quota_or_rate_limit else category}"
+                    cause = (
+                        "quota épuisé" if kind == "exhausted"
+                        else "limite de débit temporaire" if kind == "rate_limit"
+                        else category
                     )
-                    if quota_or_rate_limit:
+                    self._emit(
+                        f"[PROVIDER ERROR] Provider : {provider_name} | Cause : {cause}"
+                    )
+
+                    # Limite de débit courte : on attend puis on réessaie le même provider
+                    # (sauf si du texte a déjà été streamé, pour ne rien dupliquer).
+                    if kind == "rate_limit" and not streamed_in_turn and attempt <= 1:
+                        wait = getattr(error, "retry_after", None)
+                        if isinstance(wait, (int, float)) and 0 < wait <= 15:
+                            self._emit(f"[RETRY] limite de débit : nouvelle tentative dans {wait:.0f}s")
+                            time.sleep(wait + 0.2)
+                            continue
+
+                    if kind == "exhausted":
                         self._emit(
                             "[DELIVERY STATUS] Livraison complète impossible en raison "
-                            f"du quota ou de la limite du provider {provider_name}."
+                            f"du quota épuisé du provider {provider_name}."
                         )
-                        # Le provider a dépassé son quota : il est définitivement exclu pour TOUTE la mission
-                        exhausted_providers.add(provider_name.lower())
-                        if "gemini" in provider_name.lower():
-                            exhausted_providers.update({"gemini", "gemini_flash_lite", "gemini_pro", "geminiprovider"})
-                        elif "ollama" in provider_name.lower():
-                            exhausted_providers.update({"ollama", "ollamaprovider"})
-                        elif "openai" in provider_name.lower():
-                            exhausted_providers.update({"openai", "openaiprovider", "gpt-4o", "gpt-4o-mini"})
-                        elif "mistral" in provider_name.lower():
-                            exhausted_providers.update({"mistral", "mistralprovider"})
+                        # Quota réellement épuisé : exclu pour TOUTE la mission.
+                        exhausted_providers.update(family)
 
-                    # Enregistrer le provider en échec et sa famille dans le set d'exclusion du tour
-                    failed_providers_in_turn.add(provider_name.lower())
-                    if "gemini" in provider_name.lower() or quota_or_rate_limit:
-                        failed_providers_in_turn.update({"gemini", "gemini_flash_lite", "gemini_pro", "geminiprovider"})
-                    elif "ollama" in provider_name.lower():
-                        failed_providers_in_turn.update({"ollama", "ollamaprovider"})
-                    elif "openai" in provider_name.lower():
-                        failed_providers_in_turn.update({"openai", "openaiprovider", "gpt-4o", "gpt-4o-mini"})
-                    elif "mistral" in provider_name.lower():
-                        failed_providers_in_turn.update({"mistral", "mistralprovider"})
+                    # Exclusion du provider pour ce tour (pas pour la mission si simple 429).
+                    failed_providers_in_turn.update(family)
 
                     # Gestionnaire de repli et détection de cycle (arrêt strict, aucune boucle infinie)
                     router = getattr(self, "router", None)
@@ -634,6 +782,7 @@ class AgentLoop:
                         and hasattr(router, "get_fallback_provider")
                         and available_candidates
                         and total_mission_failovers < max_mission_failovers
+                        and not streamed_in_turn
                     ):
                         fallback = router.get_fallback_provider(provider, exclude=failed_providers_in_turn | exhausted_providers)
 
@@ -657,7 +806,6 @@ class AgentLoop:
                         )
                         provider = next_prov
                         agent.set_provider(next_prov)
-                        time.sleep(0.2)
                         continue
 
                     # Aucun provider disponible ou limite atteinte : arrêt immédiat, JAMAIS de boucle infinie
@@ -673,8 +821,6 @@ class AgentLoop:
                         return partial_result
                     self._event("delivery.failed", reason="provider_error")
                     return self._failure_result(state, provider_error or "Fournisseur indisponible ou quota dépassé.")
-                    self._emit(f"[RETRY] provider attempt {attempt}/{self.max_retries}")
-                    time.sleep(min(0.25 * (2 ** (attempt - 1)), 1.0))
 
             continuation = turn.continuation
             tool_names = [item.name for item in turn.tool_calls]
@@ -823,7 +969,9 @@ class AgentLoop:
                     else:
                         self.consecutive_tool_failures.pop(call_key, None)
 
-                    record = self._record_execution(state, execution, call.call_id)
+                    record = self._record_execution(
+                        state, execution, call.call_id, max_chars=self.max_tool_output_chars
+                    )
                     pending_tool_results.append(record)
                     self._emit(f"[RESULT] {execution.status}: {execution.summary}")
                     self._event(
@@ -997,22 +1145,30 @@ class AgentLoop:
                         )
 
             state.status = TaskStatus.VERIFYING
-            self._event("verification.started", agent=agent.name)
-            verification = self.verifier.verify(state, self.tools.filesystem)
-            if specialized_report and specialized_report.get("required"):
-                verification["specialized_completeness"] = specialized_report
-                verification.setdefault("checks", []).append(
-                    {
-                        "check": specialized_report.get("check_name") or f"{getattr(agent, 'name', 'specialized').lower()}_complete_deliverable",
-                        "status": "passed",
-                        "evidence": "Les deux artefacts complets, le barème, la relecture et les contrôles requis ont été vérifiés.",
-                    }
+            if fast:
+                # Voie rapide : conversation simple, aucun outil utilisé, rien à vérifier.
+                verification = {
+                    "status": "not_required",
+                    "checks": [],
+                    "summary": "Réponse directe (mode chat rapide), aucune vérification nécessaire.",
+                }
+            else:
+                self._event("verification.started", agent=agent.name)
+                verification = self.verifier.verify(state, self.tools.filesystem)
+                if specialized_report and specialized_report.get("required"):
+                    verification["specialized_completeness"] = specialized_report
+                    verification.setdefault("checks", []).append(
+                        {
+                            "check": specialized_report.get("check_name") or f"{getattr(agent, 'name', 'specialized').lower()}_complete_deliverable",
+                            "status": "passed",
+                            "evidence": "Les deux artefacts complets, le barème, la relecture et les contrôles requis ont été vérifiés.",
+                        }
+                    )
+                self._emit(f"[VERIFICATION] {verification['status']}: {verification['summary']}")
+                self._event(
+                    "verification.completed",
+                    status=verification.get("status", "unknown"),
                 )
-            self._emit(f"[VERIFICATION] {verification['status']}: {verification['summary']}")
-            self._event(
-                "verification.completed",
-                status=verification.get("status", "unknown"),
-            )
             if verification["status"] == "failed":
                 correction_count += 1
                 if correction_count <= self.max_retries and iteration < iteration_limit:
@@ -1064,16 +1220,17 @@ class AgentLoop:
 
             state.status = TaskStatus.COMPLETED
             state.completed = True
-            self._event("delivery.started", agent=agent.name)            # Validation honnête du statut des étapes du plan :
-            # Seules les étapes disposant d'une preuve d'exécution ou de vérification passent à 'completed'
+            self._event("delivery.started", agent=agent.name)
+            # Validation honnête du statut des étapes du plan :
+            # seules les étapes disposant d'une preuve d'exécution ou de vérification passent à 'completed'.
             for idx, step in enumerate(state.plan, start=1):
                 if step.status == "in_progress":
                     if verification.get("status") in {"passed", "not_required"}:
                         step.status = "completed"
                         self._event("plan.step_completed", step_index=idx, description=step.description, status="completed")
                 elif step.status in {"ready", "pending"}:
-                    step.status = "skipped" if verification.get("status") in {"passed", "not_required"} else "pending" 
-                    self._event("plan.step_completed", step_index=idx, description=step.description, status=step.status) 
+                    step.status = "skipped" if verification.get("status") in {"passed", "not_required"} else "pending"
+                    self._event("plan.step_completed", step_index=idx, description=step.description, status=step.status)
             state.observations.append(
                 {"kind": "delivery", "status": "delivered", "agent": agent.name}
             )
@@ -1229,17 +1386,47 @@ class AgentLoop:
         return self._success_shape(state, answer, verification, status="incomplete")
 
     @staticmethod
-    def _is_quota_or_rate_limit(error: Exception) -> bool:
-        if str(getattr(error, "category", "")).casefold() in {"quota", "rate_limit"}:
-            return True
-        status = getattr(error, "status_code", None) or getattr(error, "code", None)
-        if status == 429:
-            return True
+    def _classify_provider_error(error: Exception) -> str:
+        """Retourne 'exhausted' (quota épuisé), 'rate_limit' (429 temporaire) ou 'other'.
+
+        Un simple 429 ou le mot « quota » dans un message ne suffit PLUS à déclarer
+        un provider épuisé pour toute la mission.
+        """
+        if getattr(error, "is_quota_exhausted", False):
+            return "exhausted"
+        category = str(getattr(error, "category", "")).casefold()
+        if category in {"quota_exhausted", "quota"}:
+            return "exhausted"
+        if category == "rate_limit":
+            return "rate_limit"
+        if category in {"authentication", "configuration", "missing_key", "sdk_missing"}:
+            return "other"
+
         message = str(error).casefold().replace("_", " ")
-        return any(
-            marker in message
-            for marker in ("quota", "rate limit", "ratelimit", "resource exhausted", "http 429", "429")
+        exhausted_markers = (
+            "insufficient quota",
+            "billing not enabled",
+            "per day",
+            "perday",
+            "daily quota",
+            "daily limit",
+            "credit balance",
+            "quota réellement épuisé",
         )
+        if any(marker in message for marker in exhausted_markers):
+            return "exhausted"
+        status = getattr(error, "status_code", None) or getattr(error, "code", None)
+        if status == 429 or any(
+            marker in message
+            for marker in ("rate limit", "ratelimit", "resource exhausted", "too many requests", "http 429")
+        ):
+            return "rate_limit"
+        return "other"
+
+    @classmethod
+    def _is_quota_or_rate_limit(cls, error: Exception) -> bool:
+        """Compatibilité : vrai pour tout problème de quota ou de débit."""
+        return cls._classify_provider_error(error) != "other"
 
     @staticmethod
     def _success_shape(
