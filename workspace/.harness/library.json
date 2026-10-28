@@ -1,5 +1,56 @@
 [
   {
+    "id": "lib-6a387424",
+    "title": "Dm maths",
+    "category": "Documents",
+    "type": "pdf",
+    "path": "dm_maths.pdf",
+    "summary": "Document PDF compilé",
+    "content": "",
+    "tags": [
+      "pdf"
+    ],
+    "size_bytes": 29763,
+    "created_at": "2026-10-28T21:30:49.490330+00:00",
+    "updated_at": "2026-10-28T21:30:49.490330+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-b6db6832",
+    "title": "Dm maths",
+    "category": "Documents",
+    "type": "tex",
+    "path": "dm_maths.tex",
+    "summary": "Fichier TEX dans l'espace de travail",
+    "content": "% Compiler avec XeLaTeX ou LuaLaTeX\n\\documentclass[11pt,a4paper]{article}\n\n\\usepackage{amsmath,amssymb}\n\\usepackage{fontspec}\n\\usepackage{unicode-math}\n\\usepackage{polyglossia}\n\\setmainlanguage{french}\n\\usepackage{xcolor}\n\\usepackage{fancyhdr}\n\\usepackage[margin=2cm,headheight=16pt,headsep=22pt]{geometry}\n\\usepackage{enumitem}\n\n% Police principale et police mathématique : Libertinus\n\\IfFontExistsTF{Libertinus Serif}\n  {\\setmainfont{Libertinus Serif}}\n  {\\IfFontExistsTF{Latin Modern Roman}{\\setmainfont{Latin Modern Roman}}{\\setmainfont{lmroman10-regular.otf}}}\n\n\\IfFontExistsTF{Libertinus Math}\n  {\\setmathfont{Libertinus Math}}\n  {\\IfFontExistsTF{Latin Modern Math}{\\setmathfont{Latin Modern Math}}{\\setmathfont{latinmodern-math.otf}}}\n\n\\linespread{1.07}\n\\setlength{\\parindent}{0pt}\n\\AtBeginDocument{\\setlength{\\parindent}{0pt}}\n\\setlength{\\parskip}{0.35em}\n\n% En-tête\n\\pagestyle{fancy}\n\\fancyhf{}\n\\lhead{NeoHarness AI}\n\\rhead{Terminale Spécialité Mathématiques}\n% Pagination : « Page X / Y » c",
+    "tags": [
+      "tex"
+    ],
+    "size_bytes": 11705,
+    "created_at": "2026-10-28T21:30:47.087439+00:00",
+    "updated_at": "2026-10-28T21:30:47.087439+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-b49e547e",
+    "title": "Paysage voiture",
+    "category": "Notes",
+    "type": "note",
+    "path": "paysage_voiture.md",
+    "summary": "Fichier NOTE dans l'espace de travail",
+    "content": "# Description de la scène\n- Véhicule à l'avant-plan\n- Arrière-plan : Ciel bleu éclatant et lumineux\n- Météo : Beau soleil radieux et dégagé\n",
+    "tags": [
+      "note"
+    ],
+    "size_bytes": 149,
+    "created_at": "2026-10-28T21:13:07.897232+00:00",
+    "updated_at": "2026-10-28T21:13:07.898461+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
     "id": "lib-3b0bcc36",
     "title": "Graphic",
     "category": "Ressources",

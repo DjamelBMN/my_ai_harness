@@ -248,80 +248,33 @@ class NeoHarnessRuntimeBridge:
                 k, _, v = line.partition("=")
                 key = k.strip()
                 val = v.strip().strip("\"'")
-                if key in {"GEMINI_API_KEY", "OPENAI_API_KEY", "MISTRAL_API_KEY", "ANTHROPIC_API_KEY"} and val:
-                    if not os.environ.get(key, "").strip():
-                        os.environ[key] = val
+                if key in {
+                    "GEMINI_API_KEY", "OPENAI_API_KEY", "MISTRAL_API_KEY", "ANTHROPIC_API_KEY",
+                    "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN",
+                } and val:
+                    os.environ[key] = val
         except Exception:
             pass
 
     def get_credentials_status(self) -> dict[str, bool]:
         """Retourne uniquement la présence (booléen) des clés API sans jamais exposer de secret."""
+        self._load_dotenv()
         return {
             "GEMINI_API_KEY": bool(os.environ.get("GEMINI_API_KEY", "").strip()),
             "OPENAI_API_KEY": bool(os.environ.get("OPENAI_API_KEY", "").strip()),
             "MISTRAL_API_KEY": bool(os.environ.get("MISTRAL_API_KEY", "").strip()),
             "ANTHROPIC_API_KEY": bool(os.environ.get("ANTHROPIC_API_KEY", "").strip()),
+            "CLOUDFLARE_ACCOUNT_ID": bool(os.environ.get("CLOUDFLARE_ACCOUNT_ID", "").strip()),
+            "CLOUDFLARE_API_TOKEN": bool(os.environ.get("CLOUDFLARE_API_TOKEN", "").strip()),
         }
 
     def update_credentials(self, updates: dict[str, Any], *, persist_dotenv: bool = True) -> dict[str, Any]:
         """Met à jour les clés API en mémoire (et dans .env) sans jamais renvoyer les clés en clair."""
-        allowed_keys = ("GEMINI_API_KEY", "OPENAI_API_KEY", "MISTRAL_API_KEY", "ANTHROPIC_API_KEY")
-        changed: list[str] = []
-        with self._lock:
-            for key in allowed_keys:
-                if key not in updates:
-                    continue
-                raw_val = updates.get(key)
-                if raw_val is None:
-                    continue
-                clean_val = str(raw_val).strip()
-                if clean_val:
-                    os.environ[key] = clean_val
-                    changed.append(key)
+        allowed_keys = (
+            "GEMINI_API_KEY", "OPENAI_API_KEY", "MISTRAL_API_KEY", "ANTHROPIC_API_KEY",
+            "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN",
+        )
 
-            if changed and persist_dotenv:
-                dotenv_path = self.project_root / ".env"
-                existing: dict[str, str] = {}
-                if dotenv_path.is_file():
-                    try:
-                        for raw_line in dotenv_path.read_text(encoding="utf-8").splitlines():
-                            line = raw_line.strip()
-                            if line and not line.startswith("#") and "=" in line:
-                                ek, _, ev = line.partition("=")
-                                existing[ek.strip()] = ev.strip()
-                    except Exception:
-                        pass
-                for k in changed:
-                    existing[k] = os.environ[k]
-                try:
-                    lines = [f"{k}={v}" for k, v in existing.items()]
-                    dotenv_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-                except Exception:
-                    pass
-
-            # Réinitialise les clients providers concernés pour prise en compte immédiate
-            for prov in self.orchestrator.router.providers.values():
-                if isinstance(prov, GeminiProvider) and "GEMINI_API_KEY" in changed:
-                    prov._client = None
-                    prov._verified = False
-                elif isinstance(prov, OpenAIProvider) and "OPENAI_API_KEY" in changed:
-                    prov._client = None
-                elif isinstance(prov, MistralProvider) and "MISTRAL_API_KEY" in changed:
-                    prov._client = None
-                    prov._available_models = {}
-
-            if "GEMINI_API_KEY" in changed:
-                self.select_model("gemini")
-            elif "OPENAI_API_KEY" in changed:
-                self.select_model("openai")
-            elif "MISTRAL_API_KEY" in changed:
-                self.select_model("mistral")
-
-        return {
-            "updated": changed,
-            "credentials": self.get_credentials_status(),
-            "selection": self.model_registry.active_selection_summary(),
-        }
 
     def _ensure_provider_ready(self, provider: Any, *, prefer_lite: bool = False) -> None:
         """Synchronise le modèle d'un provider réel avec la liste des modèles autorisés par sa clé API."""
@@ -1906,6 +1859,142 @@ class NeoHarnessRuntimeBridge:
             "\\end{document}\n"
         )
 
+    def _auto_verify_and_repair_math_blocks(self, text: str, provider: Any = None) -> str:
+        """Inspecte tous les blocs ```tableau et ```arbre générés par l'agent.
+        1. Corrige de façon déterministe les séparateurs '//' mal utilisés dans f(x).
+        2. Si une incohérence mathématique subsiste (signe f' vs variations f, ou somme d'arbre != 1),
+           demande automatiquement au LLM de corriger le bloc fautif avant l'envoi."""
+        if not text or "```" not in text:
+            return text
+
+        def _parse_num(s: str) -> float | None:
+            t = (s or "").strip().strip("$").replace(" ", "").replace(",", ".").replace("−", "-")
+            if not t:
+                return None
+            if re.match(r"^[+-]?(?:\\infty|oo|inf|∞)$", t, re.I):
+                return -1e99 if t.startswith("-") else 1e99
+            t = re.sub(r"\\d?frac\{([^{}]+)\}\{([^{}]+)\}", r"((\1)/(\2))", t)
+            t = re.sub(r"\\sqrt\{([^{}]+)\}", r"((\1)**0.5)", t)
+            try:
+                if re.match(r"^[\d+\-*/().e*]+$", t):
+                    return float(eval(t, {"__builtins__": {}}, {}))
+            except Exception:
+                pass
+            return None
+
+        def _check_and_fix_block(match: re.Match) -> str:
+            lang = (match.group(1) or "").strip()
+            body = match.group(2) or ""
+            lg = lang.lower()
+
+            # 1. Vérification et auto-réparation des blocs ```tableau
+            if lg in {"tableau", "variations", "signes", "tvar", "convexite"}:
+                lines = [ln.strip() for ln in body.splitlines() if ln.strip()]
+                x_vals: list[str] = []
+                sign_lines: list[tuple[int, str, list[str]]] = []
+                var_idx = -1
+                var_lbl = ""
+                var_parts: list[str] = []
+
+                for idx, ln in enumerate(lines):
+                    if ":" not in ln:
+                        continue
+                    lbl, _, b = ln.partition(":")
+                    lbl_s, b_s = lbl.strip(), b.strip()
+                    if not x_vals and re.match(r"^\$?x\$?$", lbl_s, re.I):
+                        x_vals = [x.strip() for x in (b_s.split("|") if "|" in b_s else b_s.split()) if x.strip()]
+                        continue
+                    if re.search(r"convex|concav", lbl_s, re.I):
+                        continue
+                    only_s = bool(re.match(r"^[\s+\-0|/?−]+$", b_s) and re.search(r"[+\-0|/?−]", b_s))
+                    if re.search(r"['′\"″]|signe", lbl_s, re.I) or only_s:
+                        toks = re.findall(r"\|\||//|\||[+\-]|0|\?", b_s.replace("−", "-"))
+                        sign_lines.append((idx, lbl_s, toks))
+                    else:
+                        var_idx = idx
+                        var_lbl = lbl_s
+                        var_parts = [p.strip() for p in b_s.split("|") if p.strip()]
+
+                n = len(x_vals)
+                if n >= 2 and var_idx >= 0:
+                    has_forb = any("||" in t or "//" in t for _, _, t in sign_lines)
+                    # Réparation déterministe : éclater 'a // b' en 'a | b' s'il manque des colonnes
+                    while len(var_parts) < n:
+                        split_pos = next((i for i, p in enumerate(var_parts) if "//" in p and not has_forb), -1)
+                        if split_pos >= 0:
+                            a, _, b = var_parts[split_pos].partition("//")
+                            var_parts[split_pos : split_pos + 1] = [a.strip(), b.strip()]
+                        else:
+                            break
+                    lines[var_idx] = f"{var_lbl}: " + " | ".join(var_parts)
+                    body = "\n".join(lines)
+
+                    # Contrôle de cohérence f'(x) vs bornes de f(x)
+                    if len(var_parts) == n and sign_lines:
+                        _, _, d_toks = sign_lines[-1]
+                        signs = [t for t in d_toks if t in {"+", "-"}]
+                        nums = [_parse_num(p.split("//")[0]) for p in var_parts]
+                        inconsistent_msg = ""
+                        if len(signs) == n - 1 and all(v is not None for v in nums):
+                            for k in range(n - 1):
+                                if signs[k] == "+" and nums[k] >= nums[k + 1]:  # type: ignore[operator]
+                                    inconsistent_msg = f"Sur l'intervalle {k+1} ({x_vals[k]} à {x_vals[k+1]}), f'(x) est '+' mais f(x) va de {var_parts[k]} à {var_parts[k+1]}."
+                                    break
+                                if signs[k] == "-" and nums[k] <= nums[k + 1]:  # type: ignore[operator]
+                                    inconsistent_msg = f"Sur l'intervalle {k+1} ({x_vals[k]} à {x_vals[k+1]}), f'(x) est '-' mais f(x) va de {var_parts[k]} à {var_parts[k+1]}."
+                                    break
+                        if inconsistent_msg and provider is not None:
+                            try:
+                                fix_prompt = (
+                                    "Corrige l'incohérence mathématique suivante dans ce bloc ```tableau.\n"
+                                    f"Diagnostic : {inconsistent_msg}\n"
+                                    "Règles : la ligne f(x) doit avoir exactement une valeur par colonne séparée par '|' (n'utilise '//' que pour une valeur interdite '||'). "
+                                    "Renvoie UNIQUEMENT le contenu corrigé du bloc tableau, sans balises ``` autour :\n\n"
+                                    f"{body}"
+                                )
+                                fixed = str(provider.generate(fix_prompt) or "").strip()
+                                fixed = re.sub(r"^```[a-zA-Z]*\r?\n?|```$", "", fixed, flags=re.M).strip()
+                                if "x:" in fixed.lower():
+                                    body = fixed
+                            except Exception:
+                                pass
+                return f"```{lang}\n{body}\n```"
+
+            # 2. Vérification et auto-réparation des blocs ```arbre (Somme des branches = 1)
+            if lg in {"arbre", "tree"}:
+                bad_line = ""
+                for ln in body.splitlines():
+                    if ":" not in ln:
+                        continue
+                    k_part, _, b_part = ln.partition(":")
+                    probs = re.findall(r"\(\s*([0-9.,/]+)\s*\)", b_part)
+                    if len(probs) >= 2:
+                        vals = [_parse_num(p) for p in probs]
+                        if all(v is not None for v in vals):
+                            total = sum(vals)  # type: ignore[arg-type]
+                            if abs(total - 1.0) > 1e-3:
+                                bad_line = f"Ligne '{k_part.strip()}' : la somme des probabilités vaut {total:.3f} au lieu de 1."
+                                break
+                if bad_line and provider is not None:
+                    try:
+                        fix_prompt = (
+                            "Corrige ce bloc ```arbre pour que la somme des probabilités issues de chaque nœud soit exactement égale à 1.\n"
+                            f"Diagnostic : {bad_line}\n"
+                            "Renvoie UNIQUEMENT le contenu corrigé du bloc arbre, sans balises ``` autour :\n\n"
+                            f"{body}"
+                        )
+                        fixed = str(provider.generate(fix_prompt) or "").strip()
+                        fixed = re.sub(r"^```[a-zA-Z]*\r?\n?|```$", "", fixed, flags=re.M).strip()
+                        if ":" in fixed:
+                            body = fixed
+                    except Exception:
+                        pass
+                return f"```{lang}\n{body}\n```"
+
+            return match.group(0)
+
+        return re.sub(r"```([a-zA-Z0-9_+-]*)[ \t]*\r?\n([\s\S]*?)```", _check_and_fix_block, text)
+
     @staticmethod
     def _convert_chat_blocks_to_latex(text: str) -> str:
         """Convertit tous les blocs visuels du chat (```tableau, ```arbre, ```droite, ```tikz et tableaux Markdown)
@@ -3410,6 +3499,244 @@ class NeoHarnessRuntimeBridge:
     # ------------------------------------------------------------------
     # EXÉCUTION D'UNE TÂCHE / MISSION
     # ------------------------------------------------------------------
+    @staticmethod
+    def _extract_image_generation_Subject(prompt: str, previous_image_prompt: str | None = None) -> str | None:
+        """Détecte sans friction toute demande d'image initiale ou de retouche d'une image précédente."""
+        p = (prompt or "").strip()
+        if not p:
+            return None
+        m_slash = re.match(r"^/(?:image|img|photo|flux|dessine)\b\s*(.*)$", p, flags=re.I | re.S)
+        if m_slash:
+            return (m_slash.group(1) or "").strip() or "Un paysage photoréaliste"
+
+        # Ne jamais intercepter les figures mathématiques / graphiques de cours
+        p_low = p.casefold()
+        math_exclusions = (
+            "courbe", "graphe", "tableau", "variation", "signe", "convex", "arbre pond",
+            "droite num", "repère", "repere", "fonction", "vecteur", "triangle", "polygone",
+            "diagramme", "mermaid", "latex", "tikz", "pdf", "word", "docx", "exercice", "bac",
+        )
+        if any(ex in p_low for ex in math_exclusions):
+            return None
+
+        # 1. Détection de retouche/modification contextuelle si une image existe dans la session
+        if previous_image_prompt:
+            refine_cues = (
+                "ajoute", "enlève", "enleve", "supprime", "change", "modifie", "remplace", "mets", "met",
+                "avec", "sans", "plus de", "moins de", "le ciel", "le fond", "l'arrière-plan", "l'arriere-plan",
+                "la couleur", "les couleurs", "en rouge", "en bleu", "en noir", "en blanc", "en vert",
+                "de nuit", "de jour", "au coucher", "au lever", "sous la pluie", "sous la neige",
+                "derrière", "derriere", "devant", "à côté", "a cote", "doit être", "doit etre", "soit",
+                "fais en sorte", "plutôt", "plutot", "rajoute", "rendre", "plus réaliste", "plus grand",
+                "voiture", "personnage", "paysage", "décor", "decor", "soleil", "lumière", "lumiere",
+            )
+            if any(cue in p_low for cue in refine_cues):
+                return p
+
+        # 2. "dessine-moi un chat...", "peins-moi...", "illustre..." (sans le mot 'image')
+        m_draw = re.match(
+            r"^(?:(?:peux-tu|pourrais-tu|tu\s+peux|s'il\s+te\s+plaît|stp)\s+)?(?:me\s+)?"
+            r"(?:dessine|dessiner|peins|peindre|illustre|illustrer)(?:-moi|\s+moi)?\s+(.+)$",
+            p,
+            flags=re.I | re.S,
+        )
+        if m_draw:
+            subj = re.sub(r"^(?:une\s+|la\s+)?(?:belle\s+|superbe\s+|magnifique\s+)?(?:image|photo|illustration)\s+(?:de\s+|d'|du\s+|des\s+)?", "", m_draw.group(1).strip(), flags=re.I)
+            return subj.strip()
+
+        # 3. "fais une image de...", "génère une photo...", "je voudrais une image de..."
+        m_img = re.search(
+            r"(?:génère|genere|générer|generer|crée|cree|créer|creer|fais|faire|fait|produis|réalise|realise|"
+            r"montre|donne|je\s+veux|je\s+voudrais|aimerais)(?:[\s-]+(?:moi|nous|fais|faire))*\s+"
+            r"(?:une\s+|la\s+|un\s+)?(?:belle\s+|superbe\s+|magnifique\s+|jolie\s+)?"
+            r"(?:image|photo|photographie|illustration|portrait|visuel)"
+            r"(?:\s+(?:réaliste|realiste|photoréaliste|photorealiste|hd|haute\s+définition))?\s*"
+            r"(?:de|d'|du|des|sur|avec|représentant|montrant|:)?\s+(.+)$",
+            p,
+            flags=re.I | re.S,
+        )
+        if m_img:
+            return m_img.group(1).strip()
+        return None
+
+    def _generate_cloudflare_flux_image(self, subject: str, previous_image_prompt: str | None = None) -> dict[str, Any]:
+        """Génère une image photoréaliste HD via Cloudflare Workers AI (@cf/black-forest-labs/flux-1-schnell)."""
+        import random
+        import urllib.error
+        import urllib.request
+
+        self._load_dotenv()
+        account_id = os.environ.get("CLOUDFLARE_ACCOUNT_ID", "").strip()
+        api_token = os.environ.get("CLOUDFLARE_API_TOKEN", "").strip()
+        if not account_id or not api_token:
+            return {
+                "ok": False,
+                "error": (
+                    "Clés Cloudflare Workers AI manquantes (`CLOUDFLARE_ACCOUNT_ID` et `CLOUDFLARE_API_TOKEN`).\n\n"
+                    "Pour activer la génération gratuite avec **FLUX.1-schnell** (10 000 Neurons/jour gratuits) :\n"
+                    "1. Connectez-vous sur **dash.cloudflare.com** → menu **AI** → **Workers AI**.\n"
+                    "2. Cliquez sur **Use REST API** pour copier votre **Account ID** et générer un **API Token**.\n"
+                    "3. Collez-les dans le bouton **Paramètres (⚙)** en haut à droite de NeoHarness AI."
+                ),
+            }
+
+        # 1. Enrichissement du prompt (avec fusion du sujet précédent en cas de retouche)
+        english_prompt = subject.strip()
+        try:
+            self._ensure_routed_providers_ready()
+            prov = self.orchestrator.router.get_provider("researcher", intent="general_question", complexity="simple")
+            if prov is not None:
+                self.event_bus.emit_normalized(
+                    event="AGENT_STEP",
+                    raw_event="flux.prompt_enhance",
+                    summary="Fusion et optimisation du prompt pour FLUX.1-schnell…",
+                    status="running",
+                )
+                if previous_image_prompt:
+                    enhance_req = (
+                        "You are an expert prompt engineer for FLUX.1-schnell.\n"
+                        f"The user previously generated an image based on: '{previous_image_prompt}'.\n"
+                        f"The user now wants to MODIFY / UPDATE it with this change: '{subject}'.\n"
+                        "Synthesize both into a single, cohesive, ultra-detailed English photographic prompt for FLUX.1-schnell "
+                        "incorporating the modification seamlessly into the previous scene (specify lighting, camera lens, textures, 8k realism). "
+                        "Output ONLY the raw English prompt (max 120 words), no quotes, no conversational text:"
+                    )
+                else:
+                    enhance_req = (
+                        "Translate and enhance the following image request into a single, vivid, ultra-detailed English prompt "
+                        "optimized for FLUX.1-schnell photorealistic generation (specify natural lighting, camera lens like 35mm or 85mm f/1.8, "
+                        "realistic textures, cinematic composition, high resolution). "
+                        "Output ONLY the raw English prompt (max 120 words), with no quotes and no intro:\n\n"
+                        f"Request: {subject}"
+                    )
+                cand = str(prov.generate(enhance_req) or "").strip().strip("\"'`")
+                if len(cand) > 15 and not cand.startswith(("Erreur", "RateLimit")):
+                    english_prompt = cand[:1800]
+        except Exception:
+            pass
+
+        self.event_bus.emit_normalized(
+            event="TOOL_CALL",
+            raw_event="tool.started",
+            tool="cloudflare_flux",
+            summary="Génération de l'image HD via Cloudflare Workers AI (FLUX.1-schnell)…",
+            status="running",
+            details={"model": "@cf/black-forest-labs/flux-1-schnell", "prompt": english_prompt[:200]},
+        )
+
+        url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/run/@cf/black-forest-labs/flux-1-schnell"
+        payload = json.dumps({
+            "prompt": english_prompt,
+            "steps": 8,
+        }).encode("utf-8")
+
+        req = urllib.request.Request(
+            url,
+            data=payload,
+            headers={
+                "Authorization": f"Bearer {api_token}",
+                "Content-Type": "application/json",
+                "User-Agent": "NeoHarness-AI/1.0",
+            },
+            method="POST",
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                raw_resp = resp.read()
+                content_type = (resp.headers.get("Content-Type") or "").lower()
+        except urllib.error.HTTPError as http_err:
+            err_body = ""
+            try:
+                err_body = http_err.read().decode("utf-8", errors="replace")[:400]
+            except Exception:
+                pass
+            return {
+                "ok": False,
+                "error": f"Erreur HTTP {http_err.code} de Cloudflare Workers AI : {err_body or http_err.reason}",
+            }
+        except Exception as exc:
+            return {"ok": False, "error": f"Impossible de joindre Cloudflare Workers AI : {exc}"}
+
+        img_bytes: bytes = b""
+        if "application/json" in content_type or raw_resp.startswith(b"{"):
+            try:
+                parsed = json.loads(raw_resp.decode("utf-8"))
+                if not parsed.get("success", True) and parsed.get("errors"):
+                    return {"ok": False, "error": f"Erreur Cloudflare : {parsed['errors']}"}
+                b64_str = (parsed.get("result") or {}).get("image") or parsed.get("image") or ""
+                if b64_str:
+                    img_bytes = base64.b64decode(b64_str)
+            except Exception as exc:
+                return {"ok": False, "error": f"Réponse JSON Cloudflare invalide : {exc}"}
+        else:
+            img_bytes = raw_resp
+
+        if not img_bytes or len(img_bytes) < 500:
+            return {"ok": False, "error": "Cloudflare Workers AI a renvoyé une image vide."}
+
+        # Normalisation en PNG haute qualité et sauvegarde dans workspace/images/
+        slug = re.sub(r"[^a-zA-Z0-9]+", "_", subject.strip().lower()).strip("_")[:32] or "image"
+        ts = datetime.now().strftime("%H%M%S")
+        rel_path = f"images/flux_{slug}_{ts}.png"
+        width, height = 1024, 1024
+        try:
+            from PIL import Image
+            with Image.open(io.BytesIO(img_bytes)) as im:
+                width, height = im.size
+                out_buf = io.BytesIO()
+                im.save(out_buf, format="PNG")
+                img_bytes = out_buf.getvalue()
+        except Exception:
+            rel_path = f"images/flux_{slug}_{ts}.jpg"
+
+        info = self.filesystem.write_bytes(rel_path, img_bytes, overwrite=True)
+        saved_rel = str(info["path"])
+        raw_url = f"/api/files/raw?path={quote(saved_rel)}"
+
+        artifact = {
+            "type": "image",
+            "title": Path(saved_rel).name,
+            "path": saved_rel,
+            "bytes": len(img_bytes),
+            "size_bytes": len(img_bytes),
+            "width": width,
+            "height": height,
+            "raw_url": raw_url,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+        if hasattr(self, "library") and self.library is not None:
+            try:
+                self.library.sync_with_workspace()
+            except Exception:
+                pass
+
+        self.event_bus.emit_normalized(
+            event="TOOL_RESULT",
+            raw_event="tool.completed",
+            tool="cloudflare_flux",
+            summary=f"Image HD générée : {saved_rel} ({width}×{height} px, {len(img_bytes) // 1024} Ko)",
+            status="completed",
+            details=artifact,
+        )
+        self.event_bus.emit_normalized(
+            event="ARTIFACT_READY",
+            raw_event="artifact.ready",
+            summary=f"Image FLUX.1-schnell prête : {saved_rel}",
+            status="completed",
+            details=artifact,
+        )
+        return {
+            "ok": True,
+            "path": saved_rel,
+            "raw_url": raw_url,
+            "width": width,
+            "height": height,
+            "size_bytes": len(img_bytes),
+            "english_prompt": english_prompt,
+            "artifact": artifact,
+        }
 
     def execute_task(
         self,
@@ -3472,7 +3799,7 @@ class NeoHarnessRuntimeBridge:
             "   - Ligne des x : 'x: -oo | -1 | 2 | +oo'\n"
             "   - Ligne(s) de signes (1 signe par intervalle, et sur chaque point intérieur : '0' si annulation, '||' si valeur interdite, '|' sinon) :\n"
             "     ex: 'x + 1: - 0 + | +' puis 'x - 2: - | - 0 +' puis 'Q(x): + 0 - || +'\n"
-            "   - Ligne de variations : 'f(x): +oo | 3 | -1 // +oo | 0' (utiliser 'a // b' pour une valeur interdite avec limites à gauche/droite)\n"
+            "   - Ligne de variations : 'f(x): -oo | 3 | -1 | +oo' (une valeur par colonne de x séparée par '|' ; utiliser 'a // b' UNIQUEMENT si la colonne est une valeur interdite '||')\n"
             "   - Ligne de dérivée seconde / convexité (peut être combinée dans le même bloc ```tableau) : \"f''(x): - | - 0 +\"\n"
             "2. Droite numérique / intervalles -> utilise TOUJOURS un bloc ```droite :\n"
             "   - 'bornes: -4 | 6'\n"
@@ -3688,6 +4015,83 @@ class NeoHarnessRuntimeBridge:
                 'compilation_errors': [],
             }
 
+        # Détection robuste de la dernière image générée dans toute la conversation
+        prev_img_ctx = None
+        for prev_m in reversed(conv.get("messages", [])):
+            if prev_m.get("role") == "assistant":
+                # Vérifie le skill, l'artefact image ou la présence d'une image générée
+                if prev_m.get("skill") == "image" or any(a.get("type") == "image" for a in prev_m.get("preview_artifacts", [])):
+                    prev_img_ctx = prev_m.get("english_prompt") or prev_m.get("image_subject") or ""
+                    if not prev_img_ctx and "![image" in (prev_m.get("content") or "").lower():
+                        prev_img_ctx = prev_m.get("content")
+                    if prev_img_ctx:
+                        break
+
+        # Interception directe pour la génération d'images ou la retouche (FLUX.1-schnell)
+        img_subject = self._extract_image_generation_Subject(clean_prompt, previous_image_prompt=prev_img_ctx)
+
+        if img_subject is not None:
+            user_msg = {
+                "id": f"msg-{uuid.uuid4().hex[:8]}",
+                "role": "user",
+                "content": clean_prompt,
+                "attachments": attachments,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            conv["messages"].append(user_msg)
+            if conv["title"] == "Nouvelle tâche" and len(conv["messages"]) == 1:
+                conv["title"] = generate_task_title(f"Image : {img_subject}")
+
+            flux_res = self._generate_cloudflare_flux_image(img_subject, previous_image_prompt=prev_img_ctx)
+            elapsed_ms = int((monotonic() - started_mono) * 1000)
+            if flux_res.get("ok"):
+                art = flux_res["artifact"]
+                ans_txt = f"![{img_subject}]({flux_res['raw_url']})"
+                status_str = "Terminé"
+                arts_list = [art]
+            else:
+                ans_txt = f"**Configuration requise pour FLUX.1-schnell**\n\n{flux_res.get('error')}"
+                status_str = "Partiel"
+                arts_list = []
+
+            asst_msg = {
+                "id": f"msg-{uuid.uuid4().hex[:8]}",
+                "role": "assistant",
+                "content": ans_txt,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "execution_mode": resolved_mode,
+                "status": status_str,
+                "duration_ms": elapsed_ms,
+                "tokens": 120,
+                "agent": "Cloudflare Workers AI",
+                "skill": "image",
+                "provider": "Cloudflare Workers AI",
+                "model": "FLUX.1-schnell",
+                "image_subject": img_subject,
+                "english_prompt": flux_res.get("english_prompt", ""),
+                "tools_used": ["cloudflare_flux"],
+                "sources": [],
+                "preview_artifacts": arts_list,
+            }
+            conv["messages"].append(asst_msg)
+            self._save_conversations()
+            self.event_bus.complete_task(
+                status="completed" if flux_res.get("ok") else "partial",
+                duration_ms=elapsed_ms,
+                summary=f"Génération d'image FLUX.1-schnell ({status_str})",
+            )
+            self.current_task_status = status_str
+            return {
+                "ok": True,
+                "task_id": task_id,
+                "status": status_str,
+                "conversation": conv,
+                "user_message": user_msg,
+                "assistant_message": asst_msg,
+                "preview_artifacts": arts_list,
+                "compilation_errors": [],
+            }
+
         # Ajout du message utilisateur dans la conversation
         user_msg = {
             "id": f"msg-{uuid.uuid4().hex[:8]}",
@@ -3790,6 +4194,7 @@ class NeoHarnessRuntimeBridge:
                     answer_text = "".join(_stream_parts).strip() + f"\n\n[Réponse interrompue : {err}]"
                 else:
                     answer_text = f"Erreur lors de l'échange direct avec {used_provider} : {err}"
+            answer_text = self._auto_verify_and_repair_math_blocks(answer_text, provider=provider)
             elapsed_ms = int((monotonic() - started_mono) * 1000)
             calc_tokens = max(1, int(len(prompt_for_chat) / 3.8 + len(answer_text) / 3.8))
             assistant_msg = {
@@ -4007,6 +4412,12 @@ class NeoHarnessRuntimeBridge:
                 f"Vérifiez la disponibilité du modèle (`{used_provider or 'Provider'}` / `{used_model or 'Modèle'}`) "
                 f"ou configurez la clé API correspondante dans **Paramètres**."
             )
+
+        try:
+            _active_prov = self.orchestrator.router.get_provider("coder", intent="writing")
+        except Exception:
+            _active_prov = None
+        answer_text = self._auto_verify_and_repair_math_blocks(answer_text, provider=_active_prov)
 
         after_snapshot = self._snapshot_workspace()
         recorded_diffs = self._record_workspace_diffs(

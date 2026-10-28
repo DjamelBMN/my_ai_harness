@@ -1355,6 +1355,25 @@ function isImageAttachmentPath(p) {
                 </div>
               `;
             }
+if (typ === "image") {
+              return `
+                <div class="artifact-card" data-open-doc-preview="image" data-doc-path="${esc(art.path)}">
+                  <div class="artifact-card-icon">${iconSvg}</div>
+                  <div class="artifact-card-info">
+                    <span class="artifact-card-name mono">${esc(art.path.split("/").pop() || art.path)}</span>
+                    <span class="artifact-card-sub">Image HD · FLUX.1${sizeKb ? " · " + esc(sizeKb) : ""}</span>
+                  </div>
+                  <div class="artifact-card-actions">
+                    <button type="button" class="artifact-btn primary" data-open-doc-preview="image" data-doc-path="${esc(art.path)}" data-doc-view="render">
+                      Aperçu HD
+                    </button>
+                    <a class="artifact-btn" href="/api/files/raw?path=${encodeURIComponent(art.path)}&download=1" download title="Télécharger l'image PNG">
+                      ${ICONS.download} PNG
+                    </a>
+                  </div>
+                </div>
+              `;
+            }
             return `
               <div class="artifact-card">
                 <div class="artifact-card-icon">${iconSvg}</div>
@@ -1610,7 +1629,7 @@ function isImageAttachmentPath(p) {
             ${artifactsHtml}
             ${sourcesHtml}
             <div class="message-actions">
-              <button class="msg-action-btn" data-copy-msg="${idx}">Copier</button>
+              ${m.skill === "image" || /^!\[[^\]]*\]\([^)]+\)\s*$/.test(String(m.content || "").trim()) ? "" : `<button class="msg-action-btn" data-copy-msg="${idx}">Copier</button>`}
               <button class="msg-action-btn" data-regen-msg="${idx}">Régénérer</button>
               <button class="msg-action-btn" data-show-msg-tools="${idx}">Inspecter (${toolsUsed.length} outil${toolsUsed.length > 1 ? "s" : ""})</button>
               ${
@@ -1647,8 +1666,25 @@ function isImageAttachmentPath(p) {
       : `<code class="math-inline mono">${esc(cleaned)}</code>`;
   }
 
-  function formatInlineMarkdown(text, inlineMathTokens) {
+function formatInlineMarkdown(text, inlineMathTokens) {
     let out = esc(text);
+    const imgTokens = [];
+    out = out.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, function (_, altTxt, imgUrl) {
+      const tok = `@@INLINEIMG${imgTokens.length}@@`;
+      const pathMatch = String(imgUrl).match(/[?&]path=([^&]+)/);
+      const docPath = pathMatch ? decodeURIComponent(pathMatch[1]) : "";
+      const previewAttr = docPath ? ` data-open-doc-preview="image" data-doc-path="${esc(docPath)}" title="Cliquer pour agrandir"` : "";
+      const dlHref = imgUrl.includes("?") ? `${imgUrl}&amp;download=1` : `${imgUrl}?download=1`;
+      imgTokens.push(
+        `<div class="nh-chat-generated-img-wrap">` +
+          `<div class="nh-chat-img-card">` +
+            `<img src="${imgUrl}" alt="${altTxt}" class="nh-chat-generated-img"${previewAttr} loading="lazy" />` +
+            `<a href="${dlHref}" download class="nh-chat-img-dl-btn" title="Télécharger l'image HD">${ICONS.download} <span>Télécharger</span></a>` +
+          `</div>` +
+        `</div>`
+      );
+      return tok;
+    });
     out = out.replace(/`([^`\n]+)`/g, "<code>$1</code>");
     out = out.replace(
       /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
@@ -1666,6 +1702,11 @@ function isImageAttachmentPath(p) {
     out = out.replace(/(^|\s)\*([^\s*]+)/g, "$1$2");
     out = out.replace(/(\s)\*(\s|$)/g, "$1·$2");
 
+    if (imgTokens.length) {
+      out = out.replace(/@@INLINEIMG(\d+)@@/g, function (_, idxStr) {
+        return imgTokens[Number(idxStr)] || "";
+      });
+    }
     if (inlineMathTokens && inlineMathTokens.length) {
       out = out.replace(/@@INLINEMATH(\d+)@@/g, function (_, idxStr) {
         const idx = Number(idxStr);
@@ -1806,7 +1847,7 @@ function sanitizeRawLatexForChat(input) {
     return out.slice(0, need);
   }
 
-  function parseVtSpec(text) {
+function parseVtSpec(text) {
     const lines = String(text).split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
     const spec = { x: [], signRows: [], varRow: null, convex: false, convexLabel: "convexité" };
     const ARROW_RE = /\\?(?:nearrow|searrow|nwarrow|swarrow|uparrow|downarrow)|[↗↘↙↖↑↓]/g;
@@ -1844,9 +1885,39 @@ function sanitizeRawLatexForChat(input) {
     spec.signRows.forEach((r) => {
       r.toks = vtNormSigns(r.toks, n, spec.x);
     });
-    if (spec.varRow && spec.varRow.vals.length !== n && n >= 2) {
+    if (spec.varRow && n >= 2) {
+      // Auto-réparation 1 : si f(x) a moins de n colonnes parce que '//' a été utilisé comme séparateur au lieu de '|'
+      const hasForbInSigns = (k) => spec.signRows.some((r) => !r.isSecondDeriv && r.toks[2 * k - 1] === "||");
+      while (spec.varRow.vals.length < n) {
+        const splitIdx = spec.varRow.vals.findIndex((v, idx) => v[0] !== v[1] && (idx === 0 || idx >= n - 1 || !hasForbInSigns(idx)));
+        if (splitIdx >= 0) {
+          const [a, b] = spec.varRow.vals[splitIdx];
+          spec.varRow.vals.splice(splitIdx, 1, [a, a], [b, b]);
+        } else {
+          break;
+        }
+      }
       while (spec.varRow.vals.length < n) spec.varRow.vals.push(["", ""]);
       spec.varRow.vals = spec.varRow.vals.slice(0, n);
+
+      // Auto-réparation 2 : si une colonne intérieure k a 'a // b' mais que f'(x) a un '0' (et non '||'), garder la valeur unique
+      for (let k = 1; k <= n - 2; k++) {
+        if (spec.varRow.vals[k][0] !== spec.varRow.vals[k][1] && spec.signRows.length > 0 && !hasForbInSigns(k)) {
+          spec.varRow.vals[k] = [spec.varRow.vals[k][0], spec.varRow.vals[k][0]];
+        }
+      }
+
+      // Auto-réparation 3 : si les n valeurs numériques de f(x) sont toutes connues et contredisent un signe de f'(x), réaligner f'(x)
+      const dsrc = spec.signRows.slice().reverse().find((r) => /['′]/.test(r.label) && !r.isSecondDeriv);
+      if (dsrc && dsrc.toks.length === 2 * n - 3) {
+        const numVals = spec.varRow.vals.map((v) => (v[0] === v[1] ? vtNum(v[0]) : null));
+        if (numVals.every((v) => v !== null)) {
+          for (let k = 0; k < n - 1; k++) {
+            if (numVals[k] < numVals[k + 1] && dsrc.toks[2 * k] === "-") dsrc.toks[2 * k] = "+";
+            else if (numVals[k] > numVals[k + 1] && dsrc.toks[2 * k] === "+") dsrc.toks[2 * k] = "-";
+          }
+        }
+      }
     }
     return n >= 2 ? spec : null;
   }
@@ -3552,7 +3623,8 @@ let stuCls = "";
     const hudHtml = hasCurve
       ? `<div class="nh-curve-hud" style="display:none;pointer-events:none;">` +
         `<div class="nh-curve-vline"></div><div class="nh-curve-hline"></div>` +
-        `<div class="nh-curve-dot"></div><div class="nh-curve-tooltip mono"></div>` +
+        `<div class="nh-curve-xbadge mono"></div><div class="nh-curve-ybadge mono"></div>` +
+        `<div class="nh-curve-dot"></div>` +
         `</div>`
       : "";
 
@@ -3631,25 +3703,46 @@ document.addEventListener("mousemove", function (ev) {
       const d = Math.abs(pts[i][2] - mx);
       if (d < bestDist) { bestDist = d; bestIdx = i; }
     }
-    if (bestDist > 42) {
+    const figWrap = stage.closest(".nh-math-fig");
+    const oracleEl = figWrap ? figWrap.querySelector(".nh-fig-oracle") : null;
+    if (bestDist > 46) {
       hud.style.display = "none";
+      if (oracleEl && oracleEl._origHtml) {
+        oracleEl.innerHTML = oracleEl._origHtml;
+        oracleEl.classList.remove("live-hud");
+      }
       return;
     }
-    const [xMath, yMath, px, py] = pts[bestIdx];
-    let slopeTxt = "";
+
+    let [xMath, yMath, px, py] = pts[bestIdx];
     const i0 = Math.max(0, bestIdx - 1), i1 = Math.min(pts.length - 1, bestIdx + 1);
     const dx = pts[i1][0] - pts[i0][0];
-    if (Math.abs(dx) > 1e-5) {
-      const dy = pts[i1][1] - pts[i0][1];
-      const m = (dy / dx).toFixed(2).replace(".", ",");
-      slopeTxt = ` · f'(x) ≈ ${m}`;
+    let slopeVal = Math.abs(dx) > 1e-5 ? (pts[i1][1] - pts[i0][1]) / dx : 0;
+
+    // Aimantation douce sur les points remarquables (entiers, racines, extremums locaux)
+    let isRemarkable = false;
+    if (Math.abs(xMath - Math.round(xMath)) < 0.045) {
+      xMath = Math.round(xMath);
+      if (Math.abs(yMath - Math.round(yMath)) < 0.08) {
+        yMath = Math.round(yMath);
+        isRemarkable = true;
+      }
     }
+    if (Math.abs(slopeVal) < 0.08) {
+      slopeVal = 0;
+      isRemarkable = true;
+    } else if (Math.abs(yMath) < 0.05) {
+      yMath = 0;
+      isRemarkable = true;
+    }
+
     const ox = parseFloat(stage.getAttribute("data-ox")) || 0;
     const oy = parseFloat(stage.getAttribute("data-oy")) || 0;
     const vline = hud.querySelector(".nh-curve-vline");
     const hline = hud.querySelector(".nh-curve-hline");
     const dot = hud.querySelector(".nh-curve-dot");
-    const tip = hud.querySelector(".nh-curve-tooltip");
+    const xbadge = hud.querySelector(".nh-curve-xbadge");
+    const ybadge = hud.querySelector(".nh-curve-ybadge");
 
     hud.style.display = "block";
     if (vline) {
@@ -3665,13 +3758,32 @@ document.addEventListener("mousemove", function (ev) {
     if (dot) {
       dot.style.left = `${px}px`;
       dot.style.top = `${py}px`;
+      dot.classList.toggle("remarkable", isRemarkable);
     }
-    if (tip) {
-      const fx = xMath.toFixed(2).replace(".", ",");
-      const fy = yMath.toFixed(2).replace(".", ",");
-      tip.textContent = `x = ${fx} | f(x) = ${fy}${slopeTxt}`;
-      tip.style.left = `${Math.min(Math.max(70, px), rect.width - 70)}px`;
-      tip.style.top = `${Math.max(22, py - 18)}px`;
+
+    const fx = (Math.abs(xMath) < 1e-4 ? 0 : xMath).toFixed(2).replace(".", ",");
+    const fy = (Math.abs(yMath) < 1e-4 ? 0 : yMath).toFixed(2).replace(".", ",");
+    const fm = (Math.abs(slopeVal) < 1e-4 ? 0 : slopeVal).toFixed(2).replace(".", ",");
+
+    // 1. Micro-pastilles projetées directement sur les axes x et y
+    if (xbadge) {
+      xbadge.textContent = fx;
+      xbadge.style.left = `${px}px`;
+      xbadge.style.top = `${oy + (py <= oy ? 13 : -13)}px`;
+    }
+    if (ybadge) {
+      ybadge.textContent = fy;
+      ybadge.style.left = `${ox + (px >= ox ? -8 : 8)}px`;
+      ybadge.style.top = `${py}px`;
+      ybadge.style.transform = px >= ox ? "translate(-100%, -50%)" : "translate(0%, -50%)";
+    }
+
+    // 2. Affichage complet dans le bandeau HUD fixe en haut (0 chevauchement sur la courbe)
+    if (oracleEl) {
+      if (!oracleEl._origHtml) oracleEl._origHtml = oracleEl.innerHTML;
+      oracleEl.classList.add("live-hud");
+      const tag = Math.abs(slopeVal) < 0.01 ? ' <span class="nh-hud-tag">Extremum</span>' : "";
+      oracleEl.innerHTML = `<span class="mono">x = <strong>${fx}</strong> &nbsp;│&nbsp; f(x) = <strong>${fy}</strong> &nbsp;│&nbsp; f'(x) ≈ ${fm}</span>${tag}`;
     }
   });
 
@@ -3681,6 +3793,12 @@ document.addEventListener("mousemove", function (ev) {
     if (!stage.contains(ev.relatedTarget)) {
       const hud = stage.querySelector(".nh-curve-hud");
       if (hud) hud.style.display = "none";
+      const figWrap = stage.closest(".nh-math-fig");
+      const oracleEl = figWrap ? figWrap.querySelector(".nh-fig-oracle") : null;
+      if (oracleEl && oracleEl._origHtml) {
+        oracleEl.innerHTML = oracleEl._origHtml;
+        oracleEl.classList.remove("live-hud");
+      }
     }
   });
 
@@ -4923,19 +5041,11 @@ function switchRightPanelMode(mode) {
   }
 
   function renderImageInViewer(doc) {
-    const host = document.getElementById("doc-image-viewer");
-    if (!host) return;
-    const url = `/api/files/raw?path=${encodeURIComponent(doc.path)}&t=${Date.now()}`;
-    host.innerHTML = `
-      <div style="display:flex; flex-direction:column; align-items:center; gap:12px; max-width:100%; padding:16px;">
-        <img src="${url}" alt="${esc(doc.path)}" style="max-width:100%; max-height:75vh; object-fit:contain; border-radius:8px; box-shadow:0 6px 20px rgba(0,0,0,0.12);" />
-        <div style="font-size:12px; color:var(--text-secondary); display:flex; gap:8px;">
-          <span>${esc(doc.path.split("/").pop())}</span>
-          ${doc.size_bytes ? `<span>· ${doc.size_bytes} octets</span>` : ""}
-        </div>
-      </div>
-    `;
-  }
+      const host = document.getElementById("doc-image-viewer");
+      if (!host) return;
+      const url = `/api/files/raw?path=${encodeURIComponent(doc.path)}&t=${Date.now()}`;
+      host.innerHTML = `<img src="${url}" alt="${esc(doc.path)}" class="nh-doc-edge-img" />`;
+    }
 
   function renderFiguresGalleryInViewer(figures, _doc) {
     const host = document.getElementById("doc-image-viewer");
@@ -7930,7 +8040,21 @@ const metaParts = [];
           </div>
           <input id="settings-key-mistral" type="password" placeholder="${creds.MISTRAL_API_KEY ? "•••••••• (conserver)" : "Clé Mistral..."}" class="settings-input" style="width:240px;" autocomplete="off" />
         </div>
-      </div>
+        <div class="settings-row">
+          <div class="settings-row-label">
+            <span>Cloudflare Account ID (<code>CLOUDFLARE_ACCOUNT_ID</code> — FLUX.1-schnell)</span>
+            <small>${creds.CLOUDFLARE_ACCOUNT_ID ? '<span style="color:var(--accent-green); font-weight:600;">● Configuré</span>' : '<span style="color:var(--warning);">● Absent</span>'}</small>
+          </div>
+          <input id="settings-key-cf-account" type="password" placeholder="${creds.CLOUDFLARE_ACCOUNT_ID ? "•••••••• (conserver)" : "ID de compte Cloudflare..."}" class="settings-input" style="width:240px;" autocomplete="off" />
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label">
+            <span>Cloudflare API Token (<code>CLOUDFLARE_API_TOKEN</code> — Workers AI)</span>
+            <small>${creds.CLOUDFLARE_API_TOKEN ? '<span style="color:var(--accent-green); font-weight:600;">● Configuré</span>' : '<span style="color:var(--warning);">● Absent</span>'}</small>
+          </div>
+          <input id="settings-key-cf-token" type="password" placeholder="${creds.CLOUDFLARE_API_TOKEN ? "•••••••• (conserver)" : "Token Workers AI..."}" class="settings-input" style="width:240px;" autocomplete="off" />
+        </div>
+      </div>  
 
       <div class="settings-card">
         <div class="settings-card-title">Paramètres de génération &amp; Télémétrie</div>
@@ -7958,10 +8082,46 @@ const metaParts = [];
         </div>
       </div>
 
-      <div style="display:flex; justify-content:flex-end; margin-top:6px;">
-        <button id="btn-save-settings" class="btn-primary-settings">Enregistrer les paramètres</button>
+<div style="display:flex; justify-content:flex-end; margin-top:6px;">
+        <button type="button" id="btn-save-settings" class="btn-primary-settings">Enregistrer les paramètres</button>
       </div>
     `;
+
+    const saveBtn = body.querySelector("#btn-save-settings");
+    if (saveBtn) {
+      saveBtn.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const keyGemini = document.getElementById("settings-key-gemini");
+        const keyOpenai = document.getElementById("settings-key-openai");
+        const keyMistral = document.getElementById("settings-key-mistral");
+        const keyCfAccount = document.getElementById("settings-key-cf-account");
+        const keyCfToken = document.getElementById("settings-key-cf-token");
+        const credPayload = {};
+        if (keyGemini && keyGemini.value.trim()) credPayload.GEMINI_API_KEY = keyGemini.value.trim();
+        if (keyOpenai && keyOpenai.value.trim()) credPayload.OPENAI_API_KEY = keyOpenai.value.trim();
+        if (keyMistral && keyMistral.value.trim()) credPayload.MISTRAL_API_KEY = keyMistral.value.trim();
+        if (keyCfAccount && keyCfAccount.value.trim()) credPayload.CLOUDFLARE_ACCOUNT_ID = keyCfAccount.value.trim();
+        if (keyCfToken && keyCfToken.value.trim()) credPayload.CLOUDFLARE_API_TOKEN = keyCfToken.value.trim();
+
+        if (Object.keys(credPayload).length > 0) {
+          await apiPost("/api/credentials", credPayload);
+        }
+
+        const tempEl = document.getElementById("settings-temp-input");
+        const tokEl = document.getElementById("settings-tokens-input");
+        const devEl = document.getElementById("settings-devmode-checkbox");
+        const prefPayload = {};
+        if (tempEl && !tempEl.disabled) prefPayload.temperature = parseFloat(tempEl.value);
+        if (tokEl) prefPayload.max_output_tokens = tokEl.value ? parseInt(tokEl.value, 10) : null;
+        if (devEl) prefPayload.developer_mode = Boolean(devEl.checked);
+        await apiPost("/api/preferences", prefPayload);
+
+        closeModal("modal-settings");
+        await refreshFullState();
+        showStatusBanner("Clés API et paramètres enregistrés dans .env !", "info");
+      });
+    }
   }
 
   async function submitComposerTask(overridePrompt) {
@@ -9421,10 +9581,14 @@ if (target.hasAttribute("data-preview-file")) {
         const keyGemini = document.getElementById("settings-key-gemini");
         const keyOpenai = document.getElementById("settings-key-openai");
         const keyMistral = document.getElementById("settings-key-mistral");
+        const keyCfAccount = document.getElementById("settings-key-cf-account");
+        const keyCfToken = document.getElementById("settings-key-cf-token");
         const credPayload = {};
         if (keyGemini && keyGemini.value.trim()) credPayload.GEMINI_API_KEY = keyGemini.value.trim();
         if (keyOpenai && keyOpenai.value.trim()) credPayload.OPENAI_API_KEY = keyOpenai.value.trim();
         if (keyMistral && keyMistral.value.trim()) credPayload.MISTRAL_API_KEY = keyMistral.value.trim();
+        if (keyCfAccount && keyCfAccount.value.trim()) credPayload.CLOUDFLARE_ACCOUNT_ID = keyCfAccount.value.trim();
+        if (keyCfToken && keyCfToken.value.trim()) credPayload.CLOUDFLARE_API_TOKEN = keyCfToken.value.trim();
         if (Object.keys(credPayload).length > 0) {
           await apiPost("/api/credentials", credPayload);
         }

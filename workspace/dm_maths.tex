@@ -1,0 +1,149 @@
+% Compiler avec XeLaTeX ou LuaLaTeX
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{amsmath,amssymb}
+\usepackage{fontspec}
+\usepackage{unicode-math}
+\usepackage{polyglossia}
+\setmainlanguage{french}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage[margin=2cm,headheight=16pt,headsep=22pt]{geometry}
+\usepackage{enumitem}
+
+% Police principale et police mathématique : Libertinus
+\IfFontExistsTF{Libertinus Serif}
+  {\setmainfont{Libertinus Serif}}
+  {\IfFontExistsTF{Latin Modern Roman}{\setmainfont{Latin Modern Roman}}{\setmainfont{lmroman10-regular.otf}}}
+
+\IfFontExistsTF{Libertinus Math}
+  {\setmathfont{Libertinus Math}}
+  {\IfFontExistsTF{Latin Modern Math}{\setmathfont{Latin Modern Math}}{\setmathfont{latinmodern-math.otf}}}
+
+\linespread{1.07}
+\setlength{\parindent}{0pt}
+\AtBeginDocument{\setlength{\parindent}{0pt}}
+\setlength{\parskip}{0.35em}
+
+% En-tête
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{NeoHarness AI}
+\rhead{Lycée -- Mathématiques}
+% Pagination : « Page X / Y » centrée en pied de page
+\usepackage{lastpage}
+\cfoot{Page \thepage\ / \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.5pt}
+% Trait de séparation éloigné du texte de l'en-tête (modifier 5pt pour ajuster)
+\renewcommand{\headrule}{\vskip 5pt\hrule width\headwidth height\headrulewidth \vskip-\headrulewidth}
+
+% Configuration des listes
+\setlist[enumerate,1]{itemsep=0.45em, topsep=0.3em, label=\textbf{\arabic*.}}
+\setlist[enumerate,2]{itemsep=0.25em, topsep=0.2em, label=\textbf{\alph*.}}
+
+% Commande exercice
+\newcommand{\exo}[2]{%
+  \vspace{1.5em}%
+  \noindent{\large\textbf{Exercice #1. -- #2}}%
+  \par\vspace{0.35em}%
+  \hrule height 0.5pt%
+  \vspace{0.7em}%
+}
+
+\newcommand{\partie}[1]{%
+  \vspace{0.9em}%
+  \noindent\textbf{#1}%
+  \par\vspace{0.3em}%
+}
+\usepackage{tikz}
+\usetikzlibrary{matrix,arrows.meta,automata,positioning,calc,quotes}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+\usepackage{needspace}
+
+
+\begin{document}
+
+\begin{center}
+  {\LARGE \textbf{Devoir Maison : donne le pdf}}\\[0.5em]
+  {\large Lycée -- Mathématiques}
+\end{center}
+
+Voici le Devoir Maison complet consacré à l'étude de la fonction logarithme népérien en classe de Terminale Spécialité Mathématiques. Ce sujet aborde l'ensemble des méthodes fondamentales : calcul de dérivée, étude des variations, limites aux bornes, croissances comparées et application du théorème des valeurs intermédiaires.
+
+
+\vspace{0.35cm}\noindent\textbf{\large Devoir Maison — La fonction logarithme népérien}\par\vspace{0.15cm}
+
+\exo{1}{Étude d'une fonction et application}
+
+On considère la fonction $f$ définie sur l'intervalle $]0 ; +\infty[$ par :
+$$f(x) = x - 2\ln(x)$$
+On note $\mathcal{C}_f$ la courbe représentative de $f$ dans un repère orthogonal $(O, \vec{i}, \vec{j})$.
+
+\textbf{Partie A : Étude d'une fonction auxiliaire}
+\begin{enumerate}
+  \item Soit $g$ la fonction définie sur $]0 ; +\infty[$ par $g(x) = x - 2$. Étudier le signe de $g(x)$ sur $]0 ; +\infty[$.
+  \item Calculer la dérivée $f'$ de la fonction $f$ et vérifier que pour tout $x > 0$ :
+\end{enumerate}
+$$f'(x) = \frac{g(x)}{x}$$
+\begin{enumerate}
+  \item En déduire le sens de variation de la fonction $f$ sur $]0 ; +\infty[$ et préciser la valeur exacte de son extremum.
+\end{enumerate}
+
+\textbf{Partie B : Limites et branches infinies}
+\begin{enumerate}
+  \item Déterminer la limite de $f$ en $0^+$. Interpréter graphiquement ce résultat pour la courbe $\mathcal{C}_f$.
+  \item Déterminer la limite de $f$ en $+\infty$ en factorisant l'expression par $x$.
+  \item Rappeler le résultat de cours concernant la croissance comparée de $\ln(x)$ et $x$ en $+\infty$, puis vérifier que la courbe $\mathcal{C}_f$ admet une direction asymptotique simple.
+\end{enumerate}
+
+
+\vspace{0.35cm}\noindent\textbf{\large Corrigé détaillé}\par\vspace{0.15cm}
+
+\partie{Partie A : Étude de la fonction auxiliaire et de $f$}
+
+\begin{enumerate}
+  \item \textbf{Signe de $g(x) = x - 2$ :}
+  \item $g(x) \ge 0 \iff x \ge 2$.
+  \item La fonction $g$ est strictement négative sur $]0 ; 2[$, nulle en $2$, et positive sur $]2 ; +\infty[$.
+\end{enumerate}
+
+\begin{enumerate}
+  \item \textbf{Dérivée de $f$ :}
+\end{enumerate}
+La fonction $f$ est dérivable sur $]0 ; +\infty[$ en tant que somme de fonctions dérivables :
+$$f'(x) = 1 - 2 \times \frac{1}{x} = 1 - \frac{2}{x} = \frac{x - 2}{x}$$
+Pour tout $x > 0$, le dénominateur $x$ est strictement positif. Par conséquent, \textbf{le signe de $f'(x)$ est celui du numérateur $x - 2$}, c'est-à-dire de $g(x)$.
+
+\begin{enumerate}
+  \item \textbf{Tableau de variations et extremum :}
+  \item Sur $]0 ; 2]$, $f'(x) \le 0$ : la fonction $f$ est \textbf{strictement décroissante}.
+  \item Sur $[2 ; +\infty[$, $f'(x) \ge 0$ : la fonction $f$ est \textbf{strictement croissante}.
+  \item Valeur de l'extremum (minimum) en $x = 2$ :
+\end{enumerate}
+$$f(2) = 2 - 2\ln(2) = 2 - \ln(4) \approx 2 - 1{,}386 = 0{,}614$$
+
+
+\partie{Partie B : Limites et branches infinies}
+
+\begin{enumerate}
+  \item \textbf{Limite en $0^+$ :}
+  \item On a $\lim_{x \to 0^+} x = 0$ et $\lim_{x \to 0^+} \ln(x) = -\infty$.
+  \item Par produit, $\lim_{x \to 0^+} (-2\ln(x)) = +\infty$.
+  \item Par somme, \textbf{$\lim_{x \to 0^+} f(x) = +\infty$}.
+  \item \textbf{Interprétation graphique :} La droite d'équation $x = 0$ (l'axe des ordonnées) est asymptote verticale à la courbe $\mathcal{C}_f$.
+\end{enumerate}
+
+\begin{enumerate}
+  \item \textbf{Limite en $+\infty$ :}
+\end{enumerate}
+Pour tout $x > 0$, on factorise par $x$ :
+$$f(x) = x\left(1 - 2\frac{\ln(x)}{x}\right)$$
+\begin{enumerate}
+  \item Par croissances comparées, on sait que $\lim_{x \to +\infty} \frac{\ln(x)}{x} = 0$.
+  \item Par conséquent, $\lim_{x \to +\infty} \left(1 - 2\frac{\ln(x)}{x}\right) = 1$.
+  \item Comme $\lim_{x \to +\infty} x = +\infty$, on obtient par produit :
+\end{enumerate}
+\textbf{$\lim_{x \to +\infty} f(x) = +\infty$}.
+
+\end{document}
