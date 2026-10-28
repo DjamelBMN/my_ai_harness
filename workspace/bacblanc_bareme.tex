@@ -1,222 +1,46 @@
-\documentclass[a4paper,11pt]{article}
+\documentclass[12pt,a4paper]{article}
 \usepackage{amsmath,amssymb,amsfonts}
-\usepackage{fontspec}
-\usepackage{libertinus-otf}
 \usepackage[french]{babel}
-\usepackage{array}
-\usepackage{booktabs}
-\usepackage{longtable}
 \usepackage{geometry}
-\usepackage{multirow}
-\usepackage[table]{xcolor}
-\usepackage{colortbl}
-\usepackage{fancyhdr}
-\usepackage{lastpage}
-\usepackage{enumitem}
-\usepackage{eurosym}
-\usepackage{tikz}
-\usepackage[most]{tcolorbox}
-\geometry{a4paper,left=1.1cm,right=1.1cm,top=1.6cm,bottom=1.5cm,headheight=20pt,headsep=10pt,footskip=20pt}
+\usepackage{tabularx}
+\usepackage{tcolorbox}
+
+\geometry{top=1.6cm, bottom=1.6cm, left=1.6cm, right=1.6cm}
 \setlength{\parindent}{0pt}
-\setlength{\tabcolsep}{4.5pt}
-\renewcommand{\arraystretch}{1.18}
-\setlength{\aboverulesep}{1.5pt}
-\setlength{\belowrulesep}{1.5pt}
-\definecolor{bleuprimaire}{RGB}{20, 52, 98}
-\definecolor{bleusecondaire}{RGB}{31, 95, 168}
-\definecolor{bleufond}{RGB}{238, 244, 251}
-\definecolor{grisaccent}{RGB}{100, 116, 139}
-\definecolor{vertvrai}{RGB}{16, 120, 60}
-\definecolor{rougefaux}{RGB}{195, 20, 20}
-\definecolor{filetgris}{RGB}{220, 226, 235}
-\tikzset{
-    tabcadre/.style={draw=bleuprimaire, line width=0.8pt},
-    tabligne/.style={draw=bleuprimaire!45, line width=0.6pt},
-    tabrep/.style={draw=rougefaux!90, fill=rougefaux!8, text=rougefaux, font=\bfseries\footnotesize, rounded corners=2.5pt, inner sep=1.8pt, line width=0.6pt},
-    tabfleche/.style={->, >=stealth, thick, draw=bleusecondaire, shorten <= 3pt, shorten >= 3pt}
-}
-\newcommand{\pts}[1]{%
-    \tcbox[on line, size=small, colback=bleufond, colframe=bleusecondaire!50, arc=2.5mm, boxrule=0.6pt, top=1.2pt, bottom=1.2pt, left=4pt, right=4pt]{%
-        \small\bfseries\textcolor{bleuprimaire}{#1}%
-    }%
-}
-\newcommand{\repbox}[1]{%
-    \tcbox[on line, size=small, colback=rougefaux!6, colframe=rougefaux!90, arc=1.2mm, boxrule=0.7pt, top=1pt, bottom=1pt, left=3.5pt, right=3.5pt]{%
-        \bfseries\textcolor{rougefaux}{#1}%
-    }%
-}
-\newcommand{\vrai}{\textcolor{vertvrai}{\textbf{[VRAI]}}}
-\newcommand{\faux}{\textcolor{rougefaux}{\textbf{[FAUX]}}}
-\newcommand{\subpt}[1]{\textcolor{bleusecondaire}{\bfseries [#1]}}
-\newcommand{\tol}[1]{\textcolor{grisaccent}{\footnotesize\textit{(#1)}}}
-\pagestyle{fancy}
-\fancyhf{}
-\lhead{\small\bfseries\textcolor{bleuprimaire}{BAC BLANC} \textcolor{grisaccent}{-- Terminale Spécialité Mathématiques}}
-\rhead{\small\bfseries\textcolor{bleusecondaire}{Barème et Corrigé détaillé -- Sujet 1}}
-\cfoot{\small\textcolor{grisaccent}{Page \thepage\ sur \pageref{LastPage}}}
-\renewcommand{\headrulewidth}{0.5pt}
-\renewcommand{\headrule}{\hbox to\headwidth{\color{bleusecondaire!60}\leaders\hrule height \headrulewidth\hfill}}
-\renewcommand{\footrulewidth}{0.3pt}
-\renewcommand{\footrule}{\hbox to\headwidth{\color{filetgris}\leaders\hrule height \footrulewidth\hfill}}
 
 \begin{document}
-\begin{tcolorbox}[enhanced, colback=bleufond, colframe=bleuprimaire, arc=1.6mm, boxrule=0.8pt, top=4pt, bottom=4pt, left=8pt, right=8pt]
-    \textbf{\Large\textcolor{bleuprimaire}{Grille d'évaluation chiffrée et Corrigé détaillé}} \hfill \textbf{\Large\textcolor{bleuprimaire}{Total : 20 points}} \\[0.15em]
-    \textbf{\textcolor{bleusecondaire}{Sujet 1 (Jour 1)}} \hspace{0.2cm}\textcolor{grisaccent}{\textbullet}\hspace{0.2cm} \textcolor{grisaccent}{Bac Blanc Mathématiques} \hfill \small\textcolor{grisaccent}{Durée : 4 heures \textbullet\ Calculatrice autorisée}
-\end{tcolorbox}
 
-\vspace{0.10cm}
+\begin{center}
+    {\LARGE \textbf{CORRIGÉ ET BARÉME OFFICIEL}}\\[0.20cm]
+    {\large \textbf{Devoir Surveillé -- Première STMG -- Total : 20 points}}
+\end{center}
 
-\begin{longtable}{
-    >{\centering\arraybackslash\bfseries}p{1.1cm}
-    >{\raggedright\arraybackslash\bfseries}p{4.1cm}
-    !{\color{filetgris}\vrule width 0.7pt}
-    >{\raggedright\arraybackslash}p{11.1cm}
-    >{\centering\arraybackslash}p{1.2cm}
-}
+\vspace{0.4cm}
 
-\toprule[1.2pt]
-\rowcolor{bleuprimaire}
-\textcolor{white}{\bfseries Réf.} &
-\textcolor{white}{\bfseries Compétence / Question} &
-\textcolor{white}{\bfseries Corrigé détaillé \& critères d'évaluation} &
-\textcolor{white}{\bfseries Barème} \\
-\midrule[1pt]
-\endfirsthead
+\section*{Corrigé -- Exercice 1 (5 points)}
+1. Effectif total : $3 + 7 + 12 + 6 + 2 = 30$. \textbf{[0,75 pt]}\\
+2. Classe modale : $[40 ; 60[$ (effectif 12). \textbf{[0,75 pt]}\\
+3. Moyenne : $\bar{x} = \frac{3\times10 + 7\times30 + 12\times50 + 6\times70 + 2\times90}{30} = \frac{1440}{30} = 48$. \textbf{[1,50 pt]}\\
+4. Médiane : La classe médiane est $[40 ; 60[$ ($15^e$ et $16^e$ valeurs). \textbf{[1,00 pt]}\\
+5. Étendue : $100 - 0 = 100$. \textbf{[1,00 pt]}
 
-\toprule[1.2pt]
-\rowcolor{bleuprimaire}
-\textcolor{white}{\bfseries Réf.} &
-\textcolor{white}{\bfseries Compétence / Question} &
-\textcolor{white}{\bfseries Corrigé détaillé \& critères d'évaluation} &
-\textcolor{white}{\bfseries Barème} \\
-\midrule[1pt]
-\endhead
+\section*{Corrigé -- Exercice 2 (5 points)}
+1. $CA_{2025} = 120\,000 \times 1{,}08 = 129\,600$ \texteuro{}. \textbf{[1,25 pt]}\\
+2. a. $CM_{global} = 1{,}08 \times 0{,}95 = 1{,}026$. \textbf{[1,25 pt]}\\
+b. $t_{global} = +2{,}6\,\%$. \textbf{[1,00 pt]}\\
+3. Taux nécessaire : $\frac{150\,000}{129\,600} \approx 1{,}1574$, soit $+15{,}7\,\%$. \textbf{[1,50 pt]}
 
-\rowcolor{bleusecondaire!15}
-\multicolumn{4}{l}{\bfseries\textcolor{bleuprimaire}{\large Exercice 1 \hspace{0.2cm}\textbullet\hspace{0.2cm} Algèbre et Arithmétique / Suites}} \hfill \bfseries 4 points \\* \midrule[0.6pt]
+\section*{Corrigé -- Exercice 3 (5 points)}
+1. $f(0) = 5$ et $f(2) = 9$. \textbf{[1,00 pt]}\\
+2. Développement de $-(x-2)^2 + 9 = -x^2+4x-4+9 = -x^2+4x+5 = f(x)$. \textbf{[1,00 pt]}\\
+3. Tableau de variations : maximum $9$ en $x=2$. \textbf{[1,25 pt]}\\
+4. $f(x) = 5 \iff -x^2+4x = 0 \iff x(-x+4) = 0 \implies x=0$ ou $x=4$. \textbf{[1,00 pt]}\\
+5. Tracé de la courbe. \textbf{[0,75 pt]}
 
-\textbf{Q.1} & Arithmétique / Divisibilité &
-\vrai\newline
-\textbullet\ \subpt{0,50} Écriture $3^{2n}-1 = 9^n - 1$.\newline
-\textbullet\ \subpt{0,50} Factorisation $(9-1)(9^{n-1}+\dots+1) = 8K$ : \repbox{Divisible par 8}. & \pts{1,00} \\
-\cmidrule(lr){2-4}
-\textbf{Q.2} & Suites numériques &
-\vrai\newline
-\textbullet\ \subpt{0,50} Point fixe $L = \frac{1}{2}L + 3 \implies L = 6$.\newline
-\textbullet\ \subpt{0,50} Convergence monotone : \repbox{Converge vers 6}. & \pts{1,00} \\
-\cmidrule(lr){2-4}
-\textbf{Q.3} & Nombres complexes &
-\vrai\newline
-\textbullet\ \subpt{0,50} Traduction géométrique $MA = MB$.\newline
-\textbullet\ \subpt{0,50} Équation de la médiatrice : \repbox{y = -x}. & \pts{1,00} \\
-\cmidrule(lr){2-4}
-\textbf{Q.4} & Analyse / Convexité &
-\vrai\newline
-\textbullet\ \subpt{0,50} Dérivée seconde $f''(x) = (x-2)\mathrm{e}^{-x}$.\newline
-\textbullet\ \subpt{0,50} Changement de signe en $x=2$ : \repbox{Unique point d'inflexion}. & \pts{1,00} \\
-
-\midrule[1pt]
-
-\rowcolor{bleusecondaire!15}
-\multicolumn{4}{l}{\bfseries\textcolor{bleuprimaire}{\large Exercice 2 \hspace{0.2cm}\textbullet\hspace{0.2cm} Géométrie dans l'espace}} \hfill \bfseries 5 points \\* \midrule[0.6pt]
-
-\textbf{A.1} & Coordonnées dans l'espace &
-\textbullet\ \subpt{0,25} Identification des 8 sommets.\newline
-\textbullet\ \subpt{0,25} Écriture rigoureuse : \repbox{A(0,0,0), G(1,1,1)}. & \pts{0,50} \\
-\cmidrule(lr){2-4}
-\textbf{A.2} & Orthogonalité et produit scalaire &
-\textbullet\ \subpt{0,50} Calcul de $\vec{BD}$ et $\vec{BE}$.\newline
-\textbullet\ \subpt{0,50} Produits scalaires nuls : \repbox{$\vec{n} \perp \text{plan }(BDE)$}. & \pts{1,00} \\
-\cmidrule(lr){2-4}
-\textbf{A.3} & Équation cartésienne de plan &
-\textbullet\ \subpt{0,50} Forme $x+y-z+d=0$.\newline
-\textbullet\ \subpt{0,50} Détermination de $d$ : \repbox{x+y-z-1 = 0}. & \pts{1,00} \\
-\cmidrule(lr){2-4}
-\textbf{A.4} & Position relative point/plan &
-\textbullet\ \subpt{0,50} Coordonnées de $I(\frac{1}{2}, \frac{1}{2}, \frac{1}{2})$.\newline
-\textbullet\ \subpt{0,50} Vérification : \repbox{Appartenance confirmée}. & \pts{1,00} \\
-\cmidrule(lr){2-4}
-\textbf{A.5} & Distance point à un plan &
-\textbullet\ \subpt{0,75} Application de la formule de distance.\newline
-\textbullet\ \subpt{0,75} Résultat et interprétation : \repbox{d(G, (BDE)) = 0}. & \pts{1,50} \\
-
-\midrule[1pt]
-
-\rowcolor{bleusecondaire!15}
-\multicolumn{4}{l}{\bfseries\textcolor{bleuprimaire}{\large Exercice 3 \hspace{0.2cm}\textbullet\hspace{0.2cm} Analyse et Fonctions}} \hfill \bfseries 6 points \\* \midrule[0.6pt]
-
-\rowcolor{bleusecondaire!10}
-\multicolumn{4}{l}{\bfseries\textcolor{bleuprimaire}{\textsc{Partie A}} \;\textbullet\; \textcolor{bleuprimaire}{Étude de la fonction auxiliaire $g$}} \hfill \textcolor{bleusecondaire}{\bfseries 2,00 points} \\* \midrule[0.5pt]
-
-\textbf{A.1} & Dérivée de $g$ &
-\textbullet\ \subpt{0,50} Calcul $g'(x) = 2x - \frac{2}{x}$.\newline
-\textbullet\ \subpt{0,50} Étude du signe sur $]0\,;\,+\infty[$ : \repbox{Décroissante puis croissante}. & \pts{1,00} \\
-\cmidrule(lr){2-4}
-\textbf{A.2} & Variations de $g$ &
-\textbullet\ \subpt{0,50} Minimum atteint en $x=1$ égal à $0$ : \repbox{g(1) = 0}. & \pts{0,50} \\
-\cmidrule(lr){2-4}
-\textbf{A.3} & Signe de $g$ &
-\textbullet\ \subpt{0,50} Justification $g(x) \ge 0$ pour tout $x > 0$ : \repbox{g(x) \ge 0}. & \pts{0,50} \\
-
-\midrule[0.6pt]
-\rowcolor{bleusecondaire!10}
-\multicolumn{4}{l}{\bfseries\textcolor{bleuprimaire}{\textsc{Partie B}} \;\textbullet\; \textcolor{bleuprimaire}{Étude de la fonction principale $f$}} \hfill \textcolor{bleusecondaire}{\bfseries 4,00 points} \\* \midrule[0.5pt]
-
-\textbf{B.1} & Limites en $0^+$ &
-\textbullet\ \subpt{0,50} Calcul de limite et asymptote : \repbox{-\infty, x=0 \text{ asymptote}}. & \pts{0,50} \\
-\cmidrule(lr){2-4}
-\textbf{B.2} & Limites en $+\infty$ &
-\textbullet\ \subpt{0,50} Utilisation des croissances comparées : \repbox{+\infty}. & \pts{0,50} \\
-\cmidrule(lr){2-4}
-\textbf{B.3} & Dérivée de $f$ &
-\textbullet\ \subpt{0,75} Expression algébrique et lien avec $g$ : \repbox{f'(x) = g(x)/x^2}. & \pts{0,75} \\
-\cmidrule(lr){2-4}
-\textbf{B.4} & Variations de $f$ &
-\textbullet\ \subpt{0,75} Signe de $f'$ et tableau de variations : \repbox{Strictement croissante}. & \pts{0,75} \\
-\cmidrule(lr){2-4}
-\textbf{B.5} & Asymptote oblique &
-\textbullet\ \subpt{0,50} Différence tendant vers 0.\newline
-\textbullet\ \subpt{0,50} Position relative : \repbox{y = x - 1 asymptote}. & \pts{1,00} \\
-
-\midrule[1pt]
-
-\rowcolor{bleusecondaire!15}
-\multicolumn{4}{l}{\bfseries\textcolor{bleuprimaire}{\large Exercice 4 \hspace{0.2cm}\textbullet\hspace{0.2cm} Probabilités}} \hfill \bfseries 5 points \\* \midrule[0.6pt]
-
-\rowcolor{bleusecondaire!10}
-\multicolumn{4}{l}{\bfseries\textcolor{bleuprimaire}{\textsc{Partie A}} \;\textbullet\; \textcolor{bleuprimaire}{Loi binomiale}} \hfill \textcolor{bleusecondaire}{\bfseries 3,00 points} \\* \midrule[0.5pt]
-
-\textbf{A.1} & Modélisation loi binomiale &
-\textbullet\ \subpt{0,50} Répétition d'épreuves identiques et indépendantes.\newline
-\textbullet\ \subpt{0,50} Paramètres : \repbox{B(50, 0,05)}. & \pts{1,00} \\
-\cmidrule(lr){2-4}
-\textbf{A.2} & Calcul de probabilité exacte &
-\textbullet\ \subpt{0,75} Application de la formule et calcul : \repbox{P(X=3) \approx 0,219}. & \pts{0,75} \\
-\cmidrule(lr){2-4}
-\textbf{A.3} & Événement contraire &
-\textbullet\ \subpt{0,75} Calcul $1 - P(X=0)$ : \repbox{P(X \ge 1) \approx 0,923}. & \pts{0,75} \\
-\cmidrule(lr){2-4}
-\textbf{A.4} & Espérance mathématique &
-\textbullet\ \subpt{0,50} Calcul $E(X) = np$ et interprétation : \repbox{E(X) = 2,5}. & \pts{0,50} \\
-
-\midrule[0.6pt]
-\rowcolor{bleusecondaire!10}
-\multicolumn{4}{l}{\bfseries\textcolor{bleuprimaire}{\textsc{Partie B}} \;\textbullet\; \textcolor{bleuprimaire}{Inéquations et seuils}} \hfill \textcolor{bleusecondaire}{\bfseries 2,00 points} \\* \midrule[0.5pt]
-
-\textbf{B.1} & Expression générale &
-\textbullet\ \subpt{0,50} Forme en fonction de $n$ : \repbox{1 - 0,95^n}. & \pts{0,50} \\
-\cmidrule(lr){2-4}
-\textbf{B.2} & Résolution d'inéquation &
-\textbullet\ \subpt{0,75} Utilisation du logarithme népérien.\newline
-\textbullet\ \subpt{0,75} Conclusion sur la taille minimale : \repbox{n = 59}. & \pts{1,50} \\
-
-\midrule[1.2pt]
-\rowcolor{bleuprimaire}
-\multicolumn{3}{r}{\textcolor{white}{\bfseries\large TOTAL GÉNÉRAL}} &
-\textcolor{white}{\bfseries\large 20 pts} \\
-\bottomrule[1.2pt]
-
-\end{longtable}
+\section*{Corrigé -- Exercice 4 (5 points)}
+1. Arbre de probabilités (branches $G=0{,}4$, $\bar{G}=0{,}6$, $S$ sachant $G=0{,}6$, etc.). \textbf{[1,25 pt]}\\
+2. $P(G \cap S) = 0{,}4 \times 0{,}6 = 0{,}24$. \textbf{[1,00 pt]}\\
+3. $P(S) = 0{,}24 + (0{,}6 \times 0{,}5) = 0{,}54$. \textbf{[1,25 pt]}\\
+4. $P_S(\bar{G}) = \frac{0{,}30}{0{,}54} = \frac{5}{9} \approx 55{,}6\,\%$. \textbf{[1,50 pt]}
 
 \end{document}

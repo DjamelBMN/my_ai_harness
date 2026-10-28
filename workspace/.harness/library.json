@@ -1,5 +1,39 @@
 [
   {
+    "id": "lib-3b0bcc36",
+    "title": "Graphic",
+    "category": "Ressources",
+    "type": "svg",
+    "path": "graphic.svg",
+    "summary": "Fichier SVG dans l'espace de travail",
+    "content": "",
+    "tags": [
+      "svg"
+    ],
+    "size_bytes": 2263,
+    "created_at": "2026-10-28T17:28:20.857744+00:00",
+    "updated_at": "2026-10-28T17:28:20.860296+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-2dd1c9d2",
+    "title": "Gateau",
+    "category": "Ressources",
+    "type": "svg",
+    "path": "gateau.svg",
+    "summary": "Fichier SVG dans l'espace de travail",
+    "content": "",
+    "tags": [
+      "svg"
+    ],
+    "size_bytes": 2264,
+    "created_at": "2026-10-28T17:27:59.016645+00:00",
+    "updated_at": "2026-10-28T17:27:59.017661+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
     "id": "lib-0f60ec8f",
     "title": "Data",
     "category": "Ressources",

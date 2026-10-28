@@ -1,107 +1,85 @@
-\documentclass[11pt,a4paper]{article}
-
-\usepackage{amsmath,amssymb}
-\usepackage{fontspec}
-\usepackage{unicode-math}
-\usepackage{polyglossia}
-\setmainlanguage{french}
-\usepackage{xcolor}
+\documentclass[12pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,esvect,mathtools}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
 \usepackage{fancyhdr}
-\usepackage[margin=2cm,headheight=16pt,headsep=22pt]{geometry}
+\usepackage{lastpage}
+\usepackage{tabularx}
+\usepackage{tcolorbox}
 \usepackage{enumitem}
+\usepackage{tikz}
 
-\IfFontExistsTF{Libertinus Serif}
-  {\setmainfont{Libertinus Serif}}
-  {\IfFontExistsTF{Latin Modern Roman}{\setmainfont{Latin Modern Roman}}{\setmainfont{lmroman10-regular.otf}}}
-
-\IfFontExistsTF{Libertinus Math}
-  {\setmathfont{Libertinus Math}}
-  {\IfFontExistsTF{Latin Modern Math}{\setmathfont{Latin Modern Math}}{\setmathfont{latinmodern-math.otf}}}
-
-\linespread{1.07}
+\geometry{top=1.6cm, bottom=1.6cm, left=1.6cm, right=1.6cm, headheight=15pt, headsep=12pt, footskip=22pt}
 \setlength{\parindent}{0pt}
-\AtBeginDocument{\setlength{\parindent}{0pt}}
-\setlength{\parskip}{0.35em}
 
 \pagestyle{fancy}
 \fancyhf{}
-\lhead{NeoHarness AI}
-\rhead{Lycée -- Mathématiques}
-\usepackage{lastpage}
-\cfoot{Page \thepage\ / \pageref{LastPage}}
-\renewcommand{\headrulewidth}{0.5pt}
-\renewcommand{\headrule}{\vskip 5pt\hrule width\headwidth height\headrulewidth \vskip-\headrulewidth}
-
-\setlist[enumerate,1]{itemsep=0.45em, topsep=0.3em, label=\textbf{\arabic*.}}
-\setlist[enumerate,2]{itemsep=0.25em, topsep=0.2em, label=\textbf{\alph*.}}
-
-\newcommand{\sectionannotation}[1]{%
-  \vspace{1.2em}%
-  \noindent{\large\textbf{#1}}%
-  \par\vspace{0.35em}%
-  \hrule height 0.5pt%
-  \vspace{0.7em}%
-}
-\usepackage{tikz}
-\usetikzlibrary{matrix,arrows.meta}
-\usepackage{pgfplots}
-\pgfplotsset{compat=1.17}
-\usepackage{needspace}
-
-\newcommand{\exo}[2]{%
-  \needspace{3em}%
-  \vspace{1em}%
-  \noindent{\large\textbf{Exercice #1}} -- #2%
-  \par\vspace{0.3em}%
-}
+\fancyhead[L]{\small\textit{Devoir Surveillé -- Première STMG}}
+\fancyhead[R]{\small\textbf{1\textsuperscript{ère} STMG}}
+\fancyfoot[C]{\thepage\ / \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
 
 \begin{document}
 
 \begin{center}
-  {\LARGE \textbf{Exercice : plus souple la notation et donne le pdf}}\\[0.5em]
-  {\large Lycée -- Mathématiques}
+    {\LARGE \textbf{DEVOIR SURVEILLÉ DE MATHÉMATIQUES}}\\[0.20cm]
+    {\large \textbf{Classe de Première STMG -- Session 2027}}\\[0.45cm]
+    \textbf{Durée de l'épreuve : 2 heures} \quad--\quad \textbf{Calculatrice autorisée}
 \end{center}
 
-Voici l'évaluation détaillée et la correction assouplie de la copie :
+\vspace{0.4cm}
 
-\vspace{0.35cm}\noindent\textbf{\large 1. Diagnostic global et notation}\par\vspace{0.15cm}
-\begin{enumerate}
-  \item \textbf{Note attribuée} : \textbf{2 / 5} (note légèrement rehaussée pour valoriser l'initiative et la démarche initiale sur le premier exercice).
-  \item \textbf{Points forts} : L'élève a le bon réflexe d'associer l'inversibilité d'une matrice à la non-nullité de son déterminant et pose correctement le calcul littéral initial.
-  \item \textbf{Points d'attention prioritaires} : Confusion sur la nature des ensembles numériques pour un paramètre réel et erreurs d'application sur la formule de l'inverse ainsi que sur le calcul matriciel.
-\end{enumerate}
+\begin{tabularx}{\textwidth}{|>{\centering\arraybackslash\bfseries}m{2.5cm}|*{4}{>{\centering\arraybackslash}X|}>{\centering\arraybackslash\bfseries}m{2cm}|}
+    \hline
+    Exercice & \textbf{Exercice 1} & \textbf{Exercice 2} & \textbf{Exercice 3} & \textbf{Exercice 4} & \textbf{Total} \\ \hline
+    Thème    & Statistiques & Pourcentages & Fonctions & Probabilités & --- \\ \hline
+    Barème   & 5 points & 5 points & 5 points & 5 points & 20 points \\ \hline
+\end{tabularx}
 
----
+\vspace{0.5cm}
 
-\vspace{0.35cm}\noindent\textbf{\large 2. Analyse détaillée étape par étape}\par\vspace{0.15cm}
+\section*{Exercice 1 : Statistiques à une variable (5 points)}
+Une entreprise a relevé le nombre de vélos vendus par mois dans ses 30 magasins :
+\begin{center}
+\begin{tabular}{|l|c|c|c|c|c|}
+\hline
+Classe & $[0 ; 20[$ & $[20 ; 40[$ & $[40 ; 60[$ & $[60 ; 80[$ & $[80 ; 100]$ \\ \hline
+Effectif $n_i$ & 3 & 7 & 12 & 6 & 2 \\ \hline
+\end{tabular}
+\end{center}
+1. Déterminer l'effectif total.\\
+2. Préciser la classe modale.\\
+3. Calculer la moyenne de cette série (utiliser les centres des classes).\\
+4. Déterminer la classe contenant la médiane.\\
+5. Calculer l'étendue de la série.
 
-\exo{1}{\# \textbf{Exercice 1 (Sur 2,5 points)}}
-\begin{enumerate}
-  \item \textbf{Question 1} :
-  \item Le calcul du déterminant $\det(A) = 7a + 7$ est parfaitement exact.
-  \item L'élève déduit correctement $a \neq -1$, mais restreint ensuite arbitrairement le paramètre $a$ à $\mathbb{N}$ ou $a \ge 0$ sans l'exiger dans l'énoncé. Une approche plus souple permet de valider pleinement l'intuition du calcul algébrique tout en notant cette confusion d'ensemble. \textit{(Attribué : 1,5 / 1,5)}
-  \item \textbf{Question 2} :
-  \item La formule de l'inverse d'une matrice $2 \times 2$ contient des erreurs de permutation des termes diagonaux et des signes. \textit{(Attribué : 0,5 / 1)}
-\end{enumerate}
+\newpage
 
-\exo{2}{\# \textbf{Exercice 2 (Sur 2,5 points)}}
-\begin{enumerate}
-  \item \textbf{Question 1} :
-  \item L'élève tente une manipulation algébrique en appliquant des réflexes de calcul scalaire, oubliant que la multiplication des matrices n'est pas commutative en général et que certaines simplifications directes sont invalides. \textit{(Attribué : 0 / 2,5)}
-\end{enumerate}
+\section*{Exercice 2 : Pourcentages et évolutions (5 points)}
+Le chiffre d'affaires d'une boutique en ligne était de $120\,000$ \texteuro{} en 2024.\\
+1. Entre 2024 et 2025, il a augmenté de $8\,\%$. Calculer le chiffre d'affaires en 2025.\\
+2. Entre 2025 et 2026, il a baissé de $5\,\%$.\\
+a. Calculer le coefficient multiplicateur global.\\
+b. En déduire le pourcentage global d'évolution entre 2024 et 2026.\\
+3. Quel taux d'évolution serait nécessaire entre 2026 et 2027 pour atteindre $150\,000$ \texteuro{} ?
 
----
+\section*{Exercice 3 : Étude d'une fonction (5 points)}
+Soit $f$ définie sur $[-4 ; 4]$ par $f(x) = -x^2 + 4x + 5$.\\
+1. Calculer l'image de $0$ et de $2$.\\
+2. Vérifier que $f(x) = -(x - 2)^2 + 9$.\\
+3. Dresser le tableau de variations de $f$.\\
+4. Résoudre l'équation $f(x) = 5$.\\
+5. Tracer la courbe représentative $\mathcal{C}_f$.
 
-\vspace{0.35cm}\noindent\textbf{\large 3. Bilan chiffré}\par\vspace{0.15cm}
-\begin{enumerate}
-  \item \textbf{Note finale} : \textbf{2 / 5}
-\end{enumerate}
-
----
-
-\vspace{0.35cm}\noindent\textbf{\large 4. Appréciation pédagogique et conseil de remédiation}\par\vspace{0.15cm}
-Un travail encourageant qui témoigne d'une bonne compréhension de la condition d'inversibilité d'une matrice, mais qui pèche sur les formules techniques et les manipulations algébriques.
-
-\textbf{Conseil clé} : Révise attentivement la formule explicite de l'inverse d'une matrice $2 \times 2$ et exerce-toi à manipuler des produits de matrices en gardant toujours à l'esprit que $AB \neq BA$ en général ! 😉
+\section*{Exercice 4 : Probabilités (5 points)}
+40\,\% des élèves d'une classe sont des garçons ($G$). Parmi les garçons, 60\,\% font du sport ($S$). Parmi les filles ($\bar{G}$), 50\,\% font du sport.\\
+1. Représenter la situation par un arbre pondéré.\\
+2. Calculer $P(G \cap S)$.\\
+3. Calculer $P(S)$ à l'aide des probabilités totales.\\
+4. Calculer la probabilité conditionnelle $P_S(\bar{G})$.
 
 \end{document}

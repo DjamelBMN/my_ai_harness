@@ -1906,6 +1906,437 @@ class NeoHarnessRuntimeBridge:
             "\\end{document}\n"
         )
 
+    @staticmethod
+    def _convert_chat_blocks_to_latex(text: str) -> str:
+        """Convertit tous les blocs visuels du chat (```tableau, ```arbre, ```droite, ```tikz et tableaux Markdown)
+        en code TikZ / LaTeX natif directement compilable par Tectonic pour le PDF."""
+        def _tex_math(expr: str) -> str:
+            t = (expr or "").strip().strip("$").strip()
+            if not t:
+                return ""
+            t = t.replace("−", "-")
+            t = re.sub(r"([+-]?)\s*(?:\\infty|oo|inf|∞)", lambda m: f"{m.group(1) or ''}\\infty", t, flags=re.I)
+            t = re.sub(r"^(-?)(\d+)\s*/\s*(\d+)$", r"\1\\frac{\2}{\3}", t)
+            t = re.sub(r"sqrt\(([^()]*)\)", r"\\sqrt{\1}", t)
+            if re.match(r"^[A-Za-zÀ-ÿ'’ ]{3,}$", t) and not re.match(r"^(?:ln|exp|sin|cos|tan|sqrt)\b", t, re.I):
+                return f"\\textit{{{t}}}"
+            return f"${t}$"
+
+        def _norm_signs(toks: list[str], n: int, x_vals: list[str]) -> list[str]:
+            need = max(0, 2 * n - 3)
+            if need == 0:
+                return []
+            is_s = lambda s: s in {"+", "-", "?"}
+            out: list[str] = []
+            expect_s = True
+            for tok in toks:
+                t = "||" if tok == "//" else tok
+                if is_s(t):
+                    if not expect_s:
+                        out.append("|")
+                    out.append(t)
+                    expect_s = False
+                else:
+                    if expect_s:
+                        out.append("+")
+                    out.append(t)
+                    expect_s = True
+            if len(out) == 3 and need > 3 and is_s(out[0]) and out[1] in {"0", "||"} and is_s(out[2]):
+                mid_idx = (n - 1) // 2
+                for idx in range(1, n - 1):
+                    if x_vals[idx].strip().strip("$") == "0":
+                        mid_idx = idx
+                        break
+                expanded: list[str] = []
+                for k in range(n - 1):
+                    expanded.append(out[0] if k < mid_idx else out[2])
+                    if k < n - 2:
+                        expanded.append(out[1] if k + 1 == mid_idx else "|")
+                return expanded
+            while len(out) < need:
+                if len(out) % 2 == 1:
+                    out.append("|")
+                else:
+                    last_s = next((x for x in reversed(out) if is_s(x)), "+")
+                    out.append(last_s)
+            return out[:need]
+
+        def _tableau_to_tikz(code: str) -> str:
+            lines = [ln.strip() for ln in code.splitlines() if ln.strip()]
+            x_vals: list[str] = []
+            sign_rows: list[tuple[str, list[str], bool]] = []
+            var_row: tuple[str, list[list[str]]] | None = None
+            has_convex = False
+            arrow_re = re.compile(r"\\?(?:nearrow|searrow|nwarrow|swarrow|uparrow|downarrow)|[↗↘↙↖↑↓]")
+
+            for ln in lines:
+                if ":" not in ln:
+                    continue
+                lbl, _, body = ln.partition(":")
+                lbl = lbl.strip()
+                body = body.strip().replace("−", "-")
+                if not x_vals and re.match(r"^\$?x\$?$", lbl, re.I):
+                    x_vals = [s.strip() for s in (body.split("|") if "|" in body else body.split()) if s.strip()]
+                    continue
+                if re.search(r"convex|concav", lbl, re.I) or re.search(r"convexe|concave|inflexion", body, re.I):
+                    has_convex = True
+                    continue
+                only_signs = bool(re.match(r"^[\s+\-0|/?]+$", body) and re.search(r"[+\-0|/?]", body))
+                is_prime = bool(re.search(r"['′\"″]|signe", lbl, re.I))
+                if is_prime or only_signs:
+                    toks = re.findall(r"\|\||//|\||[+\-]|0|\?", body)
+                    is_d2 = bool(re.search(r"(''|′′|″|\"|seconde)", lbl, re.I))
+                    if is_d2:
+                        has_convex = True
+                    sign_rows.append((lbl, toks, is_d2))
+                else:
+                    clean_b = arrow_re.sub(" ", body)
+                    parts = [p.strip() for p in clean_b.split("|")]
+                    vals = [[s.strip() for s in p.split("//")[:2]] if "//" in p else [p, p] for p in parts]
+                    var_row = (lbl, vals)
+
+            n = len(x_vals)
+            if n < 2:
+                return ""
+            norm_sr = [(lbl, _norm_signs(toks, n, x_vals), is_d2) for lbl, toks, is_d2 in sign_rows]
+            W = 14.2
+            lab_w = 3.0
+            plot_w = W - lab_w
+            x_col = lambda k: round(lab_w + 0.85 + (plot_w - 1.7) * k / (n - 1), 3)
+            x_mid = lambda k: round(0.5 * (x_col(k) + x_col(k + 1)), 3)
+
+            out = ["\\needspace{7\\baselineskip}", "\\begin{center}", "\\begin{tikzpicture}[>=stealth]"]
+            xh = 0.9
+            cur_y = 0.0
+            out.append(f"  \\node at ({lab_w/2:.2f}, {-xh/2:.2f}) {{$x$}};")
+            for k, xv in enumerate(x_vals):
+                out.append(f"  \\node at ({x_col(k)}, {-xh/2:.2f}) {{{_tex_math(xv)}}};")
+            cur_y -= xh
+            out.append(f"  \\draw[thick] (0, {cur_y:.2f}) -- ({W}, {cur_y:.2f});")
+
+            s2_row = next((r for r in norm_sr if r[2]), norm_sr[-1] if (has_convex and not var_row and norm_sr) else None)
+            pre_sr = [r for r in norm_sr if not (var_row and has_convex and r is s2_row)]
+            post_sr = [r for r in norm_sr if (var_row and has_convex and r is s2_row)]
+
+            def _emit_sign_rows(rows_list: list[tuple[str, list[str], bool]]) -> None:
+                nonlocal cur_y
+                sh = 0.85
+                for lbl, toks, _ in rows_list:
+                    y_top = cur_y
+                    y_bot = round(cur_y - sh, 3)
+                    cy = round(cur_y - sh / 2, 3)
+                    out.append(f"  \\node at ({lab_w/2:.2f}, {cy:.2f}) {{{_tex_math(lbl)}}};")
+                    for k in range(n - 1):
+                        sg = toks[2 * k] if 2 * k < len(toks) else "+"
+                        if sg in {"+", "-"}:
+                            out.append(f"  \\node at ({x_mid(k)}, {cy:.2f}) {{${sg}$}};")
+                    for k in range(1, n - 1):
+                        sep = toks[2 * k - 1] if 2 * k - 1 < len(toks) else "|"
+                        xk = x_col(k)
+                        if sep == "||":
+                            out.append(f"  \\draw[double, double distance=2pt, thick] ({xk}, {y_top:.2f}) -- ({xk}, {y_bot:.2f});")
+                        elif sep == "0":
+                            out.append(f"  \\draw[densely dashed, thin, gray] ({xk}, {y_top:.2f}) -- ({xk}, {cy+0.22:.2f});")
+                            out.append(f"  \\draw[densely dashed, thin, gray] ({xk}, {cy-0.22:.2f}) -- ({xk}, {y_bot:.2f});")
+                            out.append(f"  \\node at ({xk}, {cy:.2f}) {{$0$}};")
+                        else:
+                            out.append(f"  \\draw[densely dashed, very thin, gray] ({xk}, {y_top:.2f}) -- ({xk}, {y_bot:.2f});")
+                    cur_y = y_bot
+                    out.append(f"  \\draw[thick] (0, {cur_y:.2f}) -- ({W}, {cur_y:.2f});")
+
+            _emit_sign_rows(pre_sr)
+
+            if var_row is not None:
+                v_lbl, v_vals = var_row
+                while len(v_vals) < n:
+                    v_vals.append(["", ""])
+                v_vals = v_vals[:n]
+                vh = 2.1
+                y_top = cur_y
+                y_bot = round(cur_y - vh, 3)
+                cy = round(cur_y - vh / 2, 3)
+                out.append(f"  \\node at ({lab_w/2:.2f}, {cy:.2f}) {{{_tex_math(v_lbl)}}};")
+                dsrc = pre_sr[-1][1] if pre_sr else []
+                dirs = [
+                    ("u" if dsrc[2 * k] == "+" else "d") if 2 * k < len(dsrc) else ("u" if k % 2 == 0 else "d")
+                    for k in range(n - 1)
+                ]
+                ys_map = {"t": round(y_top - 0.42, 3), "m": cy, "b": round(y_bot + 0.42, 3)}
+                levs: list[tuple[str, str]] = []
+                for k in range(n):
+                    prev_d = dirs[k - 1] if k > 0 else None
+                    next_d = dirs[k] if k < n - 1 else None
+                    if k == 0:
+                        s_l = "b" if next_d == "u" else "t"
+                    elif k == n - 1:
+                        s_l = "t" if prev_d == "u" else "b"
+                    elif prev_d == "d" and next_d == "u":
+                        s_l = "b"
+                    elif prev_d == "u" and next_d == "d":
+                        s_l = "t"
+                    else:
+                        s_l = "m"
+                    if v_vals[k][0] != v_vals[k][1] and 0 < k < n - 1:
+                        levs.append(("t" if prev_d == "u" else "b", "b" if next_d == "u" else "t"))
+                    else:
+                        levs.append((s_l, s_l))
+
+                for k in range(n):
+                    xk = x_col(k)
+                    dbl = v_vals[k][0] != v_vals[k][1] and 0 < k < n - 1
+                    forb = dbl or (0 < k < n - 1 and len(dsrc) > 2 * k - 1 and dsrc[2 * k - 1] == "||")
+                    if forb:
+                        out.append(f"  \\draw[double, double distance=2pt, thick] ({xk}, {y_top:.2f}) -- ({xk}, {y_bot:.2f});")
+                    if dbl:
+                        out.append(f"  \\node (v{k}L) at ({xk - 0.42:.2f}, {ys_map[levs[k][0]]}) {{{_tex_math(v_vals[k][0])}}};")
+                        out.append(f"  \\node (v{k}R) at ({xk + 0.42:.2f}, {ys_map[levs[k][1]]}) {{{_tex_math(v_vals[k][1])}}};")
+                    else:
+                        out.append(f"  \\node (v{k}) at ({xk}, {ys_map[levs[k][0]]}) {{{_tex_math(v_vals[k][0])}}};")
+
+                for k in range(n - 1):
+                    n_from = f"v{k}R" if (v_vals[k][0] != v_vals[k][1] and 0 < k < n - 1) else f"v{k}"
+                    n_to = f"v{k+1}L" if (v_vals[k+1][0] != v_vals[k+1][1] and 0 < k + 1 < n - 1) else f"v{k+1}"
+                    out.append(f"  \\draw[->, thick] ({n_from}) -- ({n_to});")
+
+                cur_y = y_bot
+                out.append(f"  \\draw[thick] (0, {cur_y:.2f}) -- ({W}, {cur_y:.2f});")
+
+            _emit_sign_rows(post_sr)
+
+            if has_convex and s2_row is not None:
+                ch = 1.45
+                y_top = cur_y
+                y_bot = round(cur_y - ch, 3)
+                cy = round(cur_y - ch / 2, 3)
+                s2_toks = s2_row[1]
+                out.append(f"  \\node at ({lab_w/2:.2f}, {cy:.2f}) {{\\textit{{convexité}}}};")
+                for k in range(n - 1):
+                    sg = s2_toks[2 * k] if 2 * k < len(s2_toks) else "+"
+                    xm = x_mid(k)
+                    if sg == "+":
+                        out.append(f"  \\draw[thick] ({xm-0.38:.2f}, {cy+0.32:.2f}) .. controls ({xm:.2f}, {cy-0.05:.2f}) .. ({xm+0.38:.2f}, {cy+0.32:.2f});")
+                        out.append(f"  \\node[font=\\footnotesize\\itshape] at ({xm}, {cy-0.32:.2f}) {{convexe}};")
+                    else:
+                        out.append(f"  \\draw[thick] ({xm-0.38:.2f}, {cy+0.02:.2f}) .. controls ({xm:.2f}, {cy+0.38:.2f}) .. ({xm+0.38:.2f}, {cy+0.02:.2f});")
+                        out.append(f"  \\node[font=\\footnotesize\\itshape] at ({xm}, {cy-0.32:.2f}) {{concave}};")
+                for k in range(1, n - 1):
+                    sep = s2_toks[2 * k - 1] if 2 * k - 1 < len(s2_toks) else "|"
+                    xk = x_col(k)
+                    if sep == "0":
+                        out.append(f"  \\draw[thin, gray] ({xk}, {y_top:.2f}) -- ({xk}, {y_bot+0.35:.2f});")
+                        out.append(f"  \\filldraw ({xk}, {cy+0.12:.2f}) circle (1.8pt);")
+                        out.append(f"  \\node[font=\\scriptsize\\itshape] at ({xk}, {y_bot+0.18:.2f}) {{inflexion}};")
+                cur_y = y_bot
+                out.append(f"  \\draw[thick] (0, {cur_y:.2f}) -- ({W}, {cur_y:.2f});")
+
+            # Remplace le dernier trait horizontal par le cadre complet
+            if out and out[-1].startswith("  \\draw[thick] (0,"):
+                out.pop()
+            out.append(f"  \\draw[thick, rounded corners=2pt] (0, 0) rectangle ({W}, {cur_y:.2f});")
+            out.append(f"  \\draw[thick] ({lab_w}, 0) -- ({lab_w}, {cur_y:.2f});")
+            out.append("\\end{tikzpicture}")
+            out.append("\\end{center}")
+            return "\n".join(out)
+
+        def _arbre_to_tikz(code: str) -> str:
+            def _norm_key(s: str) -> str:
+                t = s.strip().strip("$")
+                bar = False
+                if re.search(r"\\(?:overline|bar)\s*\{([^}]*)\}", t):
+                    bar = True
+                    t = re.sub(r"\\(?:overline|bar)\s*\{([^}]*)\}", r"\1", t)
+                elif re.match(r"^(?:non[\s_]+|not[\s_]+|¬|!)", t, re.I) or t.endswith(("'", "’")):
+                    bar = True
+                    t = re.sub(r"^(?:non[\s_]+|not[\s_]+|¬|!)", "", t, flags=re.I).rstrip("'’")
+                return ("bar_" if bar else "") + re.sub(r"[^a-z0-9]", "", t.lower())
+
+            defs: list[tuple[str | None, list[tuple[str, str]]]] = []
+            for ln in code.splitlines():
+                if ":" not in ln:
+                    continue
+                k_raw, _, body = ln.partition(":")
+                toks = []
+                for item in body.split("|"):
+                    item = item.strip()
+                    if not item:
+                        continue
+                    m = re.match(r"^(.*?)\s*\(\s*([^)]*)\)\s*$", item)
+                    toks.append((m.group(1).strip(), m.group(2).strip()) if m else (item, ""))
+                if toks:
+                    am = re.search(r"apr[eè]s[_\s]+(.+)$", k_raw.strip(), re.I)
+                    defs.append((_norm_key(am.group(1)) if am else None, toks))
+            if not defs:
+                return ""
+            root: dict[str, Any] = {"ev": "", "p": "", "kids": [], "key": ""}
+            by_key: dict[str, dict[str, Any]] = {}
+            root_done = False
+            for parent_k, toks in defs:
+                par = None
+                if parent_k is None and not root_done:
+                    root_done = True
+                    par = root
+                elif parent_k:
+                    par = by_key.get(parent_k)
+                if par is None:
+                    continue
+                for ev, p in toks:
+                    nd: dict[str, Any] = {"ev": ev, "p": p, "kids": [], "key": _norm_key(ev)}
+                    par["kids"].append(nd)
+                    by_key.setdefault(nd["key"], nd)
+            if not root["kids"]:
+                return ""
+
+            leaf_idx = 0
+            def _place(node: dict[str, Any], depth: int) -> None:
+                nonlocal leaf_idx
+                node["x"] = round(depth * 3.8, 2)
+                if not node["kids"]:
+                    node["y"] = round(-leaf_idx * 1.15, 2)
+                    leaf_idx += 1
+                else:
+                    for k in node["kids"]:
+                        _place(k, depth + 1)
+                    node["y"] = round(0.5 * (node["kids"][0]["y"] + node["kids"][-1]["y"]), 2)
+
+            _place(root, 0)
+            out = ["\\needspace{7\\baselineskip}", "\\begin{center}", "\\begin{tikzpicture}[>=stealth]"]
+            out.append(f"  \\filldraw (0, {root['y']}) circle (1.5pt);")
+
+            def _fmt_ev(s: str) -> str:
+                t = s.strip().strip("$")
+                t = re.sub(r"^([A-Za-z]+)(\d+)$", r"\1_{\2}", t)
+                t = re.sub(r"\\overline\{([A-Za-z]+)(\d+)\}", r"\\overline{\1_{\2}}", t)
+                return f"${t}$"
+
+            def _draw(n: dict[str, Any], is_root: bool = False) -> None:
+                for k in n["kids"]:
+                    x1 = n["x"] if is_root else round(n["x"] + 0.65, 2)
+                    x2 = round(k["x"] - 0.15, 2)
+                    out.append(f"  \\draw[thick] ({x1}, {n['y']}) -- ({x2}, {k['y']});")
+                    if k["p"]:
+                        mx = round(0.5 * (x1 + x2), 2)
+                        my = round(0.5 * (n["y"] + k["y"]), 2)
+                        p_tex = re.sub(r"^(\d+)/(\d+)$", r"\\frac{\1}{\2}", k["p"].replace(".", ","))
+                        out.append(f"  \\node[fill=white, inner sep=1.5pt, font=\\footnotesize] at ({mx}, {my}) {{${p_tex}$}};")
+                    out.append(f"  \\node[anchor=west] at ({k['x']}, {k['y']}) {{{_fmt_ev(k['ev'])}}};")
+                    _draw(k, False)
+
+            _draw(root, True)
+            out.append("\\end{tikzpicture}")
+            out.append("\\end{center}")
+            return "\n".join(out)
+
+        def _droite_to_tikz(code: str) -> str:
+            intervals = []
+            b_min, b_max = None, None
+            col_map = {"bleu": "blue!80!black", "blue": "blue!80!black", "rouge": "red!80!black", "red": "red!80!black", "vert": "green!65!black"}
+            palette = ["blue!80!black", "red!80!black", "green!65!black", "violet!80!black"]
+            for ln in code.splitlines():
+                ln = ln.strip()
+                bm = re.match(r"^(?:bornes|axe|domaine)\s*:\s*([^|;]+)[|;]\s*(.+)$", ln, re.I)
+                if bm:
+                    try:
+                        b_min = float(bm.group(1).strip().replace(",", "."))
+                        b_max = float(bm.group(2).strip().replace(",", "."))
+                    except Exception:
+                        pass
+                    continue
+                im = re.match(r"^(?:([^=\[\]]+?)\s*=\s*)?(\[|\])\s*([^;,\]]+?)\s*[;,]\s*([^;,\[]+?)\s*(\[|\])(?:\s*:\s*([a-zA-Z]+))?$", ln)
+                if im:
+                    name = (im.group(1) or "").strip()
+                    bL, rawA, rawB, bR = im.group(2), im.group(3).strip(), im.group(4).strip(), im.group(5)
+                    col_k = (im.group(6) or "").lower()
+                    col = col_map.get(col_k, palette[len(intervals) % len(palette)])
+                    a_inf = bool(re.match(r"^-\s*(?:oo|\\infty|inf|∞)$", rawA, re.I))
+                    b_inf = bool(re.match(r"^\+?\s*(?:oo|\\infty|inf|∞)$", rawB, re.I))
+                    try:
+                        a_val = -1e9 if a_inf else float(rawA.replace(",", "."))
+                        b_val = 1e9 if b_inf else float(rawB.replace(",", "."))
+                        intervals.append((name, bL, a_val, rawA, b_val, rawB, bR, col))
+                    except Exception:
+                        pass
+            if not intervals:
+                return ""
+            fin = [v for it in intervals for v in (it[2], it[4]) if abs(v) < 1e8] or [-2.0, 2.0]
+            xmin = b_min if b_min is not None else math.floor(min(fin)) - 2
+            xmax = b_max if b_max is not None else math.ceil(max(fin)) + 2
+            span = max(2.0, xmax - xmin)
+            scale_x = 11.0 / span
+            X = lambda v: round((v - xmin) * scale_x, 2)
+            out = ["\\needspace{5\\baselineskip}", "\\begin{center}", "\\begin{tikzpicture}[>=stealth]"]
+            out.append(f"  \\draw[->, thick] (-0.5, 0) -- ({round(11.0 + 0.6, 2)}, 0) node[right] {{$x$}};")
+            step = 1 if span <= 12 else (2 if span <= 24 else max(1, int(span // 10)))
+            v = int(math.ceil(xmin))
+            while v <= int(math.floor(xmax)):
+                px = X(v)
+                out.append(f"  \\draw ({px}, 0.1) -- ({px}, -0.1) node[below, font=\\footnotesize] {{${v}$}};")
+                v += step
+            for idx, (name, bL, a_val, rawA, b_val, rawB, bR, col) in enumerate(intervals):
+                y = round(0.55 * (idx + 1), 2)
+                x1 = X(a_val) if abs(a_val) < 1e8 else -0.35
+                x2 = X(b_val) if abs(b_val) < 1e8 else 11.35
+                out.append(f"  \\draw[ultra thick, color={col}] ({x1}, {y}) -- ({x2}, {y});")
+                if abs(a_val) < 1e8:
+                    out.append(f"  \\node[color={col}, font=\\bfseries] at ({x1}, {y}) {{{bL}}};")
+                    out.append(f"  \\draw[densely dashed, thin, color={col}] ({x1}, {y}) -- ({x1}, 0);")
+                if abs(b_val) < 1e8:
+                    out.append(f"  \\node[color={col}, font=\\bfseries] at ({x2}, {y}) {{{bR}}};")
+                    out.append(f"  \\draw[densely dashed, thin, color={col}] ({x2}, {y}) -- ({x2}, 0);")
+                lbl_a = rawA.replace("-oo", "-\\infty").replace("oo", "\\infty")
+                lbl_b = rawB.replace("+oo", "+\\infty").replace("oo", "+\\infty")
+                lbl_tex = f"{name} = {bL}{lbl_a}\\,;\\,{lbl_b}{bR}" if name else f"{bL}{lbl_a}\\,;\\,{lbl_b}{bR}"
+                out.append(f"  \\node[above, color={col}, font=\\small] at ({round(0.5*(x1+x2), 2)}, {y+0.05:.2f}) {{${lbl_tex}$}};")
+            out.append("\\end{tikzpicture}")
+            out.append("\\end{center}")
+            return "\n".join(out)
+
+        def _replace_code_block(match: re.Match) -> str:
+            lang = (match.group(1) or "").strip().lower()
+            code = match.group(2) or ""
+            if "\\begin{tikzpicture}" in code:
+                fixed = fix_tikz_overflow(code.strip())
+                if "\\begin{center}" not in fixed:
+                    return f"\n\\begin{{center}}\n{fixed}\n\\end{{center}}\n"
+                return f"\n{fixed}\n"
+            if lang in {"tableau", "variations", "signes", "tvar", "convexite"} or (
+                lang in {"", "text", "txt", "plaintext"} and re.search(r"^\s*\$?x\$?\s*:", code, re.I | re.M)
+            ):
+                res = _tableau_to_tikz(code)
+                if res:
+                    return f"\n{res}\n"
+            if lang in {"arbre", "tree"} or re.search(r"^\s*Niveau_?\d", code, re.I | re.M):
+                res = _arbre_to_tikz(code)
+                if res:
+                    return f"\n{res}\n"
+            if lang in {"droite", "intervalle", "intervalles", "axe"}:
+                res = _droite_to_tikz(code)
+                if res:
+                    return f"\n{res}\n"
+            return code
+
+        out_text = re.sub(r"```([a-zA-Z0-9_+-]*)[ \t]*\r?\n([\s\S]*?)```", _replace_code_block, text)
+
+        # Conversion des tableaux Markdown à barres "| ... |" en tableau LaTeX pour le PDF
+        def _replace_md_table(m: re.Match) -> str:
+            blk = m.group(0)
+            raw_rows = [l.strip().strip("|") for l in blk.splitlines() if l.strip().startswith("|")]
+            rows = [[c.strip() for c in r.split("|")] for r in raw_rows]
+            rows = [r for r in rows if not all(re.match(r"^:?-{2,}:?$", c) or c == "" for c in r)]
+            if len(rows) < 2:
+                return blk
+            ncol = max(len(r) for r in rows)
+            col_spec = "|" + "|".join(["c"] * ncol) + "|"
+            tex_rows = ["\\begin{center}", "\\renewcommand{\\arraystretch}{1.35}", f"\\begin{{tabular}}{{{col_spec}}}", "\\hline"]
+            for r in rows:
+                padded = r + [""] * (ncol - len(r))
+                cells_tex = [c.replace("%", "\\%").replace("&", "\\&").replace("#", "\\#") for c in padded]
+                tex_rows.append(" & ".join(cells_tex) + " \\\\ \\hline")
+            tex_rows.extend(["\\end{tabular}", "\\end{center}"])
+            return "\n" + "\n".join(tex_rows) + "\n"
+
+        out_text = re.sub(r"(?:^[ \t]*\|.*\|[ \t]*(?:\r?\n(?:[ \t]*\r?\n)?|$)){2,}", _replace_md_table, out_text, flags=re.M)
+        return out_text
+
     def _build_education_latex_document(
         self,
         skill: str,
@@ -1966,20 +2397,24 @@ class NeoHarnessRuntimeBridge:
         preamble = re.sub(r"\\lhead\{[^}]*\}", "\\\\lhead{NeoHarness AI}", preamble)
         preamble = re.sub(r"\\rhead\{[^}]*\}", f"\\\\rhead{{{classe_str}}}", preamble)
 
-        # Injection garantie des bibliothèques TikZ et Pgfplots
+        # Injection garantie des bibliothèques TikZ (y compris automata, positioning et calc pour les graphes)
         if "\\usepackage{tikz}" not in preamble:
             tikz_headers = (
                 "\n\\usepackage{tikz}\n"
-                "\\usetikzlibrary{matrix,arrows.meta}\n"
+                "\\usetikzlibrary{matrix,arrows.meta,automata,positioning,calc,quotes}\n"
                 "\\usepackage{pgfplots}\n"
                 "\\pgfplotsset{compat=1.17}\n"
                 "\\usepackage{needspace}\n"
             )
             preamble = preamble + tikz_headers
+        elif "automata" not in preamble:
+            preamble = preamble + "\n\\usetikzlibrary{automata,positioning,calc,quotes}\n"
 
-        # 4. Préparation du corps du document
+        # 4. Préparation du corps du document : conversion de tous les blocs (tableau, arbre, droite, tikz, md-table) en TikZ/LaTeX natif
         body_tex: list[str] = []
-        body_source = raw_code if raw_code else content
+        body_source = raw_code if raw_code else self._convert_chat_blocks_to_latex(content)
+        body_source = re.sub(r"```[a-zA-Z0-9_+-]*[ \t]*\r?\n?", "", body_source)
+        body_source = re.sub(r"\\usetikzlibrary\{[^}]*\}", "", body_source)
 
         # Détection automatique et tracé géométrique si des points ou des courbes sont décrits sans figure TikZ
         if "\\begin{tikzpicture}" not in body_source:
@@ -2159,9 +2594,7 @@ class NeoHarnessRuntimeBridge:
             in_tikz_block = False
             for line in body_source.splitlines():
                 stripped = line.strip()
-                if stripped.startswith(r"\begin{tikzpicture}") or (
-                    stripped.startswith(r"\begin{center}") and r"\begin{tikzpicture}" in body_source
-                ):
+                if stripped.startswith((r"\begin{tikzpicture}", r"\begin{tabular}")):
                     if in_enumerate:
                         body_tex.append("\\end{enumerate}")
                         in_enumerate = False
@@ -2170,8 +2603,16 @@ class NeoHarnessRuntimeBridge:
                     continue
                 if in_tikz_block:
                     body_tex.append(line)
-                    if stripped.startswith(r"\end{tikzpicture}") or stripped.startswith(r"\end{center}"):
+                    if stripped.startswith((r"\end{tikzpicture}", r"\end{tabular}")):
                         in_tikz_block = False
+                    continue
+                if stripped in {r"\begin{center}", r"\end{center}"} or stripped.startswith((r"\needspace", r"\renewcommand{\arraystretch}")):
+                    if in_enumerate:
+                        body_tex.append("\\end{enumerate}")
+                        in_enumerate = False
+                    body_tex.append(line)
+                    continue
+                if re.match(r"^(?:[-*_]\s*){3,}$", stripped):
                     continue
                 if not stripped:
                     if in_enumerate:
@@ -2188,7 +2629,7 @@ class NeoHarnessRuntimeBridge:
                         body_tex.append("\\end{enumerate}")
                         in_enumerate = False
                     sub_title = (
-                        re.sub(r"^#{1,3}\s*(?:Exercice\s*\d*[:.-]?\s*)?", "", stripped, flags=re.IGNORECASE).strip()
+                        re.sub(r"^[#\s*-]*(?:Exercice\s*\d*[:.-]?\s*)?[0-9.\s:-]*", "", stripped, flags=re.IGNORECASE).strip()
                         or title_clean
                     )
                     sub_title = _format_markdown_for_latex(sub_title)

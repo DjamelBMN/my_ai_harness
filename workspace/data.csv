@@ -1,9 +1,19 @@
-\begin{tikzpicture}[scale=0.9, >=stealth, thick]
-    \node[circle, draw, minimum size=8mm] (A) at (0, 2) {$A$};
-    \node[circle, draw, minimum size=8mm] (B) at (2, 0) {$B$};
-    \node[circle, draw, minimum size=8mm] (C) at (-2, 0) {$C$};
-    
-    \draw[->] (A) -- (B) node[midway, above right] {};
-    \draw[->] (B) -- (C) node[midway, below] {};
-    \draw[->] (C) -- (A) node[midway, above left] {};
+\begin{tikzpicture}[scale=0.85]
+  % Grille et axes
+  \draw[gray!30, thin] (-3, -1) grid (5, 8);
+  \draw[->, thick] (-3, 0) -- (5.2, 0) node[right] {$x$};
+  \draw[->, thick] (0, -1) -- (0, 8.2) node[above] {$y$};
+  
+  % Asymptote verticale
+  \draw[red, dashed, thick] (-2, -1) -- (-2, 8) node[above left] {$x = -2$};
+  
+  % Courbe représentative f(x) = (x^2+4x+5)/(x+2)
+  \draw[blue, very thick, smooth, samples=150, domain=-1.85:4.5] plot (\x, {(\x*\x + 4*\x + 5)/(\x + 2)});
+  
+  % Point remarquable (minimum en -1, 2)
+  \filldraw[black] (-1, 2) circle (2pt) node[above left] {$(-1 ; 2)$};
+  \filldraw[black] (0, 2.5) circle (2pt) node[right] {$(0 ; 2{,}5)$};
+  
+  % Légende
+  \node[blue] at (3, 6.5) {$\mathcal{C}_f$};
 \end{tikzpicture}

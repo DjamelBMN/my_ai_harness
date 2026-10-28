@@ -48,21 +48,21 @@
 }
 
 [data-theme="dark"] {
-  --bg-primary: #131312;
-  --bg-secondary: #181817;
-  --bg-surface: #1E1E1D;
-  --bg-surface-hover: #262624;
-  --bg-elevated: #222220;
-  --border-color: #2D2C2A;
-  --border-subtle: #242422;
-  --text-primary: #F5F2EB;
-  --text-secondary: #A8A59C;
-  --text-muted: #737068;
-  --gris-secondaire: #737068;
-  --accent: #F5F2EB;
+  --bg-primary: #0F1115;
+  --bg-secondary: #14171D;
+  --bg-surface: #181C23;
+  --bg-surface-hover: #212631;
+  --bg-elevated: #1B2029;
+  --border-color: #282E3B;
+  --border-subtle: #1F2430;
+  --text-primary: #F3F4F6;
+  --text-secondary: #A3AAB8;
+  --text-muted: #6E7687;
+  --gris-secondaire: #6E7687;
+  --accent: #F3F4F6;
   --accent-hover: #FFFFFF;
-  --accent-soft: rgba(245, 242, 235, 0.1);
-  --accent-border: rgba(245, 242, 235, 0.22);
+  --accent-soft: rgba(243, 244, 246, 0.09);
+  --accent-border: rgba(243, 244, 246, 0.2);
   --accent-green: #22C55E;
   --accent-green-soft: rgba(34, 197, 94, 0.15);
   --accent-blue: #60A5FA;
@@ -73,9 +73,9 @@
   --warning-soft: rgba(245, 158, 11, 0.14);
   --error: #EF4444;
   --error-soft: rgba(239, 68, 68, 0.14);
-  --shadow-lg: 0 22px 50px rgba(0, 0, 0, 0.6);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 22px 50px rgba(0, 0, 0, 0.65);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 
 * {
@@ -5597,6 +5597,7 @@ body.is-resizing canvas {
   position: relative;
   display: flex;
   align-items: center;
+  margin-bottom: 0 !important;
 }
 
 .library-search-icon {
@@ -5648,14 +5649,9 @@ body.is-resizing canvas {
 
 .library-cat-pills {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
-  overflow-x: auto;
   padding-bottom: 2px;
-  scrollbar-width: none;
-}
-
-.library-cat-pills::-webkit-scrollbar {
-  display: none;
 }
 
 .library-cat-pill {
@@ -6114,7 +6110,42 @@ button, input, textarea, select { font-family: inherit; }
   .conversation-stream, .composer-box, .approval-banner { max-width: 1080px; }
 }
 
-/* Finition haute précision : figures mathématiques, tableaux et typographie KaTeX */
+/* Finition haute précision : figures mathématiques, tableaux, bouton Enregistrer et KaTeX */
+#btn-doc-save-source,
+.btn-doc-save {
+  height: 28px;
+  padding: 0 11px;
+  border-radius: 6px;
+  border: 1px solid rgba(21, 115, 71, 0.35);
+  background: var(--accent-green-soft);
+  color: var(--accent-green);
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+#btn-doc-save-source:hover,
+.btn-doc-save:hover {
+  background: var(--accent-green);
+  border-color: var(--accent-green);
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(21, 115, 71, 0.25);
+  transform: translateY(-0.5px);
+}
+
+#btn-doc-save-source svg,
+.btn-doc-save svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
 .nh-math-fig {
   overflow-x: auto;
   overflow-y: hidden !important;
@@ -6122,26 +6153,367 @@ button, input, textarea, select { font-family: inherit; }
   padding: 4px 2px;
   scrollbar-width: thin;
 }
+
 .nh-math-fig::-webkit-scrollbar {
   height: 5px;
   width: 0;
 }
+
 .nh-math-table-card {
   background: var(--bg-elevated, #FFFFFF);
   border: 1.25px solid var(--text-primary);
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.02);
+  border-radius: 9px;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.045), 0 1px 3px rgba(15, 23, 42, 0.03);
   overflow: hidden;
 }
+
+[data-theme="dark"] .nh-math-table-card {
+  background: #161A22;
+  border-color: rgba(243, 244, 246, 0.28);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+
+.nh-math-figure-card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 6px 0;
+  margin: 0 auto;
+  width: fit-content;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.nh-tikz-details {
+  margin: 2px 0 14px 0;
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+}
+
+.nh-tikz-details > summary {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-muted);
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  user-select: none;
+  list-style: none;
+  transition: all 0.12s ease;
+}
+
+.nh-tikz-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.nh-tikz-details > summary:hover {
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.nh-tikz-code-window {
+  margin-top: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.nh-tikz-code-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.nh-tikz-code-window pre {
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.nh-copy-tikz-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.nh-copy-tikz-btn:hover {
+  background: var(--bg-surface-hover);
+  border-color: var(--gris-secondaire);
+}
+
+.nh-copy-tikz-btn.copied {
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+  background: var(--accent-green-soft);
+}
+
 .md-prose .katex {
   font-size: 1.04em;
 }
+
+.md-prose ol,
+.md-prose ul {
+  padding-left: 22px;
+  margin-left: 0;
+}
+
 .md-prose ol > li {
   margin-top: 8px;
   margin-bottom: 6px;
   font-weight: 500;
 }
+
 .md-prose ul > li {
   margin-bottom: 6px;
   line-height: 1.68;
+}
+
+/* Barre flottante des figures (Oracle, Mode Élève, Export PNG HD) & Pointeur Magnétique */
+.nh-fig-Container {
+  position: relative;
+  width: fit-content;
+  min-width: 320px;
+  max-width: 100%;
+  margin: 0 auto;
+  padding-top: 6px;
+}
+
+.nh-fig-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-bottom: 6px;
+  opacity: 0;
+  transform: translateY(2px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.nh-math-fig:hover .nh-fig-toolbar,
+.nh-math-fig.is-student-mode .nh-fig-toolbar {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.nh-fig-oracle {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-right: auto;
+  user-select: none;
+}
+
+.nh-fig-oracle.ok {
+  background: var(--accent-green-soft);
+  color: var(--accent-green);
+  border: 1px solid rgba(21, 115, 71, 0.25);
+}
+
+.nh-fig-oracle.warn {
+  background: var(--warning-soft);
+  color: var(--warning);
+  border: 1px solid rgba(180, 83, 9, 0.35);
+}
+
+.nh-fig-tool-btn {
+  height: 25px;
+  padding: 0 9px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.12s ease;
+}
+
+.nh-fig-tool-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--gris-secondaire);
+  background: var(--bg-surface-hover);
+}
+
+.nh-fig-tool-btn.active {
+  background: var(--accent-blue-soft);
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+  font-weight: 600;
+}
+
+.nh-fig-tool-btn.copied {
+  background: var(--accent-green-soft);
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+}
+
+/* Bascule Mode Élève (masque les réponses et affiche les zones à compléter) */
+.nh-student-only {
+  display: none;
+}
+
+.nh-math-fig.is-student-mode .nh-student-hide {
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+.nh-math-fig.is-student-mode .nh-student-only {
+  display: inline !important;
+}
+
+/* Pointeur magnétique (x ; f(x)) sur les courbes */
+.nh-curve-stage {
+  cursor: crosshair;
+}
+
+.nh-curve-vline {
+  position: absolute;
+  width: 0;
+  border-left: 1px dashed var(--accent-blue);
+  opacity: 0.65;
+}
+
+.nh-curve-hline {
+  position: absolute;
+  height: 0;
+  border-top: 1px dashed var(--accent-blue);
+  opacity: 0.65;
+}
+
+.nh-curve-dot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+  border: 2px solid var(--bg-elevated);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.3);
+  transform: translate(-50%, -50%);
+}
+
+.nh-curve-tooltip {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  background: rgba(15, 23, 42, 0.92);
+  color: #F8FAFC;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 9px;
+  border-radius: 6px;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+}
+
+/* Sélecteur de versions de document dans le panneau de droite */
+.nh-doc-version-select {
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+}
+
+.nh-fig-tool-btn:focus,
+.nh-fig-tool-btn:focus-visible,
+.nh-copy-tikz-btn:focus,
+.nh-copy-tikz-btn:focus-visible {
+  outline: none !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+
+#stuBtn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#stuBtn svg {
+    width: 17px;
+    height: 17px;
+    stroke-width: 1.8;
+}
+
+/* Tableaux de statistiques, valeurs et lois de probabilité dans le chat */
+.nh-data-table-wrap {
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.nh-md-data-table {
+  width: auto !important;
+  min-width: 420px;
+  border-collapse: collapse !important;
+  margin: 0 !important;
+  font-family: var(--font-serif);
+  font-size: 15px;
+}
+
+.nh-md-data-table th,
+.nh-md-data-table td {
+  padding: 9px 16px !important;
+  border: 1px solid var(--border-color) !important;
+  white-space: nowrap;
+}
+
+.nh-md-data-table tr:first-child th,
+.nh-md-data-table tr:first-child td {
+  border-top: none !important;
+}
+
+.nh-md-data-table tr:last-child th,
+.nh-md-data-table tr:last-child td {
+  border-bottom: none !important;
+}
+
+.nh-md-data-table th:first-child,
+.nh-md-data-table td:first-child {
+  border-left: none !important;
+}
+
+.nh-md-data-table th:last-child,
+.nh-md-data-table td:last-child {
+  border-right: none !important;
+}
+
+.nh-md-data-table th {
+  background: var(--bg-secondary);
+  font-weight: 600;
+  color: var(--text-primary);
 }

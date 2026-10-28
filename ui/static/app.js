@@ -1815,7 +1815,7 @@ function sanitizeRawLatexForChat(input) {
       if (!m) continue;
       const label = m[1].trim();
       const body = m[2].trim().replace(/−/g, "-");
-      if (/^\$?x\$?$/i.test(label)) {
+      if (spec.x.length === 0 && /^\$?x\$?$/i.test(label)) {
         spec.x = (body.indexOf("|") >= 0 ? body.split("|") : body.split(/\s+/)).map((s) => s.trim()).filter(Boolean);
         continue;
       }
@@ -1902,44 +1902,298 @@ function sanitizeRawLatexForChat(input) {
     return spec.signRows.length || spec.varRow ? spec : null;
   }
 
-  function mdPipeTableToHtml(block) {
-    const rows = block
-      .split("\n")
-      .map((l) => l.trim())
-      .filter((l) => l.startsWith("|"))
-      .map((l) => l.replace(/^\||\|$/g, "").split("|").map((c) => c.replace(/\$/g, "").trim()))
-      .filter((r) => !r.every((c) => /^:?-{2,}:?$/.test(c) || c === ""));
-    if (rows.length < 2) return null;
-    const strip = (s) => String(s || "").replace(/\s+/g, "");
-    if (strip(rows[0][0]).toLowerCase() !== "x") return null;
-    const xs = rows[0].slice(1).filter((c) => c !== "");
-    const n = xs.length;
-    if (n < 2) return null;
-    const spec = { x: xs, signRows: [], varRow: null, convex: false, convexLabel: "convexité" };
-    const ARROW = /searrow|swarrow|nearrow|nwarrow|[↗↘↙↖↑↓]/;
-    rows.slice(1).forEach((r) => {
-      const label = r[0] || "";
-      const body = r.slice(1);
-      if (!label && body.some((c) => ARROW.test(c))) return;
-      if (/convex|concav/i.test(label)) {
-        spec.convex = true;
-        return;
+function splitMdPipeRow(line) {
+    const s = String(line || "").trim().replace(/^\||\|$/g, "");
+    const cells = [];
+    let cur = "", inMath = false;
+    for (let i = 0; i < s.length; i++) {
+      const ch = s[i];
+      if (ch === "$" && s[i - 1] !== "\\") inMath = !inMath;
+      if (ch === "|" && !inMath && s[i - 1] !== "\\") {
+        cells.push(cur.trim());
+        cur = "";
+      } else {
+        cur += ch;
       }
-      const nz = body.filter((c) => c !== "").map((c) => (c === "−" ? "-" : c === "//" ? "||" : c));
-      if (/'|′|prime|signe/i.test(label) || (nz.length > 0 && nz.every((c) => /^(\+|-|0|\|\||\?|\|)$/.test(c)))) {
-        const isD2 = /(''|′′|″|")/.test(label);
-        if (isD2) spec.convex = true;
-        spec.signRows.push({ label, toks: vtNormSigns(nz, n, xs), isSecondDeriv: isD2 });
-      } else if (!spec.varRow && label) {
-        const cleanCells = body.filter((c) => !ARROW.test(c));
-        const cells = cleanCells.length >= n ? cleanCells.slice(0, n) : cleanCells.concat(new Array(n - cleanCells.length).fill(""));
-        spec.varRow = { label, vals: cells.map((c) => [c, c]) };
-      }
-    });
-    return renderVtSpec(spec);
+    }
+    cells.push(cur.trim());
+    return cells;
   }
 
-// Moteur unifié : affiche x + lignes de signes + variations f(x) + convexité dans un seul tableau
+  function renderMdCellRich(cellText) {
+    const raw = String(cellText == null ? "" : cellText).trim();
+    if (!raw) return "&nbsp;";
+    const mathTokens = [];
+    let work = raw.replace(/\\\(([^\n]+?)\\\)/g, (_, expr) => {
+      const tok = `@@CELLMATH${mathTokens.length}@@`;
+      mathTokens.push(`<span class="math-inline">${renderMathExpression(expr, false)}</span>`);
+      return tok;
+    });
+    work = work.replace(/\$([^$\n]+)\$/g, (_, expr) => {
+      const tok = `@@CELLMATH${mathTokens.length}@@`;
+      mathTokens.push(`<span class="math-inline">${renderMathExpression(expr, false)}</span>`);
+      return tok;
+    });
+    let out = esc(work)
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>")
+      .replace(/`([^`]+)`/g, "<code>$1</code>");
+    out = out.replace(/@@CELLMATH(\d+)@@/g, (_, idx) => mathTokens[Number(idx)] || "");
+    return out;
+  }
+
+  function mdPipeTableToHtml(block) {
+    const rawLines = block
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l.startsWith("|"));
+    if (rawLines.length < 2) return null;
+
+    const parsedLines = rawLines.map(splitMdPipeRow);
+    const isSepRow = (r) => r.length > 0 && r.every((c) => /^:?-{2,}:?$/.test(c) || c === "");
+    const sepRow = parsedLines.find(isSepRow);
+    const aligns = sepRow
+      ? sepRow.map((c) => (c.startsWith(":") && c.endsWith(":") ? "center" : c.endsWith(":") ? "right" : "left"))
+      : [];
+
+    const dataRows = parsedLines.filter((r) => !isSepRow(r));
+    if (dataRows.length < 2) return null;
+
+    // 1. Détection : est-ce un tableau de variations / signes / convexité ?
+    const strip = (s) => String(s || "").replace(/\$/g, "").replace(/\s+/g, "");
+    const firstCell = strip(dataRows[0][0]).toLowerCase();
+    const ARROW = /searrow|swarrow|nearrow|nwarrow|uparrow|downarrow|[↗↘↙↖↑↓]/;
+    const hasSignOrVar =
+      firstCell === "x" &&
+      dataRows.slice(1).some((r) => {
+        const lbl = strip(r[0]);
+        const body = r.slice(1).map((c) => strip(c));
+        return (
+          /['′"″]|prime|signe|convex|concav|variation/i.test(lbl) ||
+          body.some((c) => ARROW.test(c) || /^(?:[+-]?(?:\\infty|oo|∞)|\|\|)$/.test(c)) ||
+          (body.filter(Boolean).length > 0 && body.filter(Boolean).every((c) => /^(\+|-|0|\|\||\?|\|)$/.test(c)))
+        );
+      });
+
+    if (hasSignOrVar) {
+      const xs = dataRows[0].slice(1).map((c) => c.replace(/\$/g, "").trim()).filter((c) => c !== "");
+      const n = xs.length;
+      if (n >= 2) {
+        const spec = { x: xs, signRows: [], varRow: null, convex: false, convexLabel: "convexité" };
+        dataRows.slice(1).forEach((r) => {
+          const label = (r[0] || "").replace(/\$/g, "").trim();
+          const body = r.slice(1).map((c) => c.replace(/\$/g, "").trim());
+          if (!label && body.some((c) => ARROW.test(c))) return;
+          if (/convex|concav/i.test(label)) {
+            spec.convex = true;
+            return;
+          }
+          const nz = body.filter((c) => c !== "").map((c) => (c === "−" ? "-" : c === "//" ? "||" : c));
+          if (/'|′|prime|signe/i.test(label) || (nz.length > 0 && nz.every((c) => /^(\+|-|0|\|\||\?|\|)$/.test(c)))) {
+            const isD2 = /(''|′′|″|")/.test(label);
+            if (isD2) spec.convex = true;
+            spec.signRows.push({ label, toks: vtNormSigns(nz, n, xs), isSecondDeriv: isD2 });
+          } else if (!spec.varRow && label) {
+            const cleanCells = body.filter((c) => !ARROW.test(c));
+            const cells = cleanCells.length >= n ? cleanCells.slice(0, n) : cleanCells.concat(new Array(n - cleanCells.length).fill(""));
+            spec.varRow = { label, vals: cells.map((c) => [c, c]) };
+          }
+        });
+        const vtRendered = renderVtSpec(spec);
+        if (vtRendered) return vtRendered;
+      }
+    }
+
+    // 2. Sinon : rendu de tableau de données / statistiques / valeurs / loi de probabilité
+    const colCount = Math.max(...dataRows.map((r) => r.length));
+    const isHorizontalSeries =
+      dataRows.length <= 4 &&
+      colCount >= 3 &&
+      dataRows.every((r) => /[A-Za-zÀ-ÿ$]/.test(r[0] || "")) &&
+      dataRows[0].slice(1).every((c) => /^[-+]?[\d.,\s$]+$/.test(c));
+
+    const rowsHtml = dataRows
+      .map((r, rIdx) => {
+        const cellsHtml = [];
+        for (let cIdx = 0; cIdx < colCount; cIdx++) {
+          const rawCell = r[cIdx] !== undefined ? r[cIdx] : "";
+          const isHeaderCell = (isHorizontalSeries && cIdx === 0) || (!isHorizontalSeries && rIdx === 0);
+          const tag = isHeaderCell ? "th" : "td";
+          const align = isHeaderCell && cIdx === 0 ? "left" : aligns[cIdx] || "center";
+          const hideCls = !isHeaderCell ? ' class="nh-student-hide"' : "";
+          cellsHtml.push(
+            `<${tag} style="text-align:${align};"><span${hideCls}>${renderMdCellRich(rawCell)}</span></${tag}>`
+          );
+        }
+        return `<tr>${cellsHtml.join("")}</tr>`;
+      })
+      .join("");
+
+    const tableHtml =
+      `<div class="nh-math-table-card nh-data-table-wrap">` +
+      `<table class="nh-md-data-table"><tbody>${rowsHtml}</tbody></table>` +
+      `</div>`;
+    return nhWrapMathFigure(tableHtml, { hasStudentMode: true });
+  }
+
+// ---------- Barre d'outils flottante 100 % Vectorielle (Mode Élève + Copie PNG HD + Oracle) ----------
+  const NH_SVG_STUDENT = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"/></svg>';
+  const NH_SVG_PROF = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const NH_SVG_CAM = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+
+  function nhWrapMathFigure(innerHtml, opts = {}) {
+    const hasStudent = Boolean(opts.hasStudentMode);
+    const oracle = opts.oracle || null;
+    const cleanLabel = oracle ? String(oracle.label || "").replace(/^[✓⚠🎯]\s*/, "") : "";
+    const oracleIcon = oracle ? (oracle.ok ? ICONS.check : ICONS.alert) : "";
+    const oracleHtml = oracle
+      ? `<span class="nh-fig-oracle ${oracle.ok ? "ok" : "warn"}" title="${esc(oracle.detail || cleanLabel)}">${oracleIcon} <span>${esc(cleanLabel)}</span></span>`
+      : "";
+    const studentBtn = hasStudent
+      ? `<button type="button" class="nh-fig-tool-btn nh-btn-student-mode" title="Basculer entre la version Professeur (corrigée) et la version Élève (à compléter)">${NH_SVG_STUDENT} <span>Mode Élève</span></button>`
+      : "";
+    const pngBtn = `<button type="button" class="nh-fig-tool-btn nh-btn-copy-png" title="Copier en image PNG Haute Définition (pour Word, PowerPoint, Pronote…)">${NH_SVG_CAM} <span>Copier PNG</span></button>`;
+
+    return (
+      `<div class="nh-math-fig">` +
+      `<div class="nh-fig-Container">` +
+      `<div class="nh-fig-toolbar">${oracleHtml}${studentBtn}${pngBtn}</div>` +
+      `<div class="nh-fig-export-target">${innerHtml}</div>` +
+      `</div></div>`
+    );
+  }
+
+async function nhCopyElementAsPng(targetEl, btnEl) {
+    if (!targetEl) return;
+    btnEl.blur();
+    const origHtml = btnEl.innerHTML;
+    try {
+      let boxEl = targetEl.querySelector(".nh-math-table-card, .nh-curve-stage") || targetEl.firstElementChild || targetEl;
+      if (boxEl.classList && boxEl.classList.contains("nh-math-figure-card") && boxEl.firstElementChild) {
+        boxEl = boxEl.firstElementChild;
+      }
+      const rect = boxEl.getBoundingClientRect();
+      const wRaw = Math.max(120, Math.ceil(rect.width));
+      const hRaw = Math.max(60, Math.ceil(rect.height));
+      const W = wRaw + 32;
+      const H = hRaw + 32;
+
+      const clone = boxEl.cloneNode(true);
+      const styleProps = [
+        "position", "left", "right", "top", "bottom", "width", "height", "minWidth", "maxWidth",
+        "display", "alignItems", "justifyContent", "padding", "margin", "border", "borderTop",
+        "borderBottom", "borderLeft", "borderRight", "borderRadius", "backgroundColor",
+        "color", "fontFamily", "fontSize", "fontWeight", "fontStyle", "lineHeight", "textAlign",
+        "whiteSpace", "transform", "opacity", "boxSizing",
+      ];
+      const srcNodes = [boxEl, ...boxEl.querySelectorAll("*")];
+      const dstNodes = [clone, ...clone.querySelectorAll("*")];
+      const toRemove = [];
+      for (let i = 0; i < srcNodes.length; i++) {
+        const sNode = srcNodes[i], dNode = dstNodes[i];
+        if (!dNode || !sNode || !(sNode instanceof Element)) continue;
+        if (sNode.classList && (sNode.classList.contains("nh-curve-hud") || sNode.classList.contains("katex-mathml") || sNode.classList.contains("vlist-s"))) {
+          toRemove.push(dNode);
+          continue;
+        }
+        // Ne pas écraser la géométrie interne de KaTeX (exposants, fractions, racines)
+        if (sNode.closest(".katex") && !sNode.classList.contains("katex")) {
+          continue;
+        }
+        const cs = window.getComputedStyle(sNode);
+        if (cs.display === "none" || cs.visibility === "hidden" || cs.opacity === "0") {
+          toRemove.push(dNode);
+          continue;
+        }
+        if (dNode instanceof HTMLElement && !sNode.classList.contains("katex")) {
+          styleProps.forEach((p) => {
+            const val = cs[p];
+            if (val) dNode.style[p] = val;
+          });
+        }
+      }
+      toRemove.forEach((n) => n.remove());
+      clone.style.margin = "0";
+
+      const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+      const bgExport = isDark ? "#161A22" : "#FFFFFF";
+      const fgExport = isDark ? "#F3F4F6" : "#141518";
+      let xhtml = new XMLSerializer().serializeToString(clone);
+      xhtml = xhtml.replace(/currentColor/g, fgExport);
+
+      const katexCss = `
+        .katex { font: normal 1.04em Georgia, "Times New Roman", serif; line-height: 1.2; white-space: nowrap; }
+        .katex-mathml, .vlist-s { display: none !important; }
+        .katex .base { position: relative; display: inline-block; white-space: nowrap; }
+        .katex .strut { display: inline-block; }
+        .katex .vlist-t { display: inline-table; table-layout: fixed; border-collapse: collapse; }
+        .katex .vlist-r { display: table-row; }
+        .katex .vlist { display: table-cell; vertical-align: bottom; position: relative; }
+        .katex .vlist > span { display: block; height: 0; position: relative; }
+        .katex .vlist > span > span { display: inline-block; }
+        .katex .pstrut { display: inline-block; overflow: hidden; width: 0; }
+        .katex .msupsub { text-align: left; }
+        .katex .mfrac > span > span { text-align: center; }
+        .katex .mfrac .frac-line { display: inline-block; width: 100%; border-bottom: 1px solid ${fgExport}; }
+        .katex .mspace { display: inline-block; }
+        .katex .mathnormal, .katex .mathit { font-style: italic; }
+        .katex .sizing.reset-size6.size3, .katex .fontsize-ensurer.reset-size6.size3 { font-size: 0.7em; }
+        .katex svg { display: block; position: absolute; width: 100%; height: inherit; fill: ${fgExport}; stroke: ${fgExport}; }
+      `;
+
+      const svgStr =
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">` +
+        `<style>${katexCss}</style>` +
+        `<rect width="100%" height="100%" rx="10" fill="${bgExport}"/>` +
+        `<foreignObject x="16" y="16" width="${wRaw}" height="${hRaw}">` +
+        `<div xmlns="http://www.w3.org/1999/xhtml" style="color:${fgExport};width:${wRaw}px;height:${hRaw}px;font-family:Georgia,serif;">${xhtml}</div>` +
+        `</foreignObject></svg>`;
+
+      const dataUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgStr);
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      await new Promise((res, rej) => {
+        img.onload = res;
+        img.onerror = rej;
+        img.src = dataUrl;
+      });
+      const scale = 2;
+      const canvas = document.createElement("canvas");
+      canvas.width = W * scale;
+      canvas.height = H * scale;
+      const ctx2d = canvas.getContext("2d");
+      ctx2d.scale(scale, scale);
+      ctx2d.drawImage(img, 0, 0);
+
+      const pngBlob = await new Promise((res) => canvas.toBlob(res, "image/png"));
+      if (!pngBlob) throw new Error("Blob vide");
+      let copiedOk = false;
+      if (navigator.clipboard && window.ClipboardItem) {
+        try {
+          await navigator.clipboard.write([new ClipboardItem({ "image/png": pngBlob })]);
+          copiedOk = true;
+        } catch (_) {}
+      }
+      if (copiedOk) {
+        btnEl.innerHTML = `${ICONS.check} <span>PNG copié !</span>`;
+      } else {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(pngBlob);
+        a.download = "figure_neoharness.png";
+        a.click();
+        btnEl.innerHTML = `${ICONS.check} <span>PNG téléchargé !</span>`;
+      }
+      btnEl.classList.add("copied");
+    } catch (_) {
+      btnEl.innerHTML = `${ICONS.alert} <span>Erreur export</span>`;
+    }
+    setTimeout(() => {
+      btnEl.innerHTML = origHtml;
+      btnEl.classList.remove("copied");
+    }, 1800);
+  }
+
+  // Moteur unifié : affiche x + lignes de signes + variations f(x) + convexité dans un seul tableau
   function renderVtSpec(spec) {
     const n = spec.x.length;
     if (n < 2) return null;
@@ -1975,24 +2229,39 @@ function sanitizeRawLatexForChat(input) {
     const pct = (k) => 7 + (86 * k) / (n - 1);
     const mid = (k) => (pct(k) + pct(k + 1)) / 2;
 
-    // Sens des flèches de variations
+    // Sens des flèches + Oracle de cohérence mathématique (signes de f' vs valeurs de f)
     let dirs = null;
+    let oracle = { ok: true, label: "✓ Cohérence vérifiée", detail: "Table vérifiée par l'oracle NeoHarness." };
     if (vr) {
       const dsrc =
         preVarSigns.map((x) => x.r).reverse().find((r) => /['′]/.test(r.label) && !r.isSecondDeriv) ||
         preVarSigns.map((x) => x.r).reverse().find((r) => !r.isSecondDeriv);
-      if (dsrc && dsrc.toks.length === 2 * n - 3) {
-        const d = dsrc.toks.filter((_, i) => i % 2 === 0).map((t) => (t === "+" ? "u" : t === "-" ? "d" : null));
-        if (d.every(Boolean)) dirs = d;
-      }
-      if (!dirs && vals) {
-        const d = [];
+      const signDirs =
+        dsrc && dsrc.toks.length === 2 * n - 3
+          ? dsrc.toks.filter((_, i) => i % 2 === 0).map((t) => (t === "+" ? "u" : t === "-" ? "d" : null))
+          : null;
+      const valDirs = [];
+      if (vals) {
         for (let k = 0; k < n - 1; k++) {
           const a = vtNum(vals[k][1]);
           const b = vtNum(vals[k + 1][0]);
-          d.push(a === null || b === null || a === b ? null : b > a ? "u" : "d");
+          valDirs.push(a === null || b === null || a === b ? null : b > a ? "u" : "d");
         }
-        if (d.every(Boolean)) dirs = d;
+      }
+      if (signDirs && signDirs.every(Boolean)) {
+        dirs = signDirs;
+        for (let k = 0; k < n - 1; k++) {
+          if (valDirs[k] && valDirs[k] !== signDirs[k]) {
+            oracle = {
+              ok: false,
+              label: "⚠ Incohérence f' / f(x)",
+              detail: `Intervalle ${k + 1} : le signe de la dérivée (${signDirs[k] === "u" ? "+" : "-"}) contredit les valeurs aux bornes (${vals[k][1]} → ${vals[k + 1][0]}).`,
+            };
+            break;
+          }
+        }
+      } else if (valDirs.length === n - 1 && valDirs.every(Boolean)) {
+        dirs = valDirs;
       }
     }
 
@@ -2023,16 +2292,17 @@ function sanitizeRawLatexForChat(input) {
     const C = "currentColor";
     const BG = "var(--bg-elevated,#ffffff)";
     const HDR_BG = "var(--bg-secondary,#f4f5f7)";
-    const at = (l, t, html, tx) =>
-      `<div style="position:absolute;left:${l}%;top:${t}px;transform:translate(${tx || "-50%"},-50%);white-space:nowrap;">${html}</div>`;
-    const hline = (y) =>
-      `<div style="position:absolute;left:0;right:0;top:${y}px;height:1px;background:${C};opacity:0.85;"></div>`;
+    const at = (l, t, html, tx, extraCls) =>
+      `<div class="${extraCls || ""}" style="position:absolute;left:${l}%;top:${t}px;transform:translate(${tx || "-50%"},-50%);white-space:nowrap;">${html}</div>`;
+const hline = (y) =>
+      `<div style="position:absolute;left:0;right:0;top:${y}px;height:1px;background:${C};opacity:0.85;z-index:2;"></div>`;
     const vline = (l, y1, y2, off, dashed) =>
       `<div style="position:absolute;left:calc(${l}% + ${off || 0}px);top:${y1}px;height:${Math.max(0, y2 - y1)}px;width:0;border-left:1px ${dashed ? "dashed" : "solid"} ${C};opacity:${dashed ? "0.35" : "0.65"};"></div>`;
     const lab = (label, top, h) =>
-      `<div style="position:absolute;left:0;width:${LABW}px;top:${top}px;height:${h}px;background:${HDR_BG};display:flex;align-items:center;justify-content:center;padding:2px 10px;text-align:center;box-sizing:border-box;">${vtLabel(label)}</div>`;
+      `<div style="position:absolute;left:0;width:${LABW}px;top:${top}px;height:${h}px;display:flex;align-items:center;justify-content:center;padding:2px 10px;text-align:center;box-sizing:border-box;z-index:1;">${vtLabel(label)}</div>`;
 
     const outer = [];
+    outer.push(`<div style="position:absolute;left:0;top:0;bottom:0;width:${LABW}px;background:${HDR_BG};"></div>`);
     outer.push(`<div style="position:absolute;left:${LABW}px;right:0;top:0;height:${XH}px;background:${HDR_BG};opacity:0.55;"></div>`);
     outer.push(lab("x", 0, XH));
 
@@ -2047,7 +2317,7 @@ function sanitizeRawLatexForChat(input) {
         for (let k = 0; k < n - 1; k++) {
           const sg = r.toks[2 * k];
           if (sg && sg !== "|" && sg !== "||" && sg !== "?") {
-            plot.push(at(mid(k), cy, vtMath(sg)));
+            plot.push(at(mid(k), cy, vtMath(sg), "-50%", "nh-student-hide"));
           }
         }
         for (let k = 1; k <= n - 2; k++) {
@@ -2056,8 +2326,9 @@ function sanitizeRawLatexForChat(input) {
             plot.push(vline(pct(k), curY, curY + h, -2, false));
             plot.push(vline(pct(k), curY, curY + h, 2, false));
           } else if (sep === "0") {
-            plot.push(vline(pct(k), curY, curY + h, 0, false));
-            plot.push(at(pct(k), cy, `<span style="background:${BG};padding:2px 6px;line-height:1;border-radius:4px;display:inline-block;">${vtMath("0")}</span>`));
+            plot.push(vline(pct(k), curY, Math.max(curY, cy - 11), 0, true));
+            plot.push(vline(pct(k), Math.min(curY + h, cy + 11), curY + h, 0, true));
+            plot.push(at(pct(k), cy, `<span style="font-weight:600;line-height:1;display:inline-block;">${vtMath("0")}</span>`));
           } else {
             plot.push(vline(pct(k), curY, curY + h, 0, true));
           }
@@ -2083,10 +2354,10 @@ function sanitizeRawLatexForChat(input) {
       for (let k = 0; k < n; k++) {
         const dbl = vals[k][0] !== vals[k][1];
         if (dbl && k > 0 && k < n - 1) {
-          if (vals[k][0]) plot.push(at(pct(k) - 1.8, varTop + YS[lev[k].L], vtMath(vals[k][0]), "-100%"));
-          if (vals[k][1]) plot.push(at(pct(k) + 1.8, varTop + YS[lev[k].R], vtMath(vals[k][1]), "0%"));
+          if (vals[k][0]) plot.push(at(pct(k) - 1.8, varTop + YS[lev[k].L], vtMath(vals[k][0]), "-100%", "nh-student-hide"));
+          if (vals[k][1]) plot.push(at(pct(k) + 1.8, varTop + YS[lev[k].R], vtMath(vals[k][1]), "0%", "nh-student-hide"));
         } else if (vals[k][0]) {
-          plot.push(at(pct(k), varTop + YS[lev[k].L], `<span style="background:${BG};padding:1px 5px;border-radius:3px;">${vtMath(vals[k][0])}</span>`));
+          plot.push(at(pct(k), varTop + YS[lev[k].L], `<span style="background:${BG};padding:1px 5px;border-radius:3px;">${vtMath(vals[k][0])}</span>`, "-50%", "nh-student-hide"));
         }
       }
       if (dirs) {
@@ -2113,7 +2384,7 @@ function sanitizeRawLatexForChat(input) {
           lines += `<line x1="${x1}%" y1="${y1}" x2="${x2}%" y2="${y2}" stroke="${C}" stroke-width="1.5" marker-end="url(#${id})"/>`;
         }
         plot.push(
-          `<svg style="position:absolute;left:0;top:${varTop}px;width:100%;height:${VH}px;overflow:visible;pointer-events:none;" aria-hidden="true">` +
+          `<svg class="nh-student-hide" style="position:absolute;left:0;top:${varTop}px;width:100%;height:${VH}px;overflow:visible;pointer-events:none;" aria-hidden="true">` +
             `<defs><marker id="${id}" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L9,4.5 L0,9 z" fill="${C}"/></marker></defs>${lines}</svg>`
         );
       }
@@ -2122,7 +2393,7 @@ function sanitizeRawLatexForChat(input) {
 
     renderSignGroup(postVarSigns, postVarTop);
 
-    // Ligne de convexité (fusionne les sous-intervalles de même concavité)
+    // Ligne de convexité
     if (hasConvexRow && s2) {
       outer.push(lab(spec.convexLabel || "convexité", convTop, CH));
       const cy = convTop + CH / 2;
@@ -2141,10 +2412,10 @@ function sanitizeRawLatexForChat(input) {
         const xm = (pct(spn.k0) + pct(spn.k1)) / 2;
         const convex = spn.sg === "+";
         plot.push(
-          `<svg style="position:absolute;left:${xm}%;top:${cy - 24}px;width:48px;height:26px;transform:translateX(-50%);overflow:visible;" aria-hidden="true">` +
+          `<svg class="nh-student-hide" style="position:absolute;left:${xm}%;top:${cy - 24}px;width:48px;height:26px;transform:translateX(-50%);overflow:visible;" aria-hidden="true">` +
             `<path d="${convex ? "M3,4 Q24,25 45,4" : "M3,23 Q24,2 45,23"}" fill="none" stroke="${C}" stroke-width="1.75" stroke-linecap="round"/></svg>`
         );
-        plot.push(at(xm, cy + 14, `<span style="font-style:italic;font-size:12.5px;color:var(--text-secondary);">${convex ? "convexe" : "concave"}</span>`));
+        plot.push(at(xm, cy + 14, `<span style="font-style:italic;font-size:12.5px;color:var(--text-secondary);">${convex ? "convexe" : "concave"}</span>`, "-50%", "nh-student-hide"));
       });
       for (let k = 1; k <= n - 2; k++) {
         const t = s2.toks[2 * k - 1];
@@ -2153,11 +2424,10 @@ function sanitizeRawLatexForChat(input) {
           plot.push(vline(pct(k), convTop, convTop + CH, 2, false));
         } else if (t === "0") {
           const isInflexion = s2.toks[2 * (k - 1)] !== s2.toks[2 * k];
-          // Si point d'inflexion, la barre verticale s'arrête proprement au-dessus du texte "point d'inflexion"
           plot.push(vline(pct(k), convTop, isInflexion ? convTop + CH - 24 : convTop + CH, 0, false));
           if (isInflexion) {
-            plot.push(`<div style="position:absolute;left:${pct(k)}%;top:${cy - 6}px;width:8px;height:8px;border-radius:50%;background:${C};box-shadow:0 0 0 2px ${BG};transform:translate(-50%,-50%);"></div>`);
-            plot.push(at(pct(k), convTop + CH - 12, `<span style="background:${BG};padding:1px 6px;font-style:italic;font-size:11.5px;color:var(--text-secondary);">point d’inflexion</span>`));
+            plot.push(`<div class="nh-student-hide" style="position:absolute;left:${pct(k)}%;top:${cy - 6}px;width:8px;height:8px;border-radius:50%;background:${C};box-shadow:0 0 0 2px ${BG};transform:translate(-50%,-50%);"></div>`);
+            plot.push(at(pct(k), convTop + CH - 12, `<span style="background:${BG};padding:1px 6px;font-style:italic;font-size:11.5px;color:var(--text-secondary);">point d’inflexion</span>`, "-50%", "nh-student-hide"));
           }
         }
       }
@@ -2166,13 +2436,12 @@ function sanitizeRawLatexForChat(input) {
     outer.push(hline(XH));
     outer.push(`<div style="position:absolute;left:${LABW}px;top:0;bottom:0;width:1px;background:${C};opacity:0.85;"></div>`);
 
-    return (
-      `<div class="nh-math-fig">` +
+    const tableHtml =
       `<div class="nh-math-table-card" style="position:relative;height:${total}px;min-width:440px;max-width:740px;margin:0 auto;box-sizing:content-box;">` +
       outer.join("") +
       `<div style="position:absolute;left:${LABW}px;right:0;top:0;bottom:0;">${plot.join("")}</div>` +
-      `</div></div>`
-    );
+      `</div>`;
+    return nhWrapMathFigure(tableHtml, { hasStudentMode: true, oracle });
   }
 
   // ---------- 2. Droite numérique & Intervalles ----------
@@ -2242,12 +2511,15 @@ function sanitizeRawLatexForChat(input) {
       html += `<div style="position:absolute;left:${px}px;top:${axisY + 18}px;transform:translate(-50%,-50%);font-size:12.5px;opacity:0.85;">${vtMath(String(v))}</div>`;
     }
 
+    let okOrder = true;
     spec.intervals.forEach((it, idx) => {
+      if (it.aVal > it.bVal) okOrder = false;
       const y = axisY - (idx + 1) * TRACK_H + 6;
       const x1 = isFinite(it.aVal) ? X(it.aVal) : PADL - 10;
       const x2 = isFinite(it.bVal) ? X(it.bVal) : W - PADR + 10;
       const col = it.color;
 
+      svg += `<g class="nh-student-hide">`;
       svg += `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${col}" stroke-width="3.2" stroke-linecap="round"/>`;
 
       const drawBracket = (px, isLeft, included) => {
@@ -2261,20 +2533,24 @@ function sanitizeRawLatexForChat(input) {
 
       if (isFinite(it.bVal)) drawBracket(x2, false, it.incR);
       else svg += `<path d="M${x2 + 4},${y} L${x2 - 4},${y - 4} M${x2 + 4},${y} L${x2 - 4},${y + 4}" fill="none" stroke="${col}" stroke-width="2"/>`;
+      svg += `</g>`;
 
       const midX = (x1 + x2) / 2;
-      html += `<div style="position:absolute;left:${midX}px;top:${y - 13}px;transform:translate(-50%,-50%);color:${col};font-weight:600;font-size:13px;background:var(--bg-primary,#faf9f5);padding:0 5px;border-radius:3px;white-space:nowrap;">${vtMath(it.labelTex)}</div>`;
+      html += `<div class="nh-student-hide" style="position:absolute;left:${midX}px;top:${y - 13}px;transform:translate(-50%,-50%);color:${col};font-weight:600;font-size:13px;background:var(--bg-primary,#faf9f5);padding:0 5px;border-radius:3px;white-space:nowrap;">${vtMath(it.labelTex)}</div>`;
     });
 
-    return (
-      `<div class="nh-math-fig" style="overflow-x:auto;overflow-y:hidden;margin:14px 0;">` +
+    const oracle = okOrder
+      ? { ok: true, label: "✓ Intervalles vérifiés", detail: "Bornes ordonnées et crochets conformes." }
+      : { ok: false, label: "⚠ Bornes inversées", detail: "Une borne inférieure dépasse la borne supérieure." };
+
+    const inner =
       `<div style="position:relative;width:${W}px;height:${H}px;margin:0 auto;">` +
       `<svg width="${W}" height="${H}" style="position:absolute;inset:0;overflow:visible;" aria-hidden="true">${svg}</svg>${html}` +
-      `</div></div>`
-    );
+      `</div>`;
+    return nhWrapMathFigure(inner, { hasStudentMode: true, oracle });
   }
 
-  // ---------- 3. Arbre de probabilités (2, 3, N branches + événements contraires) ----------
+  // ---------- 3. Arbre de probabilités (2, 3, N branches + Oracle Somme = 1) ----------
   function normTreeEventKey(s) {
     let t = String(s == null ? "" : s).trim().replace(/\$/g, "");
     let isBar = false;
@@ -2290,6 +2566,17 @@ function sanitizeRawLatexForChat(input) {
     }
     const base = t.toLowerCase().replace(/[^a-z0-9]/g, "");
     return (isBar ? "bar_" : "") + base;
+  }
+
+  function parseProbNumeric(s) {
+    let t = String(s == null ? "" : s).replace(/\$/g, "").trim().replace(/,/g, ".");
+    if (!t) return NaN;
+    if (t.endsWith("%")) return parseFloat(t) / 100;
+    const fm = t.match(/^\\d?frac\{([^{}]+)\}\{([^{}]+)\}$/);
+    if (fm) return parseFloat(fm[1]) / parseFloat(fm[2]);
+    const sm = t.match(/^(-?[\d.]+)\s*\/\s*([\d.]+)$/);
+    if (sm) return parseFloat(sm[1]) / parseFloat(sm[2]);
+    return /^[-+]?\d*\.?\d+$/.test(t) ? parseFloat(t) : NaN;
   }
 
   function parseTreeSpec(text) {
@@ -2333,7 +2620,6 @@ function sanitizeRawLatexForChat(input) {
     return root.kids.length ? root : null;
   }
 
-  // Convertit aussi un arbre TikZ avec `child { node {...} edge from parent ... }` en arbre natif
   function parseTikzChildTree(code) {
     if (!/\bchild\s*\{/.test(code)) return null;
     const parseChildren = (str) => {
@@ -2379,10 +2665,20 @@ function sanitizeRawLatexForChat(input) {
     const nl = countLeaves(root, 0);
     const H = Math.max(120, nl * LEAF + 24), W = PADL + depth * COLW + 96;
     let li = 0, svg = "", html = "";
+    let checkedNodes = 0, badSumDetail = "";
+
     const place = (n, d) => {
       n.x = PADL + d * COLW;
       if (!n.kids.length) n.y = 12 + LEAF * (li++ + 0.5);
       else {
+        const nums = n.kids.map((k) => parseProbNumeric(k.p));
+        if (nums.length >= 2 && nums.every((v) => !isNaN(v))) {
+          checkedNodes++;
+          const sum = nums.reduce((a, b) => a + b, 0);
+          if (Math.abs(sum - 1) > 1e-3 && !badSumDetail) {
+            badSumDetail = `Nœud ${n.ev || "racine"} : somme des branches = ${+sum.toFixed(3)} ≠ 1`;
+          }
+        }
         n.kids.forEach((k) => place(k, d + 1));
         n.y = (n.kids[0].y + n.kids[n.kids.length - 1].y) / 2;
       }
@@ -2407,21 +2703,31 @@ function sanitizeRawLatexForChat(input) {
         if (k.p) {
           const mx = x1 + (x2 - x1) * 0.48;
           const my = n.y + (k.y - n.y) * 0.48;
-          html += `<div style="position:absolute;left:${mx}px;top:${my}px;transform:translate(-50%,-50%);background:var(--bg-primary,#faf9f5);padding:1px 5px;border-radius:4px;font-size:12.5px;white-space:nowrap;">${vtMath(prM(k.p))}</div>`;
+          html +=
+            `<div style="position:absolute;left:${mx}px;top:${my}px;transform:translate(-50%,-50%);background:var(--bg-primary,#faf9f5);padding:1px 5px;border-radius:4px;font-size:12.5px;white-space:nowrap;">` +
+            `<span class="nh-student-hide">${vtMath(prM(k.p))}</span>` +
+            `<span class="nh-student-only" style="color:var(--text-muted);font-family:var(--font-mono);font-size:11px;">[ … ]</span>` +
+            `</div>`;
         }
         html += `<div style="position:absolute;left:${k.x}px;top:${k.y}px;transform:translate(0,-50%);white-space:nowrap;font-weight:500;">${vtMath(evM(k.ev))}</div>`;
         draw(k);
       });
     draw(root);
     svg += `<circle cx="${root.x}" cy="${root.y}" r="3.2" fill="currentColor"/>`;
-    return (
-      `<div class="nh-math-fig" style="overflow-x:auto;overflow-y:hidden;margin:14px 0;">` +
+
+    const oracle = badSumDetail
+      ? { ok: false, label: "⚠ Somme ≠ 1", detail: badSumDetail }
+      : checkedNodes > 0
+      ? { ok: true, label: "✓ Somme = 1", detail: "La somme des probabilités issues de chaque nœud vaut exactement 1." }
+      : null;
+
+    const inner =
       `<div style="position:relative;width:${W}px;height:${H}px;margin:0 auto;">` +
-      `<svg width="${W}" height="${H}" style="position:absolute;inset:0;overflow:visible;" aria-hidden="true">${svg}</svg>${html}</div></div>`
-    );
+      `<svg width="${W}" height="${H}" style="position:absolute;inset:0;overflow:visible;" aria-hidden="true">${svg}</svg>${html}</div>`;
+    return nhWrapMathFigure(inner, { hasStudentMode: true, oracle });
   }
 
-  // ---------- 4. TikZ / pgfplots / Graphes -> SVG + HTML ----------
+  // ---------- 4. TikZ / pgfplots / Graphes + Pointeur Magnétique (x ; f(x)) ----------
   const TK_COL = {
     red: [220, 38, 38], blue: [37, 99, 235], green: [22, 163, 74], darkgreen: [21, 128, 61],
     black: [0, 0, 0], white: [255, 255, 255], gray: [128, 128, 128], grey: [128, 128, 128],
@@ -2438,18 +2744,37 @@ function sanitizeRawLatexForChat(input) {
     min: Math.min, max: Math.max,
   };
 
-  function tkColor(spec) {
+  function tkColor(spec, forFill) {
+    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
     const p = String(spec || "").trim().replace(/[{}]/g, "").split("!");
+    const name0 = String(p[0]).trim().toLowerCase();
     const base = (n) => TK_COL[String(n).trim().toLowerCase()] || [0, 0, 0];
-    let c = base(p[0]);
+    let c = base(name0);
     if (p.length > 1) {
-      const k = Math.max(0, Math.min(100, parseFloat(p[1]) || 0)) / 100;
+      let k = Math.max(0, Math.min(100, parseFloat(p[1]) || 0)) / 100;
+      if (isDark && !p[2]) {
+        const bgDark = forFill ? [27, 32, 41] : [36, 42, 54];
+        const kBoost = forFill ? Math.min(0.45, Math.max(0.22, k * 1.4)) : Math.max(0.38, k);
+        c = c.map((v, i) => Math.round(v * kBoost + bgDark[i] * (1 - kBoost)));
+        return `rgb(${c[0]},${c[1]},${c[2]})`;
+      }
       const o = p[2] ? base(p[2]) : [255, 255, 255];
       c = c.map((v, i) => Math.round(v * k + o[i] * (1 - k)));
     }
-    if (c[0] === 0 && c[1] === 0 && c[2] === 0) return "currentColor";
-    if (c[0] === 255 && c[1] === 255 && c[2] === 255) return "var(--bg-primary,#faf9f5)";
+    if (name0 === "black" && p.length === 1) return "currentColor";
+    if (name0 === "white" && p.length === 1) return isDark ? "#1E232D" : "#FFFFFF";
+    if (isDark && !forFill && name0 === "blue" && p.length === 1) return "rgb(96,165,250)";
+    if (isDark && !forFill && name0 === "red" && p.length === 1) return "rgb(248,113,113)";
     return `rgb(${c[0]},${c[1]},${c[2]})`;
+  }
+
+  function tkContrastTextColor(rgbStr) {
+    if (!rgbStr) return "";
+    const m = String(rgbStr).match(/rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/i);
+    if (!m) return "";
+    const r = +m[1], g = +m[2], b = +m[3];
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    return lum > 165 ? "#141518" : "#F8FAFC";
   }
 
   function tkLen(s) {
@@ -2605,7 +2930,7 @@ function sanitizeRawLatexForChat(input) {
       else if (/dashed$/.test(k)) st.dash = "6 4";
       else if (/dotted$/.test(k)) st.dash = "1.8 3.5";
       else if (k === "draw") { if (v === "none") st.draw = false; else if (v) { st.stroke = tkColor(v); st.colorSet = true; } }
-      else if (k === "fill") { if (v !== "none") st.fill = tkColor(v || (st.colorSet ? st.stroke : "black")); }
+      else if (k === "fill") { if (v !== "none") st.fill = tkColor(v || (st.colorSet ? st.stroke : "black"), true); }
       else if (k === "color") { st.stroke = tkColor(v); st.colorSet = true; }
       else if (k === "opacity" || k === "fill opacity") st.fillOp = parseFloat(v) || 1;
       else if (k === "smooth") st.smooth = true;
@@ -2669,7 +2994,6 @@ function sanitizeRawLatexForChat(input) {
 
   function tkGeom(e, Tf) {
     const a = Tf(e.a), b = Tf(e.b);
-    // Support des boucles sur un sommet (self-loop : A -> A)
     if (e.loopDir || (e.a.n && e.a.n === e.b.n)) {
       const dir = e.loopDir || "above";
       const angMap = { above: Math.PI / 2, below: -Math.PI / 2, left: Math.PI, right: 0 };
@@ -2710,7 +3034,7 @@ function sanitizeRawLatexForChat(input) {
   }
 
   function tkPath(body, st, ctx, cmd) {
-    const P = { st, segs: [], circles: [], grids: [], closed: false, clip: ctx.clip, isPlot: false };
+    const P = { st, segs: [], circles: [], grids: [], closed: false, clip: ctx.clip, isPlot: false, pts: [] };
     if (cmd === "path" && !/\bedge\b/.test(body)) st.draw = false;
     const N = body.length;
     let i = 0, cur = null, start = null, op = null, bend = 0, loopDir = null, last = null, pend = [];
@@ -2743,6 +3067,7 @@ function sanitizeRawLatexForChat(input) {
       cur = pt; op = null; bend = 0; loopDir = null;
     };
     const addPoly = (pts, smooth) => {
+      if (P.isPlot) P.pts.push(...pts);
       for (let k = 0; k < pts.length - 1; k++) {
         const p0 = pts[Math.max(0, k - 1)], p1 = pts[k], p2 = pts[k + 1], p3 = pts[Math.min(pts.length - 1, k + 2)];
         const e = { a: p1, b: p2, bend: 0 };
@@ -2907,10 +3232,10 @@ function sanitizeRawLatexForChat(input) {
 
   function tkAddPlot(opts, rest, ctx, ax) {
     const st = tkStyle(opts, { stroke: "rgb(37,99,235)", width: 1.9 });
-    const P = { st, segs: [], circles: [], grids: [], closed: false, clip: null, axisClip: true, plot: true, pts: [] };
+    const P = { st, segs: [], circles: [], grids: [], closed: false, clip: null, axisClip: true, plot: true, isPlot: true, pts: [] };
     let pts = [];
     const trimmedRest = rest.trim();
-    if (trimmedRest[0] === "{" || /^[a-zA-Z0-9(\\-]/.test(trimmedRest) && !/^coordinates\b/.test(trimmedRest)) {
+    if (trimmedRest[0] === "{" || (/^[a-zA-Z0-9(\\-]/.test(trimmedRest) && !/^coordinates\b/.test(trimmedRest))) {
       const exprStr = trimmedRest[0] === "{" ? tkBal(trimmedRest, 0)[0] : trimmedRest.replace(/;$/, "").trim();
       const f = tkCompile(exprStr);
       if (!f) return;
@@ -2939,13 +3264,11 @@ function sanitizeRawLatexForChat(input) {
     const b0 = code.indexOf("\\begin{tikzpicture}"), b1 = code.lastIndexOf("\\end{tikzpicture}");
     if (b0 < 0 || b1 < 0) return null;
 
-    // 1. Si le TikZ est un arbre avec `child { ... }`, utiliser notre moteur d'arbre natif
     if (/\bchild\s*\{/.test(code)) {
       const treeRoot = parseTikzChildTree(code);
       if (treeRoot) return renderTreeSpec(treeRoot);
     }
 
-    // 2. Si le TikZ est une `\matrix (m) [matrix of math nodes]` (issue de math_tikz.py), la convertir en tableau
     const matMatch = code.match(/\\matrix\s*\([^)]*\)\s*\[[^\]]*matrix\s+of\s+(?:math\s+)?nodes[^\]]*\]\s*\{([\s\S]*?)\}\s*;/);
     if (matMatch) {
       const matRows = matMatch[1].split(/\\\\/).map((r) => r.trim()).filter(Boolean);
@@ -3009,7 +3332,6 @@ function sanitizeRawLatexForChat(input) {
       tkPath(rest, st, ctx, cmd);
     });
 
-    // ----- transformation (repère pgfplots) + décor -----
     let T = (p) => ({ x: p.x, y: p.y });
     const deco = [];
     if (ax) {
@@ -3066,7 +3388,6 @@ function sanitizeRawLatexForChat(input) {
       if (ax.ylabel) deNode(tx(cx), H + 0.4, tkText(ax.ylabel), "above");
     }
 
-    // ----- arêtes réciproques : légère courbure -----
     const seen = {};
     ctx.paths.forEach((P) => P.segs.forEach((e) => {
       if (e.a.n && e.b.n && e.a.n !== e.b.n && !e.bend && P.st.arrowE) seen[e.a.n + ">" + e.b.n] = e;
@@ -3077,7 +3398,6 @@ function sanitizeRawLatexForChat(input) {
     allP.forEach((P) => { const Tf = P.noT ? (p) => p : T; P.segs.forEach((e) => { e.g = tkGeom(e, Tf); }); P.g = P.segs.map((e) => e.g); });
     ctx.nodes = ctx.nodes.filter((nd) => nd.cm || nd.edge || nd.x !== undefined);
 
-    // ----- boîte englobante -----
     let minx = 1e9, miny = 1e9, maxx = -1e9, maxy = -1e9;
     const bb = (p, mg) => { mg = mg || 0; minx = Math.min(minx, p.x - mg); maxx = Math.max(maxx, p.x + mg); miny = Math.min(miny, p.y - mg); maxy = Math.max(maxy, p.y + mg); };
     allP.forEach((P) => {
@@ -3147,8 +3467,18 @@ function sanitizeRawLatexForChat(input) {
       return clips.get(key);
     };
 
+    const interactivePts = [];
     allP.forEach((P) => {
       const Tf = P.noT ? (p) => p : T, s = P.st;
+      if ((P.isPlot || P.plot) && P.pts && P.pts.length > 2) {
+        P.pts.forEach((pt) => {
+          const tp = Tf(pt);
+          const px = +X(tp.x), py = +Y(tp.y);
+          if (px >= 0 && px <= PW && py >= 0 && py <= PH) {
+            interactivePts.push([+pt.x.toFixed(3), +pt.y.toFixed(3), px, py]);
+          }
+        });
+      }
       P.grids.forEach((gr) => {
         const a = Tf(gr.a), b = Tf(gr.b), sxp = s.xstep || s.step || 1, syp = s.ystep || s.step || 1;
         const x0 = Math.min(a.x, b.x), x1 = Math.max(a.x, b.x), y0 = Math.min(a.y, b.y), y1 = Math.max(a.y, b.y);
@@ -3187,26 +3517,172 @@ function sanitizeRawLatexForChat(input) {
       const draw = /(^|[\s,])draw([\s,]|$)/.test(so), circ = /(^|[\s,])circle([\s,]|$)/.test(so);
       const mn = tkLen((so.match(/minimum size\s*=\s*([\d.]+\s*[a-z]*)/) || [])[1]);
       let box = "";
+let stuCls = "";
       if (draw) {
-        box = `border:${ns.width}px solid ${ns.stroke};background:var(--bg-primary,#faf9f5);`;
-        if (circ) { const d = (isNaN(mn) ? 0.72 : mn) * U; box += `border-radius:50%;width:${d}px;height:${d}px;display:flex;align-items:center;justify-content:center;`; }
-        else box += "border-radius:4px;padding:2px 7px;";
+        box = `border:${Math.max(1.4, ns.width)}px solid ${ns.stroke};background:var(--bg-elevated,#ffffff);font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,0.08);`;
+        if (circ) { const d = (isNaN(mn) ? 0.78 : mn) * U; box += `border-radius:50%;width:${d}px;height:${d}px;display:flex;align-items:center;justify-content:center;`; }
+        else box += "border-radius:6px;padding:3px 8px;";
       } else if (nd.edge) {
-        box = "background:var(--bg-primary,#faf9f5);padding:1px 4px;border-radius:3px;";
+        stuCls = "nh-student-hide";
       }
       if (ns.fill && !nd.cm) box += `background:${ns.fill};`;
       const fm = so.match(/\\?(tiny|scriptsize|footnotesize|small|large|Large)\b/);
       const fsz = nd.fs || (fm ? fsMap[fm[1]] : 13.5);
-      const colr = ns.colorSet && !nd.cm ? `color:${ns.stroke};` : nd.inheritedColor && !draw ? `color:${nd.inheritedColor};` : "";
-      html += `<div style="position:absolute;left:${X(nd.X)}px;top:${Y(nd.Y)}px;transform:translate(calc(${px_}% + ${dx}px),calc(${py_}% + ${dy}px));white-space:nowrap;font-size:${fsz}px;line-height:1.2;${box}${colr}">${nd.cm ? nd.html : tkText(nd.text)}</div>`;
+      let colr = "";
+      if (ns.fill && !nd.cm) {
+        const contrast = tkContrastTextColor(ns.fill);
+        if (contrast) colr = `color:${contrast};`;
+      } else if (ns.colorSet && !nd.cm && !draw) {
+        colr = `color:${ns.stroke};`;
+      } else if (nd.inheritedColor && !draw) {
+        colr = `color:${nd.inheritedColor};`;
+      } else if (draw) {
+        colr = "color:var(--text-primary);";
+      }
+      html += `<div class="${stuCls}" style="position:absolute;left:${X(nd.X)}px;top:${Y(nd.Y)}px;transform:translate(calc(${px_}% + ${dx}px),calc(${py_}% + ${dy}px));white-space:nowrap;font-size:${fsz}px;line-height:1.2;${box}${colr}">${nd.cm ? nd.html : tkText(nd.text)}</div>`;
     });
 
-    return (
-      `<div class="nh-math-fig" style="overflow-x:auto;overflow-y:hidden;margin:14px 0;">` +
-      `<div style="position:relative;width:${PW}px;height:${PH}px;margin:0 auto;">` +
-      `<svg width="${PW}" height="${PH}" viewBox="0 0 ${PW} ${PH}" style="position:absolute;inset:0;overflow:visible;" aria-hidden="true"><defs>${defs}</defs>${svg}</svg>${html}</div></div>`
-    );
+    const o0 = T({ x: 0, y: 0 });
+    const oxPx = +X(o0.x), oyPx = +Y(o0.y);
+    const hasCurve = interactivePts.length > 3;
+    const hasEdgeWeights = ctx.nodes.some((nd) => nd.edge && !nd.invisible);
+    const curveAttr = hasCurve
+      ? ` class="nh-curve-stage" data-ox="${oxPx}" data-oy="${oyPx}" data-pts='${JSON.stringify(interactivePts)}'`
+      : ` class="nh-curve-stage"`;
+    const hudHtml = hasCurve
+      ? `<div class="nh-curve-hud" style="display:none;pointer-events:none;">` +
+        `<div class="nh-curve-vline"></div><div class="nh-curve-hline"></div>` +
+        `<div class="nh-curve-dot"></div><div class="nh-curve-tooltip mono"></div>` +
+        `</div>`
+      : "";
+
+    const inner =
+      `<div class="nh-math-figure-card">` +
+      `<div${curveAttr} style="position:relative;width:${PW}px;height:${PH}px;margin:0 auto;">` +
+      `<svg width="${PW}" height="${PH}" viewBox="0 0 ${PW} ${PH}" style="position:absolute;inset:0;overflow:visible;" aria-hidden="true"><defs>${defs}</defs>${svg}</svg>${html}${hudHtml}` +
+      `</div></div>`;
+    return nhWrapMathFigure(inner, {
+      hasStudentMode: hasEdgeWeights,
+      oracle: hasCurve ? { ok: true, label: "✓ Courbe interactive (survoler)", detail: "Passez la souris sur la courbe pour lire x, f(x) et f'(x)." } : null,
+    });
   }
+
+// ---------- Écouteurs globaux : Copie Code TeX/TikZ, Mode Élève, Export PNG HD & Pointeur Magnétique ----------
+  document.addEventListener("click", function (ev) {
+    const tikzBtn = ev.target.closest(".nh-copy-tikz-btn, .copy-latex-btn");
+    if (tikzBtn) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      tikzBtn.blur();
+      const wrap = tikzBtn.closest(".nh-tikz-code-window, .nh-tikz-details, .latex-editorial-frame");
+      const codeEl = wrap ? wrap.querySelector("pre code, code") : null;
+      const rawTex = codeEl ? codeEl.textContent : (wrap ? wrap.innerText : "");
+      if (!rawTex || !navigator.clipboard) return;
+      navigator.clipboard.writeText(rawTex.trim()).then(() => {
+        const orig = tikzBtn.innerHTML;
+        tikzBtn.innerHTML = `${ICONS.check} <span>Copié !</span>`;
+        tikzBtn.classList.add("copied");
+        setTimeout(() => {
+          tikzBtn.innerHTML = orig;
+          tikzBtn.classList.remove("copied");
+        }, 1600);
+      });
+      return;
+    }
+
+    const stuBtn = ev.target.closest(".nh-btn-student-mode");
+    if (stuBtn) {
+      ev.preventDefault();
+      stuBtn.blur();
+      const fig = stuBtn.closest(".nh-math-fig");
+      if (!fig) return;
+      const isStu = fig.classList.toggle("is-student-mode");
+      stuBtn.classList.toggle("active", isStu);
+      stuBtn.innerHTML = isStu
+        ? `${NH_SVG_PROF} <span>Mode Prof</span>`
+        : `${NH_SVG_STUDENT} <span>Mode Élève</span>`;
+      return;
+    }
+
+    const pngBtn = ev.target.closest(".nh-btn-copy-png");
+    if (pngBtn) {
+      ev.preventDefault();
+      const fig = pngBtn.closest(".nh-math-fig");
+      const target = fig ? fig.querySelector(".nh-fig-export-target") : null;
+      nhCopyElementAsPng(target, pngBtn);
+      return;
+    }
+  });
+
+document.addEventListener("mousemove", function (ev) {
+    const stage = ev.target.closest(".nh-curve-stage");
+    if (!stage) return;
+    const hud = stage.querySelector(".nh-curve-hud");
+    if (!hud) return;
+    if (!stage._pts) {
+      try { stage._pts = JSON.parse(stage.getAttribute("data-pts") || "[]"); } catch (_) { stage._pts = []; }
+    }
+    const pts = stage._pts;
+    if (!pts.length) return;
+    const rect = stage.getBoundingClientRect();
+    const mx = ev.clientX - rect.left;
+    let bestIdx = 0, bestDist = 1e9;
+    for (let i = 0; i < pts.length; i++) {
+      const d = Math.abs(pts[i][2] - mx);
+      if (d < bestDist) { bestDist = d; bestIdx = i; }
+    }
+    if (bestDist > 42) {
+      hud.style.display = "none";
+      return;
+    }
+    const [xMath, yMath, px, py] = pts[bestIdx];
+    let slopeTxt = "";
+    const i0 = Math.max(0, bestIdx - 1), i1 = Math.min(pts.length - 1, bestIdx + 1);
+    const dx = pts[i1][0] - pts[i0][0];
+    if (Math.abs(dx) > 1e-5) {
+      const dy = pts[i1][1] - pts[i0][1];
+      const m = (dy / dx).toFixed(2).replace(".", ",");
+      slopeTxt = ` · f'(x) ≈ ${m}`;
+    }
+    const ox = parseFloat(stage.getAttribute("data-ox")) || 0;
+    const oy = parseFloat(stage.getAttribute("data-oy")) || 0;
+    const vline = hud.querySelector(".nh-curve-vline");
+    const hline = hud.querySelector(".nh-curve-hline");
+    const dot = hud.querySelector(".nh-curve-dot");
+    const tip = hud.querySelector(".nh-curve-tooltip");
+
+    hud.style.display = "block";
+    if (vline) {
+      vline.style.left = `${px}px`;
+      vline.style.top = `${Math.min(py, oy)}px`;
+      vline.style.height = `${Math.abs(oy - py)}px`;
+    }
+    if (hline) {
+      hline.style.left = `${Math.min(px, ox)}px`;
+      hline.style.top = `${py}px`;
+      hline.style.width = `${Math.abs(ox - px)}px`;
+    }
+    if (dot) {
+      dot.style.left = `${px}px`;
+      dot.style.top = `${py}px`;
+    }
+    if (tip) {
+      const fx = xMath.toFixed(2).replace(".", ",");
+      const fy = yMath.toFixed(2).replace(".", ",");
+      tip.textContent = `x = ${fx} | f(x) = ${fy}${slopeTxt}`;
+      tip.style.left = `${Math.min(Math.max(70, px), rect.width - 70)}px`;
+      tip.style.top = `${Math.max(22, py - 18)}px`;
+    }
+  });
+
+  document.addEventListener("mouseout", function (ev) {
+    const stage = ev.target.closest(".nh-curve-stage");
+    if (!stage) return;
+    if (!stage.contains(ev.relatedTarget)) {
+      const hud = stage.querySelector(".nh-curve-hud");
+      if (hud) hud.style.display = "none";
+    }
+  });
 
   // ---------- Aiguillage ----------
   function renderSpecialBlock(lang, code) {
@@ -3215,7 +3691,17 @@ function sanitizeRawLatexForChat(input) {
       if (/\\begin\{tikzpicture\}/.test(c)) {
         const h = tikzToHtml(c);
         return h
-          ? h + `<details style="margin:-6px 0 10px;font-size:12px;"><summary style="cursor:pointer;opacity:.7;">Code TikZ</summary><pre><code>${esc(c)}</code></pre></details>`
+          ? h +
+              `<details class="nh-tikz-details">` +
+              `<summary><span>▸ Code TikZ</span></summary>` +
+              `<div class="nh-tikz-code-window">` +
+              `<div class="nh-tikz-code-bar">` +
+              `<span class="mono">LaTeX / TikZ</span>` +
+              `<button type="button" class="nh-copy-tikz-btn" title="Copier le code TikZ">${ICONS.copy} <span>Copier le code TikZ</span></button>` +
+              `</div>` +
+              `<pre><code>${esc(c)}</code></pre>` +
+              `</div>` +
+              `</details>`
           : null;
       }
       if (["droite", "intervalle", "intervalles", "axe"].includes(lg) || (/^\s*(?:bornes|axe)\s*:/im.test(c) && /\[[^;\]]+;\s*[^\]]+\]/.test(c))) {
@@ -3251,22 +3737,32 @@ function sanitizeRawLatexForChat(input) {
     const mathBlocks = [];
     const inlineMathTokens = [];
 
-    let working = String(raw).replace(/```([a-zA-Z0-9_+-]*)[ \t]*\r?\n([\s\S]*?)```/g, function (_, lang, code) {
+let working = String(raw).replace(/```([a-zA-Z0-9_+-]*)[ \t]*\r?\n([\s\S]*?)```/g, function (_, lang, code) {
       const token = `\n@@CODEBLOCK_${codeBlocks.length}@@\n`;
       const sp = renderSpecialBlock(lang, code);
-      codeBlocks.push(sp || `<pre><code class="lang-${esc(lang)}">${esc(code)}</code></pre>`);
+      const isTex = /^(latex|tex)$/i.test(lang) || /\\documentclass|\\begin\{document\}/.test(code);
+      const langLabel = isTex ? "Code LaTeX / TeX" : lang ? lang.toUpperCase() : "Code";
+      const codeWin =
+        `<div class="nh-tikz-code-window" style="margin:12px 0;">` +
+        `<div class="nh-tikz-code-bar">` +
+        `<span class="mono">${esc(langLabel)}</span>` +
+        `<button type="button" class="nh-copy-tikz-btn" title="Copier le code">${ICONS.copy} <span>Copier le code</span></button>` +
+        `</div>` +
+        `<pre><code class="lang-${esc(lang)}">${esc(code)}</code></pre>` +
+        `</div>`;
+      codeBlocks.push(sp || codeWin);
       return token;
     });
 
-    // Tableaux Markdown à barres "| x | ... |" : tableau de variations/signes
-    working = working.replace(/(?:^[ \t]*\|.*(?:\n|$)){2,}/gm, function (blk) {
+// Tableaux Markdown à barres "| ... |" (variations, signes, statistiques, valeurs, lois de probabilité)
+    working = working.replace(/(?:^[ \t]*\|.*\|[ \t]*(?:\r?\n(?:[ \t]*\r?\n)?|$)){2,}/gm, function (blk) {
       let h = null;
       try {
         h = mdPipeTableToHtml(blk);
       } catch (_e) {
         h = null;
       }
-      if (!h) return blk;
+      if (!h) return blk + "\n";
       const token = `\n@@CODEBLOCK_${codeBlocks.length}@@\n`;
       codeBlocks.push(h);
       return token;
@@ -5002,11 +5498,59 @@ function switchRightPanelMode(mode) {
       nameEl.title = doc.path;
     }
 
-    const metaParts = [];
+const metaParts = [];
     if (doc.page_count) metaParts.push(`${doc.page_count} page${doc.page_count > 1 ? "s" : ""}`);
     if (doc.size_bytes) metaParts.push(`${doc.size_bytes} octets`);
     if (doc.execution && doc.execution.duration_ms) metaParts.push(`${Math.round(doc.execution.duration_ms)} ms`);
     if (metaEl) metaEl.textContent = metaParts.join(" · ");
+
+    // Sélecteur de versions & restauration 1-clic (UniversalArtifactEngine)
+    const actionsBar = document.querySelector(".doc-preview-actions");
+    if (actionsBar) {
+      let verSel = document.getElementById("doc-version-select");
+      if (!verSel) {
+        verSel = document.createElement("select");
+        verSel.id = "doc-version-select";
+        verSel.className = "nh-doc-version-select mono";
+        verSel.title = "Historique des versions de ce document (cliquer pour restaurer une version)";
+        actionsBar.insertBefore(verSel, actionsBar.firstChild);
+        verSel.addEventListener("change", async () => {
+          const d = state.activeDocument;
+          const vId = parseInt(verSel.value, 10);
+          if (!d || !vId) return;
+          const targetPath = d.source_tex || d.path;
+          try {
+            await apiPost("/api/artifacts/rollback", { path: targetPath, version_id: vId });
+            if (d.type === "pdf" && d.source_tex) {
+              await compileLatexAndPreview(d.source_tex);
+            } else {
+              await openDocumentPreview({ type: d.type, path: d.path, source_tex: d.source_tex, viewMode: d.viewMode });
+            }
+            showStatusBanner(`Version v${vId} restaurée avec succès.`, "success");
+          } catch (err) {
+            showStatusBanner(`Restauration impossible : ${err.message}`, "error");
+          }
+        });
+      }
+      const histPath = doc.source_tex || doc.path;
+      apiGet(`/api/artifacts/history?path=${encodeURIComponent(histPath)}`)
+        .then((res) => {
+          const hist = (res && res.history) || [];
+          if (hist.length <= 1) {
+            verSel.style.display = "none";
+          } else {
+            verSel.style.display = "inline-flex";
+            verSel.innerHTML = hist
+              .slice()
+              .reverse()
+              .map((v, i) => `<option value="${v.version_id}" ${i === 0 ? "selected" : ""}>v${v.version_id}${i === 0 ? " (actuelle)" : " ↺"}</option>`)
+              .join("");
+          }
+        })
+        .catch(() => {
+          verSel.style.display = "none";
+        });
+    }
 
     const btnDlWord = document.getElementById("btn-doc-download-word");
     const btnDlPdf = document.getElementById("btn-doc-download-pdf");
@@ -7886,10 +8430,10 @@ openDocumentPreview({
       });
     }
 
-    document.getElementById("btn-new-task").addEventListener("click", async () => {
+document.getElementById("btn-new-task").addEventListener("click", async () => {
       state.activeDocument = null;
       state.pdfDocCache = null;
-      switchRightPanelMode("inspector");
+      closeRightPanel();
       await apiPost("/api/conversations/create", { title: "Nouvelle tâche" });
       await refreshFullState();
       document.getElementById("composer-input").focus();
@@ -7897,7 +8441,7 @@ openDocumentPreview({
     document.getElementById("btn-brand-home").addEventListener("click", async () => {
       state.activeDocument = null;
       state.pdfDocCache = null;
-      switchRightPanelMode("inspector");
+      closeRightPanel();
       await apiPost("/api/conversations/create", { title: "Nouvelle tâche" });
       await refreshFullState();
     });
@@ -8701,27 +9245,14 @@ openDocumentPreview({
         return;
       }
 
-      if (target.hasAttribute("data-select-conv")) {
+if (target.hasAttribute("data-select-conv")) {
         try {
           await apiPost("/api/conversations/select", { id: target.getAttribute("data-select-conv") });
         } catch (_) {}
+        state.activeDocument = null;
+        state.pdfDocCache = null;
+        closeRightPanel();
         await refreshFullState();
-        const activeConv = state.appState && state.appState.active_conversation;
-        const convMsgs = (activeConv && activeConv.messages) || [];
-        let convArt = null;
-        for (let i = convMsgs.length - 1; i >= 0; i--) {
-          const m = convMsgs[i];
-          const arts = m.preview_artifacts || m.artifacts || [];
-          convArt = [...arts].reverse().find((a) => a && a.path);
-          if (convArt) break;
-        }
-        if (convArt) {
-          await openDocumentPreview(convArt);
-        } else {
-          state.activeDocument = null;
-          state.pdfDocCache = null;
-          switchRightPanelMode("inspector");
-        }
         return;
       }
       if (target.hasAttribute("data-pin-conv")) {
