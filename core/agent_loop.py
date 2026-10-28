@@ -278,10 +278,11 @@ class AgentLoop:
                 "CONSEIL D'AUTO-RÉPARATION : Le fichier demandé est introuvable à ce chemin. "
                 "Appelle d'abord 'list_files' ou 'find_file' pour localiser le chemin exact dans le workspace."
             )
-        if tool_name == "patch_file":
+        if tool_name in {"patch_file", "edit_file"}:
             return (
-                "CONSEIL D'AUTO-RÉPARATION : Le patch n'a pas pu être appliqué. "
-                "Appelle 'read_file' pour observer le contenu exact du fichier ou utilise 'write_file' avec le contenu complet."
+                "CONSEIL D'AUTO-RÉPARATION (STOP BOUCLE DE TOKENS) : Le patch ciblé a échoué. "
+                "INTERDICTION de retenter patch_file ou edit_file. Utilise IMMÉDIATEMENT 'write_file' "
+                "avec le contenu complet corrigé du fichier pour terminer en un seul tour."
             )
         if tool_name in {"compile_latex", "compile_document"}:
             return (
@@ -1228,13 +1229,15 @@ class AgentLoop:
                         )
                 if any(item.status == "error" for item in executions):
                     state.status = TaskStatus.CORRECTING
-                    state.plan.append(
-                        PlanStep(
-                            "Diagnostiquer l'échec d'outil puis choisir une action corrective sûre.",
-                            "pending",
-                            agent.name,
+                    # Ne pas gonfler indéfiniment la liste des étapes si le plan a déjà plus de 5 étapes
+                    if len(state.plan) < 6:
+                        state.plan.append(
+                            PlanStep(
+                                "Diagnostiquer l'échec d'outil puis choisir une action corrective sûre.",
+                                "pending",
+                                agent.name,
+                            )
                         )
-                    )
                     self._emit("[REPLAN] un outil a échoué; le modèle reçoit l'erreur observée.")
                     self._event(
                         "plan.created",

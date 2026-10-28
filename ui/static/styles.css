@@ -17,33 +17,34 @@
 
 [data-theme="light"],
 :root {
-  --bg-primary: #FAF8F4;
-  --bg-secondary: #f9f8f2;
-  --bg-surface: #FAF8F4;
-  --bg-surface-hover: #EFECE3;
+  --bg-primary: #FCFCFD;
+  --bg-secondary: #F4F5F7;
+  --bg-surface: #FFFFFF;
+  --bg-surface-hover: #EDEEF2;
   --bg-elevated: #FFFFFF;
-  --border-color: #E6E2D8;
-  --border-subtle: #EFECE4;
-  --text-primary: #1C1C1A;
-  --text-secondary: #5A5954;
-  --text-muted: #8E8B82;
-  --gris-secondaire: #8E8B82;
-  --accent: #1C1C1A;
-  --accent-hover: #262624;
-  --accent-soft: #EFECE3;
-  --accent-border: #E6E2D8;
-  --accent-green: #1B6A3B;
-  --accent-green-soft: rgba(27, 106, 59, 0.08);
-  --accent-blue: #2546eb;
+  --border-color: #E2E4E9;
+  --border-subtle: #ECEDF0;
+  --text-primary: #141518;
+  --text-secondary: #4B4E57;
+  --text-muted: #7E828E;
+  --gris-secondaire: #7E828E;
+  --accent: #141518;
+  --accent-hover: #272930;
+  --accent-soft: #F1F2F6;
+  --accent-border: #E2E4E9;
+  --accent-green: #157347;
+  --accent-green-soft: rgba(21, 115, 71, 0.08);
+  --accent-blue: #2563EB;
   --accent-blue-soft: rgba(37, 99, 235, 0.08);
-  --success: #1B6A3B;
-  --success-soft: rgba(27, 106, 59, 0.08);
-  --warning: #b45309;
+  --success: #157347;
+  --success-soft: rgba(21, 115, 71, 0.08);
+  --warning: #B45309;
   --warning-soft: rgba(180, 83, 9, 0.09);
-  --error: #c93b2b;
+  --error: #C93B2B;
   --error-soft: rgba(201, 59, 43, 0.09);
-  --shadow-lg: 0 18px 42px rgba(28, 28, 26, 0.06), 0 3px 10px rgba(28, 28, 26, 0.02);
-  --shadow-sm: 0 1px 3px rgba(28, 28, 26, 0.05);
+  --shadow-lg: 0 18px 42px rgba(15, 23, 42, 0.06), 0 3px 10px rgba(15, 23, 42, 0.03);
+  --shadow-md: 0 6px 20px rgba(15, 23, 42, 0.05), 0 1px 4px rgba(15, 23, 42, 0.03);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 
 [data-theme="dark"] {
@@ -6111,4 +6112,36 @@ button, input, textarea, select { font-family: inherit; }
 }
 @media (min-width: 1700px) {
   .conversation-stream, .composer-box, .approval-banner { max-width: 1080px; }
+}
+
+/* Finition haute précision : figures mathématiques, tableaux et typographie KaTeX */
+.nh-math-fig {
+  overflow-x: auto;
+  overflow-y: hidden !important;
+  margin: 18px 0;
+  padding: 4px 2px;
+  scrollbar-width: thin;
+}
+.nh-math-fig::-webkit-scrollbar {
+  height: 5px;
+  width: 0;
+}
+.nh-math-table-card {
+  background: var(--bg-elevated, #FFFFFF);
+  border: 1.25px solid var(--text-primary);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.02);
+  overflow: hidden;
+}
+.md-prose .katex {
+  font-size: 1.04em;
+}
+.md-prose ol > li {
+  margin-top: 8px;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+.md-prose ul > li {
+  margin-bottom: 6px;
+  line-height: 1.68;
 }

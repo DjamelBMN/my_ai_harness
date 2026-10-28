@@ -1,0 +1,3 @@
+% Rapport de correction et annotation pédagogique
+Note attribuée : 1,5 / 5
+Diagnostic global : Copie présentant une bonne tentative initiale sur le calcul de déterminant, mais entachée d'erreurs conceptuelles et calculatoires majeures en algèbre linéaire.

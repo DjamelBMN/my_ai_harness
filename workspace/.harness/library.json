@@ -1,5 +1,211 @@
 [
   {
+    "id": "lib-0f60ec8f",
+    "title": "Data",
+    "category": "Ressources",
+    "type": "data",
+    "path": "data.csv",
+    "summary": "Fichier DATA dans l'espace de travail",
+    "content": "\\begin{tikzpicture}[scale=0.9, >=stealth, thick]\n    \\node[circle, draw, minimum size=8mm] (A) at (0, 2) {$A$};\n    \\node[circle, draw, minimum size=8mm] (B) at (2, 0) {$B$};\n    \\node[circle, draw, minimum size=8mm] (C) at (-2, 0) {$C$};\n    \n    \\draw[->] (A) -- (B) node[midway, above right] {};\n    \\draw[->] (B) -- (C) node[midway, below] {};\n    \\draw[->] (C) -- (A) node[midway, above left] {};\n\\end{tikzpicture}",
+    "tags": [
+      "data"
+    ],
+    "size_bytes": 419,
+    "created_at": "2026-10-28T14:39:12.185799+00:00",
+    "updated_at": "2026-10-28T14:39:12.185799+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-7a425e05",
+    "title": "Correction copie",
+    "category": "Documents",
+    "type": "docx",
+    "path": "correction_copie.docx",
+    "summary": "Document Word vérifié",
+    "content": "",
+    "tags": [
+      "docx"
+    ],
+    "size_bytes": 12490,
+    "created_at": "2026-10-28T03:24:44.799024+00:00",
+    "updated_at": "2026-10-28T03:24:44.813010+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-a31f78fc",
+    "title": "Graphe",
+    "category": "Documents",
+    "type": "pdf",
+    "path": "graphe.pdf",
+    "summary": "Document PDF compilé",
+    "content": "",
+    "tags": [
+      "pdf"
+    ],
+    "size_bytes": 9777,
+    "created_at": "2026-10-28T02:37:03.688604+00:00",
+    "updated_at": "2026-10-28T02:37:03.688604+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-3d486ef4",
+    "title": "Graphe",
+    "category": "Documents",
+    "type": "tex",
+    "path": "graphe.tex",
+    "summary": "Fichier TEX dans l'espace de travail",
+    "content": "\\documentclass[11pt,a4paper]{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage[french]{babel}\n\\usepackage{tikz}\n\\usepackage{geometry}\n\\geometry{margin=2cm}\n\n\\begin{document}\n\n\\section*{Exercice : Graphe orienté et matrice d'adjacence}\n\nOn considère un réseau informatique modélisé par un graphe orienté $G$ comportant 4 sommets notés $A$, $B$, $C$ et $D$.\n\n\\subsection*{Représentation graphique du graphe orienté}\n\n\\begin{center}\n\\begin{tikzpicture}[scale=0.9, every node/.style={circle, draw, thick, minimum size=8mm}]\n    % Positionnement des sommets\n    \\node (A) at (0,2) {$A$};\n    \\node (B) at (3,2) {$B$};\n    \\node (C) at (3,-1) {$C$};\n    \\node (D) at (0,-1) {$D$};\n\n    % Arêtes orientées (flèches)\n    \\draw[->, thick, >=stealth] (A) to[bend left=15] (B);\n    \\draw[->, thick, >=stealth] (A) to (C);\n    \\draw[->, thick, >=stealth] (B) to (C);\n    \\draw[->, thick, >=stealth] (B) to[bend left=15] (D);\n    \\draw[->, thick, >=stealth] (C) to (A);\n    \\draw[->, thick",
+    "tags": [
+      "tex"
+    ],
+    "size_bytes": 1128,
+    "created_at": "2026-10-28T02:36:56.408967+00:00",
+    "updated_at": "2026-10-28T02:36:56.409988+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-3b4923dc",
+    "title": "Evaluation second degre",
+    "category": "Documents",
+    "type": "pdf",
+    "path": "evaluation_second_degre.pdf",
+    "summary": "Document PDF compilé",
+    "content": "",
+    "tags": [
+      "pdf"
+    ],
+    "size_bytes": 33223,
+    "created_at": "2026-10-28T02:17:21.357126+00:00",
+    "updated_at": "2026-10-28T02:17:21.357126+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-18f86748",
+    "title": "Evaluation second degre",
+    "category": "Documents",
+    "type": "tex",
+    "path": "evaluation_second_degre.tex",
+    "summary": "Fichier TEX dans l'espace de travail",
+    "content": "\\documentclass[11pt,a4paper]{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage[french]{babel}\n\\usepackage{amsmath,amssymb,amsfonts}\n\\usepackage{geometry}\n\\usepackage{tikz}\n\\usepackage{fancyhdr}\n\n\\geometry{margin=2.5cm}\n\n\\pagestyle{fancy}\n\\fancyhf{}\n\\fancyfoot[C]{\\thepage}\n\n\\begin{document}\n\n\\noindent\n\\textbf{D.BENMAKHLOUF} \\\\\nClasse : Seconde \\\\\nAnnée scolaire : 2025-2026\n\n\\vspace{0.5cm}\n\n\\begin{center}\n\\textbf{\\Large Évaluation : Forme canonique et factorisation du second degré}\n\\end{center}\n\n\\vspace{0.3cm}\n\n\\section*{Sujet A}\n\nOn considère la fonction polynôme $f$ définie sur $\\mathbb{R}$ par :\n$$f(x) = x^2 - 2x - 3$$\n\n\\begin{enumerate}\n    \\item \\textbf{Forme canonique et sommet}\n    \\begin{enumerate}\n        \\item Vérifier que pour tout réel $x$, on a : $f(x) = (x - 1)^2 - 4$.\n        \\item En déduire les coordonnées du sommet $S$ de la parabole représentant $f$.\n        \\item Quel est le sens de variation de la fonction $f$ sur $\\mathbb{R}$ ? Dresser son ta",
+    "tags": [
+      "tex"
+    ],
+    "size_bytes": 6163,
+    "created_at": "2026-10-28T02:17:20.263762+00:00",
+    "updated_at": "2026-10-28T02:17:20.263762+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-398e3538",
+    "title": "Template antitriche",
+    "category": "Documents",
+    "type": "pdf",
+    "path": "template_antitriche.pdf",
+    "summary": "Document PDF compilé",
+    "content": "",
+    "tags": [
+      "pdf"
+    ],
+    "size_bytes": 23589,
+    "created_at": "2026-10-28T02:15:02.378551+00:00",
+    "updated_at": "2026-10-28T02:15:02.378551+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-794f4694",
+    "title": "Template antitriche",
+    "category": "Documents",
+    "type": "tex",
+    "path": "template_antitriche.tex",
+    "summary": "Fichier TEX dans l'espace de travail",
+    "content": "% Compiler avec XeLaTeX ou LuaLaTeX\n\\documentclass[11pt,a4paper]{article}\n\n\\usepackage{amsmath,amssymb}\n\\usepackage{fontspec}\n\\usepackage{unicode-math}\n\\usepackage{polyglossia}\n\\setmainlanguage{french}\n\\usepackage{xcolor}\n\\usepackage{fancyhdr}\n\\usepackage[margin=2cm,headheight=16pt,headsep=22pt]{geometry}\n\\usepackage{enumitem}\n\\usepackage{tikz}\n\n\\IfFontExistsTF{Libertinus Serif}\n  {\\setmainfont{Libertinus Serif}}\n  {\\IfFontExistsTF{Latin Modern Roman}{\\setmainfont{Latin Modern Roman}}{\\setmainfont{lmroman10-regular.otf}}}\n\n\\IfFontExistsTF{Libertinus Math}\n  {\\setmathfont{Libertinus Math}}\n  {\\IfFontExistsTF{Latin Modern Math}{\\setmathfont{Latin Modern Math}}{\\setmathfont{latinmodern-math.otf}}}\n\n\\linespread{1.07}\n\\setlength{\\parindent}{0pt}\n\\AtBeginDocument{\\setlength{\\parindent}{0pt}}\n\\setlength{\\parskip}{0.35em}\n\n\\pagestyle{fancy}\n\\fancyhf{}\n\\lhead{NeoHarness AI -- Évaluation}\n\\rhead{Classe de Seconde}\n\\usepackage{lastpage}\n\\cfoot{Page \\thepage\\ / \\pageref{LastPage}}\n\\renewcommand{\\h",
+    "tags": [
+      "tex"
+    ],
+    "size_bytes": 7889,
+    "created_at": "2026-10-28T02:15:00.015531+00:00",
+    "updated_at": "2026-10-28T02:15:00.015531+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-b39ebad4",
+    "title": "Antitriche second degre",
+    "category": "Documents",
+    "type": "pdf",
+    "path": "antitriche_second_degre.pdf",
+    "summary": "Document PDF compilé",
+    "content": "",
+    "tags": [
+      "pdf"
+    ],
+    "size_bytes": 18707,
+    "created_at": "2026-10-28T02:07:51.199339+00:00",
+    "updated_at": "2026-10-28T02:07:51.199339+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-36710669",
+    "title": "Antitriche second degre",
+    "category": "Documents",
+    "type": "tex",
+    "path": "antitriche_second_degre.tex",
+    "summary": "Fichier TEX dans l'espace de travail",
+    "content": "% Compiler avec XeLaTeX ou LuaLaTeX\n\\documentclass[11pt,a4paper]{article}\n\n\\usepackage{amsmath,amssymb}\n\\usepackage{fontspec}\n\\usepackage{unicode-math}\n\\usepackage{polyglossia}\n\\setmainlanguage{french}\n\\usepackage{xcolor}\n\\usepackage{fancyhdr}\n\\usepackage[margin=2cm,headheight=16pt,headsep=22pt]{geometry}\n\\usepackage{enumitem}\n\n% Police principale et police mathématique : Libertinus\n\\IfFontExistsTF{Libertinus Serif}\n  {\\setmainfont{Libertinus Serif}}\n  {\\IfFontExistsTF{Latin Modern Roman}{\\setmainfont{Latin Modern Roman}}{\\setmainfont{lmroman10-regular.otf}}}\n\n\\IfFontExistsTF{Libertinus Math}\n  {\\setmathfont{Libertinus Math}}\n  {\\IfFontExistsTF{Latin Modern Math}{\\setmathfont{Latin Modern Math}}{\\setmathfont{latinmodern-math.otf}}}\n\n\\linespread{1.07}\n\\setlength{\\parindent}{0pt}\n\\AtBeginDocument{\\setlength{\\parindent}{0pt}}\n\\setlength{\\parskip}{0.35em}\n\n% En-tête\n\\pagestyle{fancy}\n\\fancyhf{}\n\\lhead{NeoHarness AI -- Évaluation}\n\\rhead{Classe de Seconde}\n% Pagination : « Page X / Y » cent",
+    "tags": [
+      "tex"
+    ],
+    "size_bytes": 5580,
+    "created_at": "2026-10-28T02:07:45.105587+00:00",
+    "updated_at": "2026-10-28T02:07:45.105587+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-baf609ec",
+    "title": "Exercice maths",
+    "category": "Documents",
+    "type": "docx",
+    "path": "exercice_maths.docx",
+    "summary": "Document Word vérifié",
+    "content": "",
+    "tags": [
+      "docx",
+      "exercice"
+    ],
+    "size_bytes": 10446,
+    "created_at": "2026-10-28T01:34:16.145250+00:00",
+    "updated_at": "2026-10-28T01:34:16.156365+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-ab65332c",
+    "title": "Exercice lecture graphique",
+    "category": "Documents",
+    "type": "pdf",
+    "path": "exercice_lecture_graphique.pdf",
+    "summary": "Document PDF compilé",
+    "content": "",
+    "tags": [
+      "pdf",
+      "exercice"
+    ],
+    "size_bytes": 20045,
+    "created_at": "2026-10-28T01:25:24.165896+00:00",
+    "updated_at": "2026-10-28T01:25:24.165896+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
     "id": "lib-ad0d3c63",
     "title": "Output",
     "category": "Documents",

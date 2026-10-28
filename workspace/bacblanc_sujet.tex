@@ -1,94 +1,107 @@
-\documentclass[12pt,a4paper]{article}
+\documentclass[11pt,a4paper]{article}
 
-% --- Mathématiques de précision ---
-\usepackage{amsmath, amssymb, esvect, mathtools}
-\newcommand{\R}{\mathbb{R}}
-\newcommand{\N}{\mathbb{N}}
-\newcommand{\e}{\mathrm{e}}
-\newcommand{\vect}[1]{\vv{#1}}
-
-% --- Encodage et typographie française ---
-\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb}
 \usepackage{fontspec}
-\usepackage{libertinus-otf}
-\usepackage[french]{babel}
-\usepackage{microtype}
-\usepackage{icomma}
-
-% --- Suppression de l'indentation ---
-\setlength{\parindent}{0pt}
-
-% --- Géométrie calibrée (exactement 1 page par exercice) ---
-\usepackage[
-    top=1.6cm,
-    bottom=1.6cm,
-    left=1.6cm,
-    right=1.6cm,
-    headheight=15pt,
-    headsep=12pt,
-    footskip=22pt
-]{geometry}
-
+\usepackage{unicode-math}
+\usepackage{polyglossia}
+\setmainlanguage{french}
+\usepackage{xcolor}
 \usepackage{fancyhdr}
-\usepackage{lastpage}
-\usepackage{tabularx}
-\usepackage{tcolorbox}
+\usepackage[margin=2cm,headheight=16pt,headsep=22pt]{geometry}
 \usepackage{enumitem}
 
-% --- Filigrane et graphisme ---
-\usepackage{eso-pic}
-\usepackage{tikz}
-\usepackage{xcolor}
+\IfFontExistsTF{Libertinus Serif}
+  {\setmainfont{Libertinus Serif}}
+  {\IfFontExistsTF{Latin Modern Roman}{\setmainfont{Latin Modern Roman}}{\setmainfont{lmroman10-regular.otf}}}
 
-% --- Réglage des espacements pour affichages mathématiques ---
-\setlength{\abovedisplayskip}{6pt}
-\setlength{\belowdisplayskip}{6pt}
-\setlength{\abovedisplayshortskip}{3pt}
-\setlength{\belowdisplayshortskip}{3pt}
+\IfFontExistsTF{Libertinus Math}
+  {\setmathfont{Libertinus Math}}
+  {\IfFontExistsTF{Latin Modern Math}{\setmathfont{Latin Modern Math}}{\setmathfont{latinmodern-math.otf}}}
 
-% --- Colonne centrée pour tableau homogène ---
-\newcolumntype{Y}{>{\centering\arraybackslash}X}
+\linespread{1.07}
+\setlength{\parindent}{0pt}
+\AtBeginDocument{\setlength{\parindent}{0pt}}
+\setlength{\parskip}{0.35em}
 
-% --- Commandes d'exercices aérées ---
-\newcommand{\exercice}[3][5]{%
-    \noindent{\Large\textbf{Exercice #2}} \hfill \textbf{#1 points}\\[0.20cm]%
-    {\normalsize\textit{#3}}%
-    \par\vspace{0.28cm}\hrule\vspace{0.55cm}%
-}
-\newcommand{\partie}[1]{\vspace{0.45cm}\noindent\textbf{\large Partie #1}\par\vspace{0.25cm}}
-
-% --- Listes numérotées : 1. et a. TOUS EN GRAS ---
-\setlist[enumerate,1]{label=\textbf{\arabic*.}, leftmargin=*, itemsep=0.35em, parsep=0pt, topsep=0.2em}
-\setlist[enumerate,2]{label=\textbf{\alph*.}, leftmargin=*, itemsep=0.25em, parsep=0pt, topsep=0.15em}
-
-% --- SQUELETTE : marqueur magenta des zones à remplir (utilisable en texte ET en mode maths) ---
-\newcommand{\ph}[1]{\ifmmode\text{\color{magenta}[#1]}\else\textcolor{magenta}{[#1]}\fi}
-
-% --- En-têtes et pieds de page pour le Sujet 1 ---
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{\small\textit{Bac Blanc -- Sujet 1}}
-\fancyhead[C]{\small\textit{Sujet 1 (Jour 1)}}
-\fancyhead[R]{\small\textbf{Term\textsuperscript{spé}}}
-\fancyfoot[C]{\thepage\ / \pageref{LastPage}}
-\renewcommand{\headrulewidth}{0.4pt}
-\renewcommand{\footrulewidth}{0.4pt}
+\lhead{NeoHarness AI}
+\rhead{Lycée -- Mathématiques}
+\usepackage{lastpage}
+\cfoot{Page \thepage\ / \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\headrule}{\vskip 5pt\hrule width\headwidth height\headrulewidth \vskip-\headrulewidth}
 
-% =========================================================================
+\setlist[enumerate,1]{itemsep=0.45em, topsep=0.3em, label=\textbf{\arabic*.}}
+\setlist[enumerate,2]{itemsep=0.25em, topsep=0.2em, label=\textbf{\alph*.}}
+
+\newcommand{\sectionannotation}[1]{%
+  \vspace{1.2em}%
+  \noindent{\large\textbf{#1}}%
+  \par\vspace{0.35em}%
+  \hrule height 0.5pt%
+  \vspace{0.7em}%
+}
+\usepackage{tikz}
+\usetikzlibrary{matrix,arrows.meta}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+\usepackage{needspace}
+
+\newcommand{\exo}[2]{%
+  \needspace{3em}%
+  \vspace{1em}%
+  \noindent{\large\textbf{Exercice #1}} -- #2%
+  \par\vspace{0.3em}%
+}
 
 \begin{document}
 
 \begin{center}
-  {\LARGE \textbf{Bac Blanc : compile}}\\[0.5em]
+  {\LARGE \textbf{Exercice : plus souple la notation et donne le pdf}}\\[0.5em]
   {\large Lycée -- Mathématiques}
 \end{center}
 
-\vspace{0.35cm}\noindent\textbf{\large LIVRAISON PARTIELLE — ÉCHEC DE LA LIVRAISON COMPLÈTE}\par\vspace{0.15cm}
+Voici l'évaluation détaillée et la correction assouplie de la copie :
 
-La livraison complète a échoué : GeminiProviderError: Limite de débit locale Gemini atteinte : réessaie dans 21 secondes..
+\vspace{0.35cm}\noindent\textbf{\large 1. Diagnostic global et notation}\par\vspace{0.15cm}
+\begin{enumerate}
+  \item \textbf{Note attribuée} : \textbf{2 / 5} (note légèrement rehaussée pour valoriser l'initiative et la démarche initiale sur le premier exercice).
+  \item \textbf{Points forts} : L'élève a le bon réflexe d'associer l'inversibilité d'une matrice à la non-nullité de son déterminant et pose correctement le calcul littéral initial.
+  \item \textbf{Points d'attention prioritaires} : Confusion sur la nature des ensembles numériques pour un paramètre réel et erreurs d'application sur la formule de l'inverse ainsi que sur le calcul matriciel.
+\end{enumerate}
 
-Le résultat fourni ci-dessous est le meilleur contenu déjà produit. Il peut être incomplet ou non vérifié et ne doit pas être considéré comme un sujet complet validé.
+---
 
-Aucun fragment de texte ni fichier partiel lisible n'a pu être conservé.
+\vspace{0.35cm}\noindent\textbf{\large 2. Analyse détaillée étape par étape}\par\vspace{0.15cm}
+
+\exo{1}{\# \textbf{Exercice 1 (Sur 2,5 points)}}
+\begin{enumerate}
+  \item \textbf{Question 1} :
+  \item Le calcul du déterminant $\det(A) = 7a + 7$ est parfaitement exact.
+  \item L'élève déduit correctement $a \neq -1$, mais restreint ensuite arbitrairement le paramètre $a$ à $\mathbb{N}$ ou $a \ge 0$ sans l'exiger dans l'énoncé. Une approche plus souple permet de valider pleinement l'intuition du calcul algébrique tout en notant cette confusion d'ensemble. \textit{(Attribué : 1,5 / 1,5)}
+  \item \textbf{Question 2} :
+  \item La formule de l'inverse d'une matrice $2 \times 2$ contient des erreurs de permutation des termes diagonaux et des signes. \textit{(Attribué : 0,5 / 1)}
+\end{enumerate}
+
+\exo{2}{\# \textbf{Exercice 2 (Sur 2,5 points)}}
+\begin{enumerate}
+  \item \textbf{Question 1} :
+  \item L'élève tente une manipulation algébrique en appliquant des réflexes de calcul scalaire, oubliant que la multiplication des matrices n'est pas commutative en général et que certaines simplifications directes sont invalides. \textit{(Attribué : 0 / 2,5)}
+\end{enumerate}
+
+---
+
+\vspace{0.35cm}\noindent\textbf{\large 3. Bilan chiffré}\par\vspace{0.15cm}
+\begin{enumerate}
+  \item \textbf{Note finale} : \textbf{2 / 5}
+\end{enumerate}
+
+---
+
+\vspace{0.35cm}\noindent\textbf{\large 4. Appréciation pédagogique et conseil de remédiation}\par\vspace{0.15cm}
+Un travail encourageant qui témoigne d'une bonne compréhension de la condition d'inversibilité d'une matrice, mais qui pèche sur les formules techniques et les manipulations algébriques.
+
+\textbf{Conseil clé} : Révise attentivement la formule explicite de l'inverse d'une matrice $2 \times 2$ et exerce-toi à manipuler des produits de matrices en gardant toujours à l'esprit que $AB \neq BA$ en général ! 😉
 
 \end{document}

@@ -1,0 +1,42 @@
+name: antitriche
+display_name: Anti-Triche
+description: Génération en 1 clic d'un pack Sujet A / Sujet B (variantes numériques certifiées) en versions Élève et Corrigé.
+agent: researcher
+intent: exercise_creation
+max_iterations: 15
+max_output_tokens: 16384
+partial_delivery_on_failure: true
+requires_workspace: false
+requires_file_read: false
+requires_modification: false
+requires_tests: false
+requires_web: false
+requires_web_when:
+  - officiel
+  - programme officiel
+  - source officielle
+  - annales
+risk_level: READ_ONLY
+requires_user_confirmation: false
+capabilities:
+  - math_exercise
+  - antitriche_pack
+  - latex_compilation
+secondary_capabilities:
+  - research
+  - review
+allowed_secondary_agents:
+  - researcher
+  - reviewer
+tools:
+  - list_files
+  - find_file
+  - search_files
+  - read_file
+  - read_document
+  - write_file
+  - web_search
+  - generate_docx
+templates:
+  - template_antitriche.tex
+rag_directory: rag

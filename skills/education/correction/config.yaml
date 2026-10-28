@@ -1,0 +1,36 @@
+name: correction
+display_name: Correction de Copie
+description: Analyse, annotation ligne par ligne, notation sur barème et appréciation bienveillante d'une copie ou photo d'élève.
+agent: reviewer
+intent: review
+max_iterations: 15
+max_output_tokens: 16384
+partial_delivery_on_failure: true
+requires_workspace: false
+requires_file_read: false
+requires_modification: false
+requires_tests: false
+requires_web: false
+risk_level: READ_ONLY
+requires_user_confirmation: false
+capabilities:
+  - grading
+  - error_diagnosis
+  - latex_compilation
+secondary_capabilities:
+  - review
+  - research
+allowed_secondary_agents:
+  - reviewer
+  - researcher
+tools:
+  - list_files
+  - find_file
+  - read_file
+  - read_document
+  - write_file
+  - transcribe_image
+  - generate_docx
+templates:
+  - template_correction.tex
+rag_directory: rag

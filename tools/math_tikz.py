@@ -1,7 +1,7 @@
 # RÔLE DE CE FICHIER :
 # Moteur déterministe de calcul et de génération de figures et tableaux mathématiques en TikZ (Section D).
-# ZÉRO hallucination : tout calcul (dérivée, racines, signes, extrema, limites, sommes de probabilités)
-# est exécuté par SymPy. Aucun code TikZ n'est inventé par un LLM.
+# ZÉRO hallucination : tout calcul (dérivée, racines, signes, extrema, limites, sommes de probabilités,
+# repères cartésiens, vecteurs) est exécuté par SymPy. Aucun code TikZ n'est inventé par un LLM.
 # Intègre des oracles de cohérence stricts et la vérification de mise en page (needspace, marges).
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ import re
 import shutil
 import subprocess
 import tempfile
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 import sympy as sp
 
 from tools.rasterizer import PDFRasterizer
@@ -42,7 +42,13 @@ class MathOracle:
             )
 
     @staticmethod
-    def verify_extremum_value(f_expr: sp.Expr, var: sp.Symbol, x_val: float | sp.Expr, declared_y: float | sp.Expr, tol: float = 1e-9) -> None:
+    def verify_extremum_value(
+        f_expr: sp.Expr,
+        var: sp.Symbol,
+        x_val: float | sp.Expr,
+        declared_y: float | sp.Expr,
+        tol: float = 1e-9,
+    ) -> None:
         """Vérifie que la valeur d'extremum déclarée correspond exactement à f(x_val)."""
         actual = float(f_expr.subs(var, x_val).evalf())
         dec = float(sp.sympify(declared_y).evalf())
@@ -252,7 +258,6 @@ def generate_variation_table(
             lim = sp.limit(f, x, sp.oo)
             point_values.append(r"+\infty" if lim == sp.oo else (r"-\infty" if lim == -sp.oo else sp.latex(lim)))
         elif "forbidden" in kind:
-            # Limite à droite ou à gauche
             if kind == "forbidden_bound" and sym_val == d_min_sym:
                 lim = sp.limit(f, x, sym_val, dir="+")
                 val_str = r"+\infty" if lim == sp.oo else (r"-\infty" if lim == -sp.oo else sp.latex(lim))
@@ -342,7 +347,6 @@ def generate_variation_table(
             p_left = all_points[i]
             p_right = all_points[i + 1]
 
-            # Si le point gauche ou droit est une valeur interdite intérieure
             left_is_fb = ("forbidden" in p_left[0] and p_left[0] != "forbidden_bound")
             right_is_fb = ("forbidden" in p_right[0] and p_right[0] != "forbidden_bound")
 
@@ -588,6 +592,82 @@ def generate_curve_plot(
         "x_range": (x_min, x_max),
         "asymptotes": asymptotes or [],
         "tangents": tangents or [],
+        "tikz": "\n".join(tikz_lines),
+        "verified": True,
+    }
+
+
+def generate_point_interpolated_curve(
+    points: list[tuple[float, float]] | list[list[float]],
+    x_min: float | None = None,
+    x_max: float | None = None,
+    y_min: float | None = None,
+    y_max: float | None = None,
+    curve_name: str = "C_f",
+    unit: float = 0.8,
+) -> dict[str, Any]:
+    """Génère un repère avec grille et une courbe lisse passant exactement par les points donnés."""
+    if not points or len(points) < 2:
+        raise MathConsistencyError("Au moins 2 points sont requis pour tracer une courbe.")
+
+    pts = sorted([(float(p[0]), float(p[1])) for p in points], key=lambda x: x[0])
+    all_x = [p[0] for p in pts]
+    all_y = [p[1] for p in pts]
+
+    xmin = math.floor(min(all_x)) - 1 if x_min is None else float(x_min)
+    xmax = math.ceil(max(all_x)) + 1 if x_max is None else float(x_max)
+    ymin = math.floor(min(all_y)) - 1 if y_min is None else float(y_min)
+    ymax = math.ceil(max(all_y)) + 1 if y_max is None else float(y_max)
+
+    scale_val = max(0.5, min(float(unit or 0.8), 1.2))
+    coords_str = " ".join(f"({p[0]}, {p[1]})" for p in pts)
+
+    tikz_lines = [
+        r"\needspace{12\baselineskip}",
+        r"\begin{center}",
+        f"\\begin{{tikzpicture}}[>=stealth, scale={scale_val:.2f}]",
+        f"  \\draw[step=1cm, gray!25, very thin] ({xmin}, {ymin}) grid ({xmax}, {ymax});",
+        f"  \\draw[->, thick, color=gray!80!black] ({xmin}, 0) -- ({xmax + 0.4:.2f}, 0) node[right] {{$x$}};",
+        f"  \\draw[->, thick, color=gray!80!black] (0, {ymin}) -- (0, {ymax + 0.4:.2f}) node[above] {{$y$}};",
+        r"  \node[below left, font=\footnotesize] at (0, 0) {$O$};",
+        r"  \draw[->, line width=1.5pt, color=blue!85!black] (0, 0) -- (1, 0) node[midway, below, font=\small] {$\vec{i}$};",
+        r"  \draw[->, line width=1.5pt, color=blue!85!black] (0, 0) -- (0, 1) node[midway, left, font=\small] {$\vec{j}$};",
+    ]
+
+    # Graduations
+    cur_x = xmin
+    while cur_x <= xmax:
+        if cur_x not in (0, 1):
+            tikz_lines.append(f"  \\draw[gray!60] ({cur_x}, 0.08) -- ({cur_x}, -0.08) node[below, font=\\tiny] {{{int(cur_x)}}};")
+        cur_x += 1
+
+    cur_y = ymin
+    while cur_y <= ymax:
+        if cur_y not in (0, 1):
+            tikz_lines.append(f"  \\draw[gray!60] (0.08, {cur_y}) -- (-0.08, {cur_y}) node[left, font=\\tiny] {{{int(cur_y)}}};")
+        cur_y += 1
+
+    # Tracé lissé de la courbe
+    c_label = f"\\mathcal{{{curve_name}}}" if not curve_name.startswith("\\") else curve_name
+    last_pt = pts[-1]
+    tikz_lines.extend([
+        f"  \\draw[very thick, color=blue!85!black, smooth] plot coordinates {{ {coords_str} }};",
+        f"  \\node[color=blue!85!black, font=\\bfseries] at ({last_pt[0] - 0.5:.2f}, {last_pt[1] + 0.5:.2f}) {{${c_label}$}};",
+    ])
+
+    # Marquage des points remarquables
+    for p in pts:
+        tikz_lines.append(f"  \\filldraw[color=blue!85!black] ({p[0]}, {p[1]}) circle (2pt);")
+
+    tikz_lines.extend([
+        r"\end{tikzpicture}",
+        r"\end{center}",
+    ])
+
+    return {
+        "points": pts,
+        "x_range": (xmin, xmax),
+        "y_range": (ymin, ymax),
         "tikz": "\n".join(tikz_lines),
         "verified": True,
     }
@@ -868,6 +948,143 @@ def generate_value_table(
     }
 
 
+def generate_geometric_frame(
+    points: dict[str, list[float | int] | tuple[float | int, float | int]] | None = None,
+    vectors: list[dict[str, Any]] | None = None,
+    segments: list[tuple[str, str]] | list[list[str]] | None = None,
+    polygons: list[list[str]] | None = None,
+    x_min: float | None = None,
+    x_max: float | None = None,
+    y_min: float | None = None,
+    y_max: float | None = None,
+    show_grid: bool = True,
+    show_axes: bool = True,
+    unit: float = 0.8,
+) -> dict[str, Any]:
+    """Génère un repère orthonormé (O, i, j) 2D avec tracé certifié de points, vecteurs et polygones."""
+    pts = points or {}
+    vecs = vectors or []
+    segs = segments or []
+    polys = polygons or []
+
+    # Calcul automatique des bornes du repère à partir des coordonnées
+    all_x: list[float] = [0.0, 1.0]
+    all_y: list[float] = [0.0, 1.0]
+
+    for p_name, coord in pts.items():
+        if isinstance(coord, (list, tuple)) and len(coord) >= 2:
+            all_x.append(float(sp.sympify(coord[0]).evalf()))
+            all_y.append(float(sp.sympify(coord[1]).evalf()))
+
+    for vec in vecs:
+        if isinstance(vec, dict):
+            for key in ("from", "origin", "start"):
+                val = vec.get(key)
+                if isinstance(val, (list, tuple)) and len(val) >= 2:
+                    all_x.append(float(sp.sympify(val[0]).evalf()))
+                    all_y.append(float(sp.sympify(val[1]).evalf()))
+            for key in ("to", "end"):
+                val = vec.get(key)
+                if isinstance(val, (list, tuple)) and len(val) >= 2:
+                    all_x.append(float(sp.sympify(val[0]).evalf()))
+                    all_y.append(float(sp.sympify(val[1]).evalf()))
+
+    computed_xmin = math.floor(min(all_x)) - 1 if x_min is None else float(x_min)
+    computed_xmax = math.ceil(max(all_x)) + 1 if x_max is None else float(x_max)
+    computed_ymin = math.floor(min(all_y)) - 1 if y_min is None else float(y_min)
+    computed_ymax = math.ceil(max(all_y)) + 1 if y_max is None else float(y_max)
+
+    scale_val = max(0.5, min(float(unit or 0.8), 1.5))
+    tikz_lines = [
+        r"\needspace{12\baselineskip}",
+        r"\begin{center}",
+        f"\\begin{{tikzpicture}}[>=stealth, scale={scale_val:.2f}]",
+    ]
+
+    # Grille fine
+    if show_grid:
+        tikz_lines.append(
+            f"  \\draw[step=1cm, gray!25, very thin] ({computed_xmin}, {computed_ymin}) grid ({computed_xmax}, {computed_ymax});"
+        )
+
+    # Axes orthonormés (O, i, j)
+    if show_axes:
+        tikz_lines.extend([
+            f"  \\draw[->, thick, color=gray!80!black] ({computed_xmin}, 0) -- ({computed_xmax + 0.4:.2f}, 0) node[right] {{$x$}};",
+            f"  \\draw[->, thick, color=gray!80!black] (0, {computed_ymin}) -- (0, {computed_ymax + 0.4:.2f}) node[above] {{$y$}};",
+            r"  \node[below left, font=\footnotesize] at (0, 0) {$O$};",
+            r"  \draw[->, line width=1.5pt, color=blue!85!black] (0, 0) -- (1, 0) node[midway, below, font=\small] {$\vec{i}$};",
+            r"  \draw[->, line width=1.5pt, color=blue!85!black] (0, 0) -- (0, 1) node[midway, left, font=\small] {$\vec{j}$};",
+        ])
+
+    # Graduations entières
+    cur_x = computed_xmin
+    while cur_x <= computed_xmax:
+        if cur_x not in (0, 1):
+            tikz_lines.append(f"  \\draw[gray!60] ({cur_x}, 0.08) -- ({cur_x}, -0.08) node[below, font=\\tiny] {{{int(cur_x)}}};")
+        cur_x += 1
+
+    cur_y = computed_ymin
+    while cur_y <= computed_ymax:
+        if cur_y not in (0, 1):
+            tikz_lines.append(f"  \\draw[gray!60] (0.08, {cur_y}) -- (-0.08, {cur_y}) node[left, font=\\tiny] {{{int(cur_y)}}};")
+        cur_y += 1
+
+    # Tracé des polygones et segments
+    for poly in polys:
+        if isinstance(poly, (list, tuple)) and len(poly) >= 3:
+            p_coords = []
+            for p_name in poly:
+                if p_name in pts:
+                    p_coords.append(f"({pts[p_name][0]}, {pts[p_name][1]})")
+            if len(p_coords) >= 3:
+                tikz_lines.append(f"  \\draw[thick, fill=blue!8, fill opacity=0.4] {' -- '.join(p_coords)} -- cycle;")
+
+    for seg in segs:
+        if isinstance(seg, (list, tuple)) and len(seg) >= 2:
+            p1, p2 = seg[0], seg[1]
+            if p1 in pts and p2 in pts:
+                tikz_lines.append(f"  \\draw[dashed, color=gray!70, thick] ({pts[p1][0]}, {pts[p1][1]}) -- ({pts[p2][0]}, {pts[p2][1]});")
+
+    # Tracé des vecteurs
+    for vec in vecs:
+        color = vec.get("color", "red!80!black")
+        lbl = vec.get("label", "")
+        p_from = vec.get("from")
+        p_to = vec.get("to")
+        if p_from in pts and p_to in pts:
+            x1, y1 = pts[p_from][0], pts[p_from][1]
+            x2, y2 = pts[p_to][0], pts[p_to][1]
+            lbl_tex = f" node[midway, auto, font=\\footnotesize] {{{lbl}}}" if lbl else f" node[midway, auto, font=\\footnotesize] {{$\\vec{{{p_from}{p_to}}}$}}"
+            tikz_lines.append(f"  \\draw[->, line width=1.6pt, color={color}] ({x1}, {y1}) -- ({x2}, {y2}){lbl_tex};")
+        elif isinstance(vec.get("origin"), (list, tuple)) and isinstance(vec.get("components"), (list, tuple)):
+            ox, oy = vec["origin"][0], vec["origin"][1]
+            dx, dy = vec["components"][0], vec["components"][1]
+            lbl_tex = f" node[midway, auto, font=\\footnotesize] {{{lbl}}}" if lbl else ""
+            tikz_lines.append(f"  \\draw[->, line width=1.6pt, color={color}] ({ox}, {oy}) -- ({ox + dx}, {oy + dy}){lbl_tex};")
+
+    # Placement et étiquetage des points
+    for p_name, coord in pts.items():
+        if isinstance(coord, (list, tuple)) and len(coord) >= 2:
+            px, py = coord[0], coord[1]
+            tikz_lines.append(
+                f"  \\filldraw[black] ({px}, {py}) circle (2pt) node[above right, font=\\small\\bfseries] {{{p_name}}};"
+            )
+
+    tikz_lines.extend([
+        r"\end{tikzpicture}",
+        r"\end{center}",
+    ])
+
+    return {
+        "points": pts,
+        "vectors": vecs,
+        "bounds": {"xmin": computed_xmin, "xmax": computed_xmax, "ymin": computed_ymin, "ymax": computed_ymax},
+        "tikz": "\n".join(tikz_lines),
+        "verified": True,
+    }
+
+
 def _emit(event_sink: Callable[..., Any] | None, event_name: str, **kwargs: Any) -> None:
     """Émet un événement normalisé vers l'event_sink si disponible."""
     if event_sink is not None:
@@ -887,12 +1104,13 @@ def verify_figure_consistency(figure_data: dict[str, Any]) -> bool:
     """Vérifie rétroactivement la cohérence mathématique stricte d'une figure générée.
     Lève MathConsistencyError si une anomalie est détectée."""
     fig_type = figure_data.get("type") or (
-        "variation_table" if "derivative" in figure_data
+        "geometric_frame" if "points" in figure_data and "bounds" in figure_data
+        else ("variation_table" if "derivative" in figure_data
         else ("sign_table" if "signs" in figure_data
         else ("convexity_table" if "second_derivative" in figure_data
         else ("number_line" if "intervals" in figure_data and "range" in figure_data
         else ("graph" if "nodes" in figure_data
-        else ("probability_tree" if "branches_count" in figure_data else "curve_plot")))))
+        else ("probability_tree" if "branches_count" in figure_data else "curve_plot"))))))
     )
 
     if fig_type == "variation_table":
@@ -955,7 +1173,7 @@ def render_math_figure_to_pdf(
 \\usepackage[utf8]{{inputenc}}
 \\usepackage{{amsmath,amssymb}}
 \\usepackage{{tikz}}
-\\usetikzlibrary{{matrix}}
+\\usetikzlibrary{{matrix,arrows.meta}}
 \\usepackage{{pgfplots}}
 \\pgfplotsset{{compat=1.17}}
 \\usepackage{{needspace}}
@@ -995,11 +1213,14 @@ def generate_math_figure(
     x_max: float = 5.0,
     y_min: float | None = None,
     y_max: float | None = None,
+    points: dict[str, Any] | None = None,
+    vectors: list[dict[str, Any]] | None = None,
     student_version: bool = False,
     compile_pdf: bool = False,
     output_path: str = "",
     workspace: str | Path = "workspace",
     event_sink: Callable[..., Any] | None = None,
+    **kwargs: Any,
 ) -> dict[str, Any]:
     """Générateur déterministe de figures et tableaux mathématiques TikZ certifié par SymPy."""
     _emit(event_sink, "figure.generating", figure_type=figure_type, function=func_str or "tree")
@@ -1064,6 +1285,20 @@ def generate_math_figure(
                 x_values=x_values or [-2, -1, 0, 1, 2],
                 var_str=var_str,
             )
+        elif figure_type in {"geometric_frame", "vector_plane", "repere", "vectors"}:
+            res = generate_geometric_frame(
+                points=points if points is not None else kwargs.get("points"),
+                vectors=vectors if vectors is not None else kwargs.get("vectors"),
+                segments=kwargs.get("segments"),
+                polygons=kwargs.get("polygons"),
+                x_min=x_min if x_min != -3.0 else kwargs.get("x_min"),
+                x_max=x_max if x_max != 5.0 else kwargs.get("x_max"),
+                y_min=y_min if y_min is not None else kwargs.get("y_min"),
+                y_max=y_max if y_max is not None else kwargs.get("y_max"),
+                show_grid=kwargs.get("show_grid", True),
+                show_axes=kwargs.get("show_axes", True),
+                unit=kwargs.get("unit", 0.8),
+            )
         else:
             raise ValueError(f"Type de figure non pris en charge : {figure_type}")
 
@@ -1081,7 +1316,6 @@ def generate_math_figure(
             )
             res["compilation"] = comp_res
             if comp_res.get("status") == "success":
-                # Double contrôle : structurel + visuel
                 pdf_abs = Path(comp_res.get("pdf_path", ""))
                 if pdf_abs.is_file():
                     layout = PDFRasterizer.inspect_layout(pdf_abs, expected_pages=1)

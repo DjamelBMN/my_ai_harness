@@ -373,10 +373,15 @@ class IntentEngine:
                 secondaries.append("testing")
             if "testing" not in secondaries:
                 secondaries.append("testing")
-            coding_tools = [
-                "list_files", "find_file", "search_files", "read_file", "read_document",
-                "write_file", "patch_file", "run_python", "run_tests",
-            ]
+            # Si la modification concerne un document LaTeX (.tex) ou Markdown, retirer les outils de tests/patch pour forcer l'écriture directe en 1 tour
+            is_latex_doc_edit = any(ext in text for ext in (".tex", "latex", "sujet", "antitriche"))
+            if is_latex_doc_edit:
+                coding_tools = ["read_file", "write_file", "list_files"]
+            else:
+                coding_tools = [
+                    "list_files", "find_file", "search_files", "read_file", "read_document",
+                    "write_file", "patch_file", "run_python", "run_tests",
+                ]   
             for op_tool in operator_tools:
                 if op_tool not in coding_tools:
                     coding_tools.append(op_tool)

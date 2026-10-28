@@ -1,0 +1,115 @@
+% Compiler avec XeLaTeX ou LuaLaTeX
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{amsmath,amssymb}
+\usepackage{fontspec}
+\usepackage{unicode-math}
+\usepackage{polyglossia}
+\setmainlanguage{french}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage[margin=2cm,headheight=16pt,headsep=22pt]{geometry}
+\usepackage{enumitem}
+
+\IfFontExistsTF{Libertinus Serif}
+  {\setmainfont{Libertinus Serif}}
+  {\IfFontExistsTF{Latin Modern Roman}{\setmainfont{Latin Modern Roman}}{\setmainfont{lmroman10-regular.otf}}}
+
+\IfFontExistsTF{Libertinus Math}
+  {\setmathfont{Libertinus Math}}
+  {\IfFontExistsTF{Latin Modern Math}{\setmathfont{Latin Modern Math}}{\setmathfont{latinmodern-math.otf}}}
+
+\linespread{1.07}
+\setlength{\parindent}{0pt}
+\AtBeginDocument{\setlength{\parindent}{0pt}}
+\setlength{\parskip}{0.35em}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Mathématiques -- Seconde}
+\rhead{Images et antécédents}
+\usepackage{lastpage}
+\cfoot{Page \thepage\ / \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\headrule}{\vskip 5pt\hrule width\headwidth height\headrulewidth \vskip-\headrulewidth}
+
+\setlist[enumerate,1]{itemsep=0.45em, topsep=0.3em, label=\textbf{\arabic*.}}
+\setlist[enumerate,2]{itemsep=0.25em, topsep=0.2em, label=\textbf{\alph*.}}
+
+\newcommand{\exo}[2]{%
+  \vspace{1.5em}%
+  \noindent{\large\textbf{Exercice #1. -- #2}}%
+  \par\vspace{0.35em}%
+  \hrule height 0.5pt%
+  \vspace{0.7em}%
+}
+
+\newcommand{\partie}[1]{%
+  \vspace{0.9em}%
+  \noindent\textbf{#1}%
+  \par\vspace{0.3em}%
+}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE \textbf{Exercice : Images et antécédents}}\\[0.5em]
+  {\large Classe de Seconde}
+\end{center}
+
+\exo{1}{Images, antécédents et représentations graphiques}
+
+\partie{Partie A -- Étude à partir d'une fonction définie par une formule}
+Soit $f$ la fonction définie sur l'intervalle $[-3 ; 3]$ par $f(x) = x^2 - 2x - 3$.
+\begin{enumerate}
+  \item Calculer l'image de $4$ par la fonction $f$ si cela est possible, puis calculer l'image de $0$ et celle de $-1$.
+  \item Démontrer que le nombre $-4$ possède un unique antécédent par $f$ dans l'intervalle $[-3 ; 3]$ et le déterminer.
+  \item Déterminer par le calcul les antécédents éventuels de $0$ par la fonction $f$.
+  \item Vérifier que pour tout réel $x$, $f(x) = (x-1)^2 - 4$. En déduire les antécédents de $-4$ par $f$.
+\end{enumerate}
+
+\partie{Partie B -- Exploitation d'une courbe représentative}
+Dans un repère orthonormal, on considère la courbe représentative $\mathcal{C}_f$ de la fonction $f$ étudiée dans la Partie A.
+\begin{enumerate}
+  \item Déterminer graphiquement les coordonnées des points d'intersection de la courbe $\mathcal{C}_f$ avec l'axe des ordonnées. Retrouver ce résultat par le calcul.
+  \item Déterminer graphiquement le nombre d'antécédents de $1$ par la fonction $f$.
+  \item Résoudre graphiquement, puis par le calcul, l'inéquation $f(x) \leqslant 0$.
+\end{enumerate}
+
+\vspace{1.5em}
+\noindent{\large\textbf{Corrigé détaillé}}
+
+\partie{Partie A}
+\begin{enumerate}
+  \item \textbf{Calcul des images :}
+  \begin{itemize}
+    \item Pour $x = 4$ : $f(4) = 4^2 - 2(4) - 3 = 16 - 8 - 3 = 5$. L'image de $4$ par $f$ est $5$.
+    \item Pour $x = 0$ : $f(0) = 0^2 - 2(0) - 3 = -3$. L'image de $0$ est $-3$.
+    \item Pour $x = -1$ : $f(-1) = (-1)^2 - 2(-1) - 3 = 1 + 2 - 3 = 0$. L'image de $-1$ est $0$.
+  \end{itemize}
+  \item \textbf{Recherche d'antécédents pour $-4$ :}
+  On cherche s'il existe un réel $x$ tel que $f(x) = -4$, c'est-à-dire $x^2 - 2x - 3 = -4 \iff x^2 - 2x + 1 = 0 \iff (x-1)^2 = 0$.
+  La seule solution de cette équation est $x = 1$. Or, $1$ appartient bien à l'intervalle $[-3 ; 3]$. Par conséquent, $-4$ possède un unique antécédent qui est $1$.
+  \item \textbf{Antécédents de $0$ :}
+  On résout l'équation $f(x) = 0$, soit $x^2 - 2x - 3 = 0$.
+  On remarque que $f(-1) = 0$, donc $-1$ est un antécédent.
+  En factorisant ou en utilisant la forme canonique, on obtient $(x-1)^2 = 4$, soit $x-1 = 2$ ou $x-1 = -2$, ce qui donne $x = 3$ ou $x = -1$.
+  Les antécédents de $0$ par $f$ sont donc $-1$ et $3$.
+  \item \textbf{Forme canonique et antécédents :}
+  On développe $(x-1)^2 - 4 = (x^2 - 2x + 1) - 4 = x^2 - 2x - 3 = f(x)$.
+  Pour trouver les antécédents de $-4$, on résout $f(x) = -4 \iff (x-1)^2 - 4 = -4 \iff (x-1)^2 = 0 \iff x = 1$.
+  Le nombre $-4$ admet donc pour unique antécédent $1$.
+\end{enumerate}
+
+\partie{Partie B}
+\begin{enumerate}
+  \item \textbf{Intersection avec l'axe des ordonnées :}
+  Graphiquement, l'ordonnée à l'origine se lit en regardant l'ordonnée du point d'abscisse $0$, soit $f(0) = -3$. Le point d'intersection a pour coordonnées $(0 ; -3)$. Par le calcul, $f(0) = -3$.
+  \item \textbf{Nombre d'antécédents de $1$ :}
+  Graphiquement, la droite horizontale d'équation $y = 1$ coupe la parabole $\mathcal{C}_f$ en deux points distincts, ce qui signifie que $1$ possède exactement deux antécédents.
+  \item \textbf{Résolution de $f(x) \leqslant 0$ :}
+  Graphiquement, la courbe $\mathcal{C}_f$ est située en dessous ou sur l'axe des abscisses sur l'intervalle $[-1 ; 3]$.
+  Par le calcul, $(x+1)(x-3) \leqslant 0$, ce qui donne également l'intervalle $[-1 ; 3]$.
+\end{enumerate}
+
+\end{document}

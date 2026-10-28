@@ -1,0 +1,69 @@
+% Compiler avec XeLaTeX ou LuaLaTeX
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{amsmath,amssymb}
+\usepackage{fontspec}
+\usepackage{unicode-math}
+\usepackage{polyglossia}
+\setmainlanguage{french}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage[margin=2cm,headheight=16pt,headsep=22pt]{geometry}
+\usepackage{enumitem}
+
+\IfFontExistsTF{Libertinus Serif}
+  {\setmainfont{Libertinus Serif}}
+  {\IfFontExistsTF{Latin Modern Roman}{\setmainfont{Latin Modern Roman}}{\setmainfont{lmroman10-regular.otf}}}
+
+\IfFontExistsTF{Libertinus Math}
+  {\setmathfont{Libertinus Math}}
+  {\IfFontExistsTF{Latin Modern Math}{\setmathfont{Latin Modern Math}}{\setmathfont{latinmodern-math.otf}}}
+
+\linespread{1.07}
+\setlength{\parindent}{0pt}
+\AtBeginDocument{\setlength{\parindent}{0pt}}
+\setlength{\parskip}{0.35em}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{NeoHarness AI -- Évaluation Pédagogique}
+\rhead{Fiche d'annotation}
+\usepackage{lastpage}
+\cfoot{Page \thepage\ / \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\headrule}{\vskip 5pt\hrule width\headwidth height\headrulewidth \vskip-\headrulewidth}
+
+\setlist[enumerate,1]{itemsep=0.45em, topsep=0.3em, label=\textbf{\arabic*.}}
+\setlist[enumerate,2]{itemsep=0.25em, topsep=0.2em, label=\textbf{\alph*.}}
+
+\newcommand{\sectionannotation}[1]{%
+  \vspace{1.2em}%
+  \noindent{\large\textbf{#1}}%
+  \par\vspace{0.35em}%
+  \hrule height 0.5pt%
+  \vspace{0.7em}%
+}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE \textbf{RAPPORT D'ANNOTATION ET DE CORRECTION}}\\[0.4em]
+  {\large Travail d'élève -- Mathématiques}
+\end{center}
+
+\vspace{1em}
+
+\sectionannotation{1. Diagnostic global et notation}
+\begin{itemize}
+  \item \textbf{Note attribuée} : \dots / 20
+  \item \textbf{Points forts} : \dots
+  \item \textbf{Points d'attention prioritaires} : \dots
+\end{itemize}
+
+\sectionannotation{2. Analyse détaillée étape par étape}
+% Détail des calculs et détection des erreurs
+
+\sectionannotation{3. Appréciation pédagogique et conseil de remédiation}
+% Commentaire constructif pour l'élève
+
+\end{document}

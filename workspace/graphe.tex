@@ -1,0 +1,36 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{tikz}
+\usepackage{geometry}
+\geometry{margin=2cm}
+
+\begin{document}
+
+\section*{Exercice : Graphe orienté et matrice d'adjacence}
+
+On considère un réseau informatique modélisé par un graphe orienté $G$ comportant 4 sommets notés $A$, $B$, $C$ et $D$.
+
+\subsection*{Représentation graphique du graphe orienté}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.9, every node/.style={circle, draw, thick, minimum size=8mm}]
+    % Positionnement des sommets
+    \node (A) at (0,2) {$A$};
+    \node (B) at (3,2) {$B$};
+    \node (C) at (3,-1) {$C$};
+    \node (D) at (0,-1) {$D$};
+
+    % Arêtes orientées (flèches)
+    \draw[->, thick, >=stealth] (A) to[bend left=15] (B);
+    \draw[->, thick, >=stealth] (A) to (C);
+    \draw[->, thick, >=stealth] (B) to (C);
+    \draw[->, thick, >=stealth] (B) to[bend left=15] (D);
+    \draw[->, thick, >=stealth] (C) to (A);
+    \draw[->, thick, >=stealth] (D) to (B);
+    \draw[->, thick, >=stealth] (D) to (A);
+\end{tikzpicture}
+\end{center}
+
+\end{document}

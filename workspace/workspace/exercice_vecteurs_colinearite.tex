@@ -1,0 +1,111 @@
+% Compiler avec XeLaTeX ou LuaLaTeX
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{amsmath,amssymb}
+\usepackage{fontspec}
+\usepackage{unicode-math}
+\usepackage{polyglossia}
+\setmainlanguage{french}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage[margin=2cm,headheight=16pt,headsep=22pt]{geometry}
+\usepackage{enumitem}
+
+\IfFontExistsTF{Libertinus Serif}
+  {\setmainfont{Libertinus Serif}}
+  {\IfFontExistsTF{Latin Modern Roman}{\setmainfont{Latin Modern Roman}}{\setmainfont{lmroman10-regular.otf}}}
+
+\IfFontExistsTF{Libertinus Math}
+  {\setmathfont{Libertinus Math}}
+  {\IfFontExistsTF{Latin Modern Math}{\setmathfont{Latin Modern Math}}{\setmathfont{latinmodern-math.otf}}}
+
+\linespread{1.07}
+\setlength{\parindent}{0pt}
+\AtBeginDocument{\setlength{\parindent}{0pt}}
+\setlength{\parskip}{0.35em}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Djamel BENMAKHLOUF}
+\rhead{Classe de Seconde}
+\usepackage{lastpage}
+\cfoot{Page \thepage\ / \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\headrule}{\vskip 5pt\hrule width\headwidth height\headrulewidth \vskip-\headrulewidth}
+
+\setlist[enumerate,1]{itemsep=0.45em, topsep=0.3em, label=\textbf{\arabic*.}}
+\setlist[enumerate,2]{itemsep=0.25em, topsep=0.2em, label=\textbf{\alph*.}}
+
+\newcommand{\exo}[2]{%
+  \vspace{1.5em}%
+  \noindent{\large\textbf{Exercice #1. -- #2}}%
+  \par\vspace{0.35em}%
+  \hrule height 0.5pt%
+  \vspace{0.7em}%
+}
+
+\newcommand{\partie}[1]{%
+  \vspace{0.9em}%
+  \noindent\textbf{#1}%
+  \par\vspace{0.3em}%
+}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE \textbf{Vecteurs et colinéarité}}\\[0.5em]
+  {\large Classe de Seconde}
+\end{center}
+
+\exo{1}{Vecteurs et colinéarité dans le plan}
+
+Dans un repère orthonormé $(O, \vec{i}, \vec{j})$, on considère les points suivants :
+$A(-2 ; 1)$, $B(4 ; -1)$, $C(1 ; 5)$ et $D(-3 ; 6)$.
+
+\partie{Partie A -- Coordonnées et milieux}
+\begin{enumerate}
+  \item Calculer les coordonnées du vecteur $\vec{AB}$ et du vecteur $\vec{CD}$.
+  \item Démontrer que le quadrilatère $ABDC$ n'est pas un parallélogramme en justifiant par le calcul.
+  \item Soit $M$ le milieu du segment $[AC]$. Déterminer les coordonnées du point $M$.
+\end{enumerate}
+
+\partie{Partie B -- Colinéarité et alignement}
+\begin{enumerate}
+  \item Les vecteurs $\vec{AB}$ et $\vec{CD}$ sont-ils colinéaires ? Justifier rigoureusement.
+  \item On considère un point $E$ de coordonnées $(1 ; y)$. Déterminer la valeur de $y$ pour que les vecteurs $\vec{AB}$ et $\vec{AE}$ soient colinéaires.
+  \item Que peut-on en déduire pour les points $A$, $B$ et $E$ ?
+\end{enumerate}
+
+\vspace{1.5em}
+\noindent{\large\textbf{Corrigé détaillé}}
+
+\partie{Partie A}
+\begin{enumerate}
+  \item \textbf{Coordonnées de $\vec{AB}$ et $\vec{CD}$ :}
+  \begin{itemize}
+    [label=$\bullet$,leftmargin=1.5em]
+    \item Pour $\vec{AB}$ : $\vec{AB}\begin{pmatrix} x_B - x_A \\ y_B - y_A \end{pmatrix} = \begin{pmatrix} 4 - (-2) \\ -1 - 1 \end{pmatrix} = \begin{pmatrix} 6 \\ -2 \end{pmatrix}$.
+    \item Pour $\vec{CD}$ : $\vec{CD}\begin{pmatrix} x_D - x_C \\ y_D - y_C \end{pmatrix} = \begin{pmatrix} -3 - 1 \\ 6 - 5 \end{pmatrix} = \begin{pmatrix} -4 \\ 1 \end{pmatrix}$.
+  \end{itemize}
+  \item \textbf{Nature du quadrilatère $ABDC$ :}
+  On observe que $\vec{AB}\begin{pmatrix} 6 \\ -2 \end{pmatrix} \neq \vec{CD}\begin{pmatrix} -4 \\ 1 \end{pmatrix}$ ($6 \neq -4$ et $-2 \neq 1$). Le quadrilatère $ABDC$ n'est donc pas un parallélogramme.
+  \item \textbf{Coordonnées du milieu $M$ de $[AC]$ :}
+  $$x_M = \frac{x_A + x_C}{2} = \frac{-2 + 1}{2} = -0{,}5 \quad \text{et} \quad y_M = \frac{y_A + y_C}{2} = \frac{1 + 5}{2} = 3$$
+  Le point $M$ a pour coordonnées $(-0{,}5 ; 3)$.
+\end{enumerate}
+
+\partie{Partie B}
+\begin{enumerate}
+  \item \textbf{Colinéarité de $\vec{AB}$ et $\vec{CD}$ :}
+  Calculons le déterminant des deux vecteurs :
+  $$6 \times 1 - (-2) \times (-4) = 6 - 8 = -2$$
+  Puisque le déterminant est non nul ($-2 \neq 0$), les vecteurs $\vec{AB}$ et $\vec{CD}$ ne sont pas colinéaires.
+  \item \textbf{Détermination de $y$ pour que $\vec{AB}$ et $\vec{AE}$ soient colinéaires :}
+  On a $\vec{AE}\begin{pmatrix} 3 \\ y - 1 \end{pmatrix}$. La condition de colinéarité avec $\vec{AB}\begin{pmatrix} 6 \\ -2 \end{pmatrix}$ donne :
+  $$6 \times (y - 1) - (-2) \times 3 = 0 \iff 6(y - 1) + 6 = 0 \iff 6y = 0 \implies y = 0$$
+  Le point $E$ a pour coordonnées $(1 ; 0)$.
+  \item \textbf{Conséquence pour les points $A$, $B$ et $E$ :}
+  Puisque les vecteurs $\vec{AB}$ et $\vec{AE}$ sont colinéaires et possèdent le point $A$ en commun, les points $A$, $B$ et $E$ sont alignés.
+\end{enumerate}
+
+\end{document}

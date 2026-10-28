@@ -160,6 +160,43 @@ class SkillLoader:
         )
 
     @staticmethod
+    def filter_rag_for_mission(skill: SkillDefinition, mission: str = "") -> None:
+        """Ciblage RAG chirurgical : ne conserve que le programme officiel du niveau demandé
+        pour éviter de saturer le contexte LLM et d'exploser les quotas (erreurs 429)."""
+        if not skill.rag_contents or len(skill.rag_contents) <= 1:
+            return
+        m_low = (mission or "").casefold()
+        level_patterns = [
+            (re.compile(r"\b(seconde|2nde)\b"), "programme_seconde_generale"),
+            (re.compile(r"\b(premi[èe]re|1[èe]re)\b"), "programme_premiere_specialite"),
+            (re.compile(r"\b(experte|expertes)\b"), "programme_terminale_expertes"),
+            (re.compile(r"\b(techno|technologique|stmg|sti2d)\b"), "programme_sections_technologiques"),
+            (re.compile(r"\b(terminale|tle)\b"), "programme_terminale_specialite"),
+        ]
+        target_stem = None
+        for pat, stem in level_patterns:
+            if pat.search(m_low):
+                target_stem = stem
+                break
+
+        if target_stem:
+            filtered: dict[str, str] = {}
+            for rel_path, text in skill.rag_contents.items():
+                p_low = rel_path.casefold()
+                # On conserve uniquement le programme du niveau visé et les barèmes généraux
+                if target_stem in p_low or "bareme" in p_low or "methodologie" in p_low:
+                    filtered[rel_path] = text
+            if filtered:
+                skill.rag_contents = filtered
+                skill.rag_resources = [
+                    p for p in skill.rag_resources
+                    if any(k in p.name.casefold() for k in (target_stem, "bareme", "methodologie"))
+                ]
+                if skill.agent is not None:
+                    skill.agent.skill_rag_contents = dict(filtered)
+                    skill.agent.skill_rag_resources = list(skill.rag_resources)
+
+    @staticmethod
     def _load_yaml(path: Path) -> dict[str, Any]:
         parsed = yaml.safe_load(path.read_text(encoding="utf-8-sig"))
         if parsed is None:

@@ -1,0 +1,57 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\geometry{margin=2cm}
+\usepackage{amsmath,amssymb}
+\usepackage{tikz}
+
+\title{Exercice -- Lecture graphique d'images et d'antécédents}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+On considère la fonction $f$ définie sur l'intervalle $[-4 ; 5]$, dont la courbe représentative $\mathcal{C}_f$ est tracée dans le repère orthogonal ci-dessous. La courbe passe par les points $(-4 ; 2)$, $(-2 ; 4)$, $(0 ; 0)$, $(2 ; -3)$, $(3 ; 0)$ et $(5 ; 4)$.
+
+\begin{center}
+\begin{tikzpicture}[scale=0.9]
+    \draw[->, >=stealth, gray] (-5,0) -- (6,0) node[right] {$x$};
+    \draw[->, >=stealth, gray] (0,-4) -- (0,5) node[above] {$y$};
+    \foreach \x in {-4,-3,-2,-1,1,2,3,4,5}
+        \draw[gray!50] (\x,-3.5) -- (\x,4.5);
+    \foreach \y in {-3,-2,-1,1,2,3,4}
+        \draw[gray!50] (-4.5,\y) -- (5.5,\y);
+    \draw[thick, blue, domain=-4:5, samples=100] plot (\x, {0.25*(\x)^3 - 1.25*\x});
+    \node[blue, above right] at (3,1) {$\mathcal{C}_f$};
+    \filldraw[red] (-4,2) circle (2pt) node[above left] {$(-4;2)$};
+    \filldraw[red] (-2,4) circle (2pt) node[above left] {$(-2;4)$};
+    \filldraw[red] (0,0) circle (2pt) node[below right] {$(0;0)$};
+    \filldraw[red] (2,-3) circle (2pt) node[right] {$(2;-3)$};
+    \filldraw[red] (3,0) circle (2pt) node[above] {$(3;0)$};
+    \filldraw[red] (5,4) circle (2pt) node[above left] {$(5;4)$};
+\end{tikzpicture}
+\end{center}
+
+\section*{Partie A -- Lectures d'images}
+En utilisant exclusivement le graphique représentant la fonction $f$ :
+\begin{enumerate}
+    \item Déterminer l'image de $0$ par la fonction $f$.
+    \item Déterminer l'image de $-2$ par la fonction $f$.
+    \item Déterminer l'image de $3$ par la fonction $f$.
+    \item Le nombre $4$ a-t-il pour image $5$ ou pour antécédent $5$ sur le graphique ? Justifier graphiquement.
+\end{enumerate}
+
+\section*{Partie B -- Lectures d'antécédents}
+En utilisant exclusivement le graphique représentant la fonction $f$ :
+\begin{enumerate}
+    \item Déterminer le ou les antécédents de $0$ par la fonction $f$.
+    \item Déterminer le ou les antécédents de $4$ par la fonction $f$.
+    \item Le nombre $-3$ possède-t-il des antécédents ? Si oui, les déterminer graphiquement.
+    \item Résoudre graphiquement l'équation $f(x) = -3$.
+\end{enumerate}
+
+\end{document}

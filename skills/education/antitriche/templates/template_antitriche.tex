@@ -1,0 +1,97 @@
+% Compiler avec XeLaTeX ou LuaLaTeX
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{amsmath,amssymb}
+\usepackage{fontspec}
+\usepackage{unicode-math}
+\usepackage{polyglossia}
+\setmainlanguage{french}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage[margin=2cm,headheight=16pt,headsep=22pt]{geometry}
+\usepackage{enumitem}
+
+% Police principale et police mathématique : Libertinus
+\IfFontExistsTF{Libertinus Serif}
+  {\setmainfont{Libertinus Serif}}
+  {\IfFontExistsTF{Latin Modern Roman}{\setmainfont{Latin Modern Roman}}{\setmainfont{lmroman10-regular.otf}}}
+
+\IfFontExistsTF{Libertinus Math}
+  {\setmathfont{Libertinus Math}}
+  {\IfFontExistsTF{Latin Modern Math}{\setmathfont{Latin Modern Math}}{\setmathfont{latinmodern-math.otf}}}
+
+\linespread{1.07}
+\setlength{\parindent}{0pt}
+\AtBeginDocument{\setlength{\parindent}{0pt}}
+\setlength{\parskip}{0.35em}
+
+% En-tête
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{NeoHarness AI -- Évaluation}
+\rhead{classe à préciser}
+% Pagination : « Page X / Y » centrée en pied de page
+\usepackage{lastpage}
+\cfoot{Page \thepage\ / \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\headrule}{\vskip 5pt\hrule width\headwidth height\headrulewidth \vskip-\headrulewidth}
+
+% Configuration des listes
+\setlist[enumerate,1]{itemsep=0.45em, topsep=0.3em, label=\textbf{\arabic*.}}
+\setlist[enumerate,2]{itemsep=0.25em, topsep=0.2em, label=\textbf{\alph*.}}
+
+% Commandes de structure
+\newcommand{\sujet}[1]{%
+  \begin{center}%
+    {\LARGE \textbf{ÉVALUATION DE MATHÉMATIQUES -- SUJET #1}}\\[0.4em]%
+    {\large Nom : \makebox[4cm]{\dotfill} \quad Prénom : \makebox[4cm]{\dotfill} \quad Classe : \makebox[2cm]{\dotfill}}%
+  \end{center}%
+  \vspace{0.8em}%
+}
+
+\newcommand{\exo}[2]{%
+  \vspace{1.2em}%
+  \noindent{\large\textbf{Exercice #1. -- #2}}%
+  \par\vspace{0.35em}%
+  \hrule height 0.5pt%
+  \vspace{0.7em}%
+}
+
+\newcommand{\partie}[1]{%
+  \vspace{0.9em}%
+  \noindent\textbf{#1}%
+  \par\vspace{0.3em}%
+}
+
+\begin{document}
+
+% ==================== SUJET A (ÉLÈVE) ====================
+\sujet{A}
+
+\exo{1}{Titre du Sujet A}
+Énoncé du Sujet A.
+
+\newpage
+
+% ==================== SUJET B (ÉLÈVE ANTI-TRICHE) ====================
+\sujet{B}
+
+\exo{1}{Titre du Sujet B (Variante numérique)}
+Énoncé du Sujet B (mêmes questions, valeurs numériques différentes).
+
+\newpage
+
+% ==================== CORRIGÉS DÉTAILLÉS ====================
+\begin{center}
+  {\LARGE \textbf{CORRIGÉ OFFICIEL \& BARÈME}}\\[0.4em]
+  {\large Sujet A et Sujet B}
+\end{center}
+
+\partie{Corrigé du Sujet A}
+Détail des calculs et barème du Sujet A.
+
+\vspace{1.5em}
+\partie{Corrigé du Sujet B}
+Détail des calculs et barème du Sujet B.
+
+\end{document}

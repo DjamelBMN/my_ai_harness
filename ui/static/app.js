@@ -1675,40 +1675,1655 @@ function isImageAttachmentPath(p) {
     return out;
   }
 
+function sanitizeRawLatexForChat(input) {
+    const figs = [];
+    const out = String(input)
+      .split(/(```[\s\S]*?```)/g)
+      .map((seg, i) => {
+        if (i % 2 === 1) return seg;
+        return seg
+          .replace(
+            /(?:\\begin\{center\}\s*)?\\begin\{tikzpicture\}[\s\S]*?(?:\\end\{tikzpicture\}(?:\s*\\end\{center\})?|$)/g,
+            (m) => {
+              figs.push(m.replace(/^\\begin\{center\}\s*/, "").replace(/\s*\\end\{center\}\s*$/, ""));
+              return `\n\n@@TIKZ_${figs.length - 1}@@\n\n`;
+            }
+          )
+          .replace(/\\(?:begin|end)\{(?:center|document|flushleft|flushright)\}/g, "")
+          .replace(/\\exo\{[^}]*\}\{([^}]*)\}/g, "\n\n## $1\n\n")
+          .replace(/\\partie\{([^}]*)\}/g, "\n\n### $1\n\n")
+          .replace(/\\(?:section|subsection)\*?\{([^}]*)\}/g, "\n\n## $1\n\n")
+          .replace(/\\textbf\{([^}]*)\}/g, "**$1**")
+          .replace(/\\textit\{([^}]*)\}/g, "*$1*")
+          .replace(/\\(?:begin|end)\{(?:enumerate|itemize)\}(?:\[[^\]]*\])?/g, "\n")
+          .replace(/^\s*\\item\s+/gm, "- ")
+          .replace(/\\needspace\{[^}]*\}/g, "")
+          .replace(/\\(?:vspace|hspace)\*?\{[^}]*\}/g, "")
+          .replace(/\\(?:newpage|clearpage|noindent|medskip|bigskip|smallskip)\b/g, "");
+      })
+      .join("");
+    return out.replace(/@@TIKZ_(\d+)@@/g, (_, k) => "```tikz\n" + figs[Number(k)] + "\n```");
+  }
+
+  // =====================================================================
+  //  MOTEUR UNIFIÉ DES REPRÉSENTATIONS MATHÉMATIQUES DANS LE CHAT
+  //  1. Tableaux (signes multi-facteurs, variations, convexité combinés)
+  //  2. Droites numériques & intervalles (crochets français normalisés)
+  //  3. Arbres pondérés (2, 3, N branches + événements complémentaires)
+  //  4. Courbes de fonctions, repères & graphes (TikZ / pgfplots / boucles)
+  // =====================================================================
+  let __vtCounter = 0;
+  let __tkUid = 0;
+
+  function vtMath(s) {
+    let t = String(s == null ? "" : s).replace(/\$/g, "").trim();
+    if (!t) return "";
+    if (/^[A-Za-zÀ-ÿ'’ ]{3,}$/.test(t) && !/^[+-]?\s*(oo|inf)$/i.test(t) && !/^(ln|exp|sin|cos|tan|sqrt)\b/i.test(t)) {
+      return `<i>${esc(t)}</i>`;
+    }
+    t = t.replace(/−/g, "-");
+    t = t.replace(/([+-]?)\s*(?:\\infty|oo|inf|∞)/gi, (_, sg) => (sg || "") + "\\infty");
+    t = t.replace(/^(-?)(\d+)\s*\/\s*(\d+)$/, (_, sg, a, b) => `${sg}\\frac{${a}}{${b}}`);
+    t = t.replace(/sqrt\(([^()]*)\)/g, "\\sqrt{$1}").replace(/\bpi\b/g, "\\pi");
+    t = t.replace(/\\parallel|\\mid/g, "");
+    return renderMathExpression(t, false);
+  }
+
+  function vtLabel(s) {
+    const t = String(s == null ? "" : s).replace(/\$/g, "").trim();
+    if (/^x$/i.test(t)) return renderMathExpression("x", false);
+    if (/^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9_ '’-]*$/.test(t) && /[A-Za-zÀ-ÿ]{3,}/.test(t)) {
+      const txt = t
+        .replace(/_/g, " ")
+        .replace(/\bnum\b/gi, "numérateur")
+        .replace(/\bden\b/gi, "dénominateur");
+      return `<span style="font-style:italic;font-size:13px;line-height:1.25;display:inline-block;">${esc(txt)}</span>`;
+    }
+    return vtMath(t);
+  }
+
+  function vtNum(s) {
+    try {
+      let t = String(s == null ? "" : s).replace(/\$/g, "").replace(/\s+/g, "");
+      if (!t) return null;
+      t = t.replace(/−/g, "-").replace(/,/g, ".");
+      if (/^[+-]?(?:\\infty|oo|∞|inf)$/i.test(t)) {
+        return t.startsWith("-") ? -1e99 : 1e99;
+      }
+      t = t.replace(/\\d?frac\{([^{}]*)\}\{([^{}]*)\}/g, "(($1)/($2))");
+      t = t.replace(/\\sqrt\{([^{}]*)\}/g, "Math.sqrt($1)");
+      t = t.replace(/sqrt\(([^()]*)\)/g, "Math.sqrt($1)");
+      t = t.replace(/\\ln\b|\bln\b/g, "Math.log");
+      t = t.replace(/\\exp\b|\bexp\b/g, "Math.exp");
+      t = t.replace(/\\pi\b|\bpi\b/g, "Math.PI");
+      t = t.replace(/\be\b/g, "Math.E");
+      t = t.replace(/\^\{([^{}]*)\}/g, "**($1)").replace(/\^(-?[\d.]+)/g, "**($1)");
+      const stripped = t.replace(/Math\.(sqrt|log|exp|PI|E)/g, "");
+      if (!/^[\d+\-*/().e*]*$/.test(stripped) || !t) return null;
+      const v = Function('"use strict";return (' + t + ");")();
+      return typeof v === "number" && !isNaN(v) ? v : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // Normalise une ligne de signes à 2n-3 jetons : [signe_0, sep_1, signe_1, sep_2, ..., signe_{n-2}]
+  function vtNormSigns(toks, n, xVals) {
+    const need = Math.max(0, 2 * n - 3);
+    if (need === 0) return [];
+    const isS = (t) => t === "+" || t === "-" || t === "?";
+    const out = [];
+    let expectSign = true;
+    toks.forEach((t) => {
+      if (isS(t)) {
+        if (!expectSign) out.push("|");
+        out.push(t);
+        expectSign = false;
+      } else {
+        if (expectSign) out.push("");
+        out.push(t === "//" ? "||" : t);
+        expectSign = true;
+      }
+    });
+    // Si f''(x) est donné avec "- 0 +" (3 jetons) alors que x a plus de 3 valeurs (ex: -oo, -1, 0, 1, +oo)
+    if (out.length === 3 && need > 3 && isS(out[0]) && (out[1] === "0" || out[1] === "||") && isS(out[2])) {
+      let midIdx = Math.floor((n - 1) / 2);
+      if (Array.isArray(xVals)) {
+        const zeroIdx = xVals.findIndex((xv, idx) => idx > 0 && idx < n - 1 && String(xv).replace(/\$/g, "").trim() === "0");
+        if (zeroIdx > 0) midIdx = zeroIdx;
+      }
+      const expanded = [];
+      for (let k = 0; k < n - 1; k++) {
+        expanded.push(k < midIdx ? out[0] : out[2]);
+        if (k < n - 2) expanded.push(k + 1 === midIdx ? out[1] : "|");
+      }
+      return expanded;
+    }
+    while (out.length < need) {
+      if (out.length % 2 === 1) out.push("|");
+      else out.push([...out].reverse().find(isS) || "+");
+    }
+    return out.slice(0, need);
+  }
+
+  function parseVtSpec(text) {
+    const lines = String(text).split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const spec = { x: [], signRows: [], varRow: null, convex: false, convexLabel: "convexité" };
+    const ARROW_RE = /\\?(?:nearrow|searrow|nwarrow|swarrow|uparrow|downarrow)|[↗↘↙↖↑↓]/g;
+    for (const ln of lines) {
+      const m = ln.match(/^([^:]+):\s*(.*)$/);
+      if (!m) continue;
+      const label = m[1].trim();
+      const body = m[2].trim().replace(/−/g, "-");
+      if (/^\$?x\$?$/i.test(label)) {
+        spec.x = (body.indexOf("|") >= 0 ? body.split("|") : body.split(/\s+/)).map((s) => s.trim()).filter(Boolean);
+        continue;
+      }
+      if (/convex|concav/i.test(label) || /convexe|concave|inflexion/i.test(body)) {
+        spec.convex = true;
+        spec.convexLabel = label;
+        continue;
+      }
+      const onlySignChars = /^[\s+\-0|/?]+$/.test(body) && /[+\-0|/?]/.test(body);
+      const primeLabel = /['′"″]|signe/i.test(label);
+      if (primeLabel || onlySignChars) {
+        const toks = (body.match(/\|\||\/\/|\||[+\-]|0|\?/g) || []).map((t) => (t === "//" ? "||" : t));
+        spec.signRows.push({ label, toks, isSecondDeriv: /(''|′′|″|"|seconde)/i.test(label) });
+        if (/(''|′′|″|")/.test(label)) spec.convex = true;
+      } else {
+        const cleanBody = body.replace(ARROW_RE, " ").replace(/\|\s*\|/g, "|");
+        const rawParts = cleanBody.split("|").map((s) => s.trim()).filter((v, _, arr) => arr.length <= 2 || v !== "");
+        const vals = rawParts.map((p) => {
+          const parts = p.split("//").map((s) => s.trim());
+          return parts.length > 1 ? [parts[0], parts[1]] : [parts[0], parts[0]];
+        });
+        spec.varRow = { label, vals };
+      }
+    }
+    const n = spec.x.length;
+    spec.signRows.forEach((r) => {
+      r.toks = vtNormSigns(r.toks, n, spec.x);
+    });
+    if (spec.varRow && spec.varRow.vals.length !== n && n >= 2) {
+      while (spec.varRow.vals.length < n) spec.varRow.vals.push(["", ""]);
+      spec.varRow.vals = spec.varRow.vals.slice(0, n);
+    }
+    return n >= 2 ? spec : null;
+  }
+
+  function tabularToVtSpec(rows) {
+    const cells = rows.map((r) => r.split("&").map((c) => c.replace(/\$/g, "").trim()));
+    const strip = (s) => String(s || "").replace(/\s+/g, "");
+    const xi = cells.findIndex((r) => strip(r[0]).toLowerCase() === "x");
+    if (xi < 0) return null;
+    const cols = [];
+    cells[xi].forEach((c, j) => {
+      if (j > 0 && c) cols.push(j);
+    });
+    const n = cols.length;
+    if (n < 2) return null;
+    const ARROW = /searrow|swarrow|nearrow|nwarrow|downarrow|uparrow|[↗↘↙↖↑↓]/;
+    const spec = { x: cols.map((j) => cells[xi][j]), signRows: [], varRow: null, convex: false, convexLabel: "convexité" };
+    const vals = cols.map(() => "");
+    let varLabel = "";
+    let hasVal = false;
+    cells.forEach((r, i) => {
+      if (i === xi) return;
+      const lbl = r[0] || "";
+      if (/convex|concav/i.test(lbl)) {
+        spec.convex = true;
+        return;
+      }
+      if (/'|′|prime|signe/i.test(lbl)) {
+        const toks = [];
+        for (let k = 1; k < n; k++) {
+          const cand = r.slice(cols[k - 1] + 1, cols[k]).find((c) => c) || "";
+          toks.push(cand.replace("−", "-") || "+");
+          if (k < n - 1) {
+            const pc = r[cols[k]] || "";
+            toks.push(/^0$/.test(pc) ? "0" : /parallel|\|\|/.test(pc) ? "||" : "|");
+          }
+        }
+        const isD2 = /(''|′′|″|")/.test(lbl);
+        if (isD2) spec.convex = true;
+        spec.signRows.push({ label: lbl, toks: vtNormSigns(toks, n, spec.x), isSecondDeriv: isD2 });
+        return;
+      }
+      if (!varLabel && lbl) varLabel = lbl;
+      cols.forEach((c, k) => {
+        const cell = r[c];
+        if (cell && !ARROW.test(cell) && !vals[k]) {
+          vals[k] = cell;
+          hasVal = true;
+        }
+      });
+    });
+    if (hasVal) spec.varRow = { label: varLabel || "f(x)", vals: vals.map((v) => [v, v]) };
+    return spec.signRows.length || spec.varRow ? spec : null;
+  }
+
+  function mdPipeTableToHtml(block) {
+    const rows = block
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.startsWith("|"))
+      .map((l) => l.replace(/^\||\|$/g, "").split("|").map((c) => c.replace(/\$/g, "").trim()))
+      .filter((r) => !r.every((c) => /^:?-{2,}:?$/.test(c) || c === ""));
+    if (rows.length < 2) return null;
+    const strip = (s) => String(s || "").replace(/\s+/g, "");
+    if (strip(rows[0][0]).toLowerCase() !== "x") return null;
+    const xs = rows[0].slice(1).filter((c) => c !== "");
+    const n = xs.length;
+    if (n < 2) return null;
+    const spec = { x: xs, signRows: [], varRow: null, convex: false, convexLabel: "convexité" };
+    const ARROW = /searrow|swarrow|nearrow|nwarrow|[↗↘↙↖↑↓]/;
+    rows.slice(1).forEach((r) => {
+      const label = r[0] || "";
+      const body = r.slice(1);
+      if (!label && body.some((c) => ARROW.test(c))) return;
+      if (/convex|concav/i.test(label)) {
+        spec.convex = true;
+        return;
+      }
+      const nz = body.filter((c) => c !== "").map((c) => (c === "−" ? "-" : c === "//" ? "||" : c));
+      if (/'|′|prime|signe/i.test(label) || (nz.length > 0 && nz.every((c) => /^(\+|-|0|\|\||\?|\|)$/.test(c)))) {
+        const isD2 = /(''|′′|″|")/.test(label);
+        if (isD2) spec.convex = true;
+        spec.signRows.push({ label, toks: vtNormSigns(nz, n, xs), isSecondDeriv: isD2 });
+      } else if (!spec.varRow && label) {
+        const cleanCells = body.filter((c) => !ARROW.test(c));
+        const cells = cleanCells.length >= n ? cleanCells.slice(0, n) : cleanCells.concat(new Array(n - cleanCells.length).fill(""));
+        spec.varRow = { label, vals: cells.map((c) => [c, c]) };
+      }
+    });
+    return renderVtSpec(spec);
+  }
+
+// Moteur unifié : affiche x + lignes de signes + variations f(x) + convexité dans un seul tableau
+  function renderVtSpec(spec) {
+    const n = spec.x.length;
+    if (n < 2) return null;
+    const sr = spec.signRows || [];
+    const vr = spec.varRow;
+    const vals = vr ? vr.vals : null;
+    const s2 = sr.find((r) => r.isSecondDeriv) || (spec.convex && !vr ? sr[sr.length - 1] : null);
+    const hasConvexRow = Boolean(spec.convex && s2 && s2.toks.length === 2 * n - 3);
+
+    const allLabels = sr.map((r) => String(r.label || "")).concat(vr ? [String(vr.label || "")] : []).concat(hasConvexRow ? [spec.convexLabel || "convexité"] : []);
+    const maxLen = Math.max(4, ...allLabels.map((l) => l.replace(/[$\\{}]/g, "").length));
+    const LABW = Math.max(112, Math.min(205, 28 + 7 * maxLen));
+    const XH = 42;
+    const rowHeights = sr.map((r) => (String(r.label || "").length > 12 ? 46 : 40));
+    const VH = 114;
+    const CH = 88;
+    const YS = { t: 24, m: 57, b: 90 };
+
+    const preVarSigns = [];
+    const postVarSigns = [];
+    sr.forEach((r, idx) => {
+      if (vr && hasConvexRow && r === s2) postVarSigns.push({ r, h: rowHeights[idx] });
+      else preVarSigns.push({ r, h: rowHeights[idx] });
+    });
+
+    const preVarHeight = preVarSigns.reduce((acc, it) => acc + it.h, 0);
+    const varTop = XH + preVarHeight;
+    const postVarTop = varTop + (vr ? VH : 0);
+    const postVarHeight = postVarSigns.reduce((acc, it) => acc + it.h, 0);
+    const convTop = postVarTop + postVarHeight;
+    const total = convTop + (hasConvexRow ? CH : 0);
+
+    const pct = (k) => 7 + (86 * k) / (n - 1);
+    const mid = (k) => (pct(k) + pct(k + 1)) / 2;
+
+    // Sens des flèches de variations
+    let dirs = null;
+    if (vr) {
+      const dsrc =
+        preVarSigns.map((x) => x.r).reverse().find((r) => /['′]/.test(r.label) && !r.isSecondDeriv) ||
+        preVarSigns.map((x) => x.r).reverse().find((r) => !r.isSecondDeriv);
+      if (dsrc && dsrc.toks.length === 2 * n - 3) {
+        const d = dsrc.toks.filter((_, i) => i % 2 === 0).map((t) => (t === "+" ? "u" : t === "-" ? "d" : null));
+        if (d.every(Boolean)) dirs = d;
+      }
+      if (!dirs && vals) {
+        const d = [];
+        for (let k = 0; k < n - 1; k++) {
+          const a = vtNum(vals[k][1]);
+          const b = vtNum(vals[k + 1][0]);
+          d.push(a === null || b === null || a === b ? null : b > a ? "u" : "d");
+        }
+        if (d.every(Boolean)) dirs = d;
+      }
+    }
+
+    const lev = [];
+    if (vr && vals) {
+      for (let k = 0; k < n; k++) {
+        const dbl = vals[k][0] !== vals[k][1];
+        if (!dirs) {
+          lev.push({ L: "m", R: "m" });
+          continue;
+        }
+        const prev = k > 0 ? dirs[k - 1] : null;
+        const next = k < n - 1 ? dirs[k] : null;
+        let single;
+        if (k === 0) single = next === "u" ? "b" : "t";
+        else if (k === n - 1) single = prev === "u" ? "t" : "b";
+        else if (prev === "d" && next === "u") single = "b";
+        else if (prev === "u" && next === "d") single = "t";
+        else single = "m";
+        if (dbl && k > 0 && k < n - 1) {
+          lev.push({ L: prev === "u" ? "t" : "b", R: next === "u" ? "b" : "t" });
+        } else {
+          lev.push({ L: single, R: single });
+        }
+      }
+    }
+
+    const C = "currentColor";
+    const BG = "var(--bg-elevated,#ffffff)";
+    const HDR_BG = "var(--bg-secondary,#f4f5f7)";
+    const at = (l, t, html, tx) =>
+      `<div style="position:absolute;left:${l}%;top:${t}px;transform:translate(${tx || "-50%"},-50%);white-space:nowrap;">${html}</div>`;
+    const hline = (y) =>
+      `<div style="position:absolute;left:0;right:0;top:${y}px;height:1px;background:${C};opacity:0.85;"></div>`;
+    const vline = (l, y1, y2, off, dashed) =>
+      `<div style="position:absolute;left:calc(${l}% + ${off || 0}px);top:${y1}px;height:${Math.max(0, y2 - y1)}px;width:0;border-left:1px ${dashed ? "dashed" : "solid"} ${C};opacity:${dashed ? "0.35" : "0.65"};"></div>`;
+    const lab = (label, top, h) =>
+      `<div style="position:absolute;left:0;width:${LABW}px;top:${top}px;height:${h}px;background:${HDR_BG};display:flex;align-items:center;justify-content:center;padding:2px 10px;text-align:center;box-sizing:border-box;">${vtLabel(label)}</div>`;
+
+    const outer = [];
+    outer.push(`<div style="position:absolute;left:${LABW}px;right:0;top:0;height:${XH}px;background:${HDR_BG};opacity:0.55;"></div>`);
+    outer.push(lab("x", 0, XH));
+
+    const plot = [];
+    for (let k = 0; k < n; k++) plot.push(at(pct(k), XH / 2, vtMath(spec.x[k])));
+
+    function renderSignGroup(group, startY) {
+      let curY = startY;
+      group.forEach(({ r, h }) => {
+        outer.push(lab(r.label, curY, h));
+        const cy = curY + h / 2;
+        for (let k = 0; k < n - 1; k++) {
+          const sg = r.toks[2 * k];
+          if (sg && sg !== "|" && sg !== "||" && sg !== "?") {
+            plot.push(at(mid(k), cy, vtMath(sg)));
+          }
+        }
+        for (let k = 1; k <= n - 2; k++) {
+          const sep = r.toks[2 * k - 1];
+          if (sep === "||") {
+            plot.push(vline(pct(k), curY, curY + h, -2, false));
+            plot.push(vline(pct(k), curY, curY + h, 2, false));
+          } else if (sep === "0") {
+            plot.push(vline(pct(k), curY, curY + h, 0, false));
+            plot.push(at(pct(k), cy, `<span style="background:${BG};padding:2px 6px;line-height:1;border-radius:4px;display:inline-block;">${vtMath("0")}</span>`));
+          } else {
+            plot.push(vline(pct(k), curY, curY + h, 0, true));
+          }
+        }
+        curY += h;
+        if (curY < total) outer.push(hline(curY));
+      });
+    }
+
+    renderSignGroup(preVarSigns, XH);
+
+    // Ligne des variations f(x)
+    if (vr && vals) {
+      outer.push(lab(vr.label || "f(x)", varTop, VH));
+      for (let k = 1; k <= n - 2; k++) {
+        const lastPre = preVarSigns.length ? preVarSigns[preVarSigns.length - 1].r : null;
+        const isForb = vals[k][0] !== vals[k][1] || (lastPre && lastPre.toks[2 * k - 1] === "||");
+        if (isForb) {
+          plot.push(vline(pct(k), varTop, varTop + VH, -2, false));
+          plot.push(vline(pct(k), varTop, varTop + VH, 2, false));
+        }
+      }
+      for (let k = 0; k < n; k++) {
+        const dbl = vals[k][0] !== vals[k][1];
+        if (dbl && k > 0 && k < n - 1) {
+          if (vals[k][0]) plot.push(at(pct(k) - 1.8, varTop + YS[lev[k].L], vtMath(vals[k][0]), "-100%"));
+          if (vals[k][1]) plot.push(at(pct(k) + 1.8, varTop + YS[lev[k].R], vtMath(vals[k][1]), "0%"));
+        } else if (vals[k][0]) {
+          plot.push(at(pct(k), varTop + YS[lev[k].L], `<span style="background:${BG};padding:1px 5px;border-radius:3px;">${vtMath(vals[k][0])}</span>`));
+        }
+      }
+      if (dirs) {
+        const id = "vt-arr-" + ++__vtCounter;
+        let lines = "";
+        for (let k = 0; k < n - 1; k++) {
+          const dblA = vals[k][0] !== vals[k][1] && k > 0;
+          const dblB = vals[k + 1][0] !== vals[k + 1][1] && k + 1 < n - 1;
+          const lenA = String(vals[k][dblA ? 1 : 0] || "").replace(/\\infty/g, "oo").length;
+          const lenB = String(vals[k + 1][0] || "").replace(/\\infty/g, "oo").length;
+          const padA = dblA ? 8.5 : Math.min(8.5, Math.max(4.5, 2.8 + lenA * 0.65));
+          const padB = dblB ? 8.5 : Math.min(8.5, Math.max(4.5, 2.8 + lenB * 0.65));
+          const x1 = pct(k) + padA;
+          const x2 = pct(k + 1) - padB;
+          if (x2 <= x1 + 1) continue;
+          let y1 = YS[lev[k].R];
+          let y2 = YS[lev[k + 1].L];
+          const dy = y2 - y1;
+          if (Math.abs(dy) > 24) {
+            const s = dy > 0 ? 1 : -1;
+            y1 += s * 9;
+            y2 -= s * 9;
+          }
+          lines += `<line x1="${x1}%" y1="${y1}" x2="${x2}%" y2="${y2}" stroke="${C}" stroke-width="1.5" marker-end="url(#${id})"/>`;
+        }
+        plot.push(
+          `<svg style="position:absolute;left:0;top:${varTop}px;width:100%;height:${VH}px;overflow:visible;pointer-events:none;" aria-hidden="true">` +
+            `<defs><marker id="${id}" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L9,4.5 L0,9 z" fill="${C}"/></marker></defs>${lines}</svg>`
+        );
+      }
+      if (varTop + VH < total) outer.push(hline(varTop + VH));
+    }
+
+    renderSignGroup(postVarSigns, postVarTop);
+
+    // Ligne de convexité (fusionne les sous-intervalles de même concavité)
+    if (hasConvexRow && s2) {
+      outer.push(lab(spec.convexLabel || "convexité", convTop, CH));
+      const cy = convTop + CH / 2;
+      const spans = [];
+      let curStart = 0;
+      for (let k = 0; k < n - 1; k++) {
+        const sg = s2.toks[2 * k];
+        const nextSg = k < n - 2 ? s2.toks[2 * (k + 1)] : null;
+        const sep = k < n - 2 ? s2.toks[2 * k + 1] : null;
+        if (k === n - 2 || sep === "0" || sep === "||" || sg !== nextSg) {
+          spans.push({ k0: curStart, k1: k + 1, sg, sepAfter: sep });
+          curStart = k + 1;
+        }
+      }
+      spans.forEach((spn) => {
+        const xm = (pct(spn.k0) + pct(spn.k1)) / 2;
+        const convex = spn.sg === "+";
+        plot.push(
+          `<svg style="position:absolute;left:${xm}%;top:${cy - 24}px;width:48px;height:26px;transform:translateX(-50%);overflow:visible;" aria-hidden="true">` +
+            `<path d="${convex ? "M3,4 Q24,25 45,4" : "M3,23 Q24,2 45,23"}" fill="none" stroke="${C}" stroke-width="1.75" stroke-linecap="round"/></svg>`
+        );
+        plot.push(at(xm, cy + 14, `<span style="font-style:italic;font-size:12.5px;color:var(--text-secondary);">${convex ? "convexe" : "concave"}</span>`));
+      });
+      for (let k = 1; k <= n - 2; k++) {
+        const t = s2.toks[2 * k - 1];
+        if (t === "||") {
+          plot.push(vline(pct(k), convTop, convTop + CH, -2, false));
+          plot.push(vline(pct(k), convTop, convTop + CH, 2, false));
+        } else if (t === "0") {
+          const isInflexion = s2.toks[2 * (k - 1)] !== s2.toks[2 * k];
+          // Si point d'inflexion, la barre verticale s'arrête proprement au-dessus du texte "point d'inflexion"
+          plot.push(vline(pct(k), convTop, isInflexion ? convTop + CH - 24 : convTop + CH, 0, false));
+          if (isInflexion) {
+            plot.push(`<div style="position:absolute;left:${pct(k)}%;top:${cy - 6}px;width:8px;height:8px;border-radius:50%;background:${C};box-shadow:0 0 0 2px ${BG};transform:translate(-50%,-50%);"></div>`);
+            plot.push(at(pct(k), convTop + CH - 12, `<span style="background:${BG};padding:1px 6px;font-style:italic;font-size:11.5px;color:var(--text-secondary);">point d’inflexion</span>`));
+          }
+        }
+      }
+    }
+
+    outer.push(hline(XH));
+    outer.push(`<div style="position:absolute;left:${LABW}px;top:0;bottom:0;width:1px;background:${C};opacity:0.85;"></div>`);
+
+    return (
+      `<div class="nh-math-fig">` +
+      `<div class="nh-math-table-card" style="position:relative;height:${total}px;min-width:440px;max-width:740px;margin:0 auto;box-sizing:content-box;">` +
+      outer.join("") +
+      `<div style="position:absolute;left:${LABW}px;right:0;top:0;bottom:0;">${plot.join("")}</div>` +
+      `</div></div>`
+    );
+  }
+
+  // ---------- 2. Droite numérique & Intervalles ----------
+  function parseNumberLineSpec(text) {
+    const lines = String(text).split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const spec = { min: null, max: null, intervals: [] };
+    const colMap = {
+      bleu: "#2563eb", blue: "#2563eb",
+      rouge: "#dc2626", red: "#dc2626",
+      vert: "#16a34a", green: "#16a34a",
+      orange: "#ea580c", violet: "#7c3aed", purple: "#7c3aed",
+    };
+    const palette = ["#2563eb", "#dc2626", "#16a34a", "#7c3aed"];
+    for (const ln of lines) {
+      const bm = ln.match(/^(?:bornes|axe|domaine)\s*:\s*([^|;]+)[|;]\s*(.+)$/i);
+      if (bm) {
+        const a = vtNum(bm[1]), b = vtNum(bm[2]);
+        if (a !== null && Math.abs(a) < 1e9) spec.min = a;
+        if (b !== null && Math.abs(b) < 1e9) spec.max = b;
+        continue;
+      }
+      const im = ln.match(/^(?:([^=\[\]]+?)\s*=\s*)?(\[|\])\s*([^;,\]]+?)\s*[;,]\s*([^;,\[]+?)\s*(\[|\])(?:\s*:\s*([a-zA-Z]+))?$/);
+      if (im) {
+        const name = (im[1] || "").trim();
+        const bL = im[2], rawA = im[3].trim(), rawB = im[4].trim(), bR = im[5];
+        const colKey = (im[6] || "").toLowerCase();
+        const aInf = /^-\s*(?:oo|\\infty|inf|∞)$/i.test(rawA);
+        const bInf = /^\+?\s*(?:oo|\\infty|inf|∞)$/i.test(rawB);
+        const aVal = aInf ? -Infinity : vtNum(rawA);
+        const bVal = bInf ? Infinity : vtNum(rawB);
+        if (aVal === null || bVal === null) continue;
+        const incL = bL === "[";
+        const incR = bR === "]";
+        const color = colMap[colKey] || palette[spec.intervals.length % palette.length];
+        const labelTex = (name ? name + " = " : "") + `${bL}${rawA.replace(/([+-]?)oo/i, "$1\\infty")}\\,;\\,${rawB.replace(/([+-]?)oo/i, "$1\\infty")}${bR}`;
+        spec.intervals.push({ name, aVal, bVal, rawA, rawB, incL, incR, bL, bR, color, labelTex });
+      }
+    }
+    return spec.intervals.length > 0 ? spec : null;
+  }
+
+  function renderNumberLineSpec(spec) {
+    const finiteVals = [];
+    spec.intervals.forEach((it) => {
+      if (isFinite(it.aVal)) finiteVals.push(it.aVal);
+      if (isFinite(it.bVal)) finiteVals.push(it.bVal);
+    });
+    if (!finiteVals.length) finiteVals.push(-2, 2);
+    const minV = spec.min !== null ? spec.min : Math.floor(Math.min(...finiteVals)) - 2;
+    const maxV = spec.max !== null ? spec.max : Math.ceil(Math.max(...finiteVals)) + 2;
+    const span = Math.max(2, maxV - minV);
+    const W = 640, PADL = 44, PADR = 52, plotW = W - PADL - PADR;
+    const m = spec.intervals.length;
+    const TRACK_H = 34;
+    const axisY = 28 + m * TRACK_H;
+    const H = axisY + 46;
+    const X = (v) => PADL + ((v - minV) / span) * plotW;
+
+    let svg = `<line x1="${PADL - 16}" y1="${axisY}" x2="${W - PADR + 18}" y2="${axisY}" stroke="currentColor" stroke-width="1.6"/>`;
+    svg += `<path d="M${W - PADR + 22},${axisY} L${W - PADR + 13},${axisY - 4.5} L${W - PADR + 13},${axisY + 4.5} Z" fill="currentColor"/>`;
+    let html = `<div style="position:absolute;left:${W - PADR + 28}px;top:${axisY}px;transform:translate(0,-50%);">${vtMath("x")}</div>`;
+
+    const step = span <= 12 ? 1 : span <= 24 ? 2 : Math.ceil(span / 10);
+    for (let v = Math.ceil(minV); v <= Math.floor(maxV); v += step) {
+      const px = X(v);
+      svg += `<line x1="${px}" y1="${axisY - 4}" x2="${px}" y2="${axisY + 4}" stroke="currentColor" stroke-width="1.2"/>`;
+      html += `<div style="position:absolute;left:${px}px;top:${axisY + 18}px;transform:translate(-50%,-50%);font-size:12.5px;opacity:0.85;">${vtMath(String(v))}</div>`;
+    }
+
+    spec.intervals.forEach((it, idx) => {
+      const y = axisY - (idx + 1) * TRACK_H + 6;
+      const x1 = isFinite(it.aVal) ? X(it.aVal) : PADL - 10;
+      const x2 = isFinite(it.bVal) ? X(it.bVal) : W - PADR + 10;
+      const col = it.color;
+
+      svg += `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${col}" stroke-width="3.2" stroke-linecap="round"/>`;
+
+      const drawBracket = (px, isLeft, included) => {
+        const dir = (isLeft && included) || (!isLeft && !included) ? 1 : -1;
+        svg += `<path d="M${px + dir * 5},${y - 7} L${px},${y - 7} L${px},${y + 7} L${px + dir * 5},${y + 7}" fill="none" stroke="${col}" stroke-width="2.2"/>`;
+        svg += `<line x1="${px}" y1="${y + 7}" x2="${px}" y2="${axisY}" stroke="${col}" stroke-width="1" stroke-dasharray="3 3" opacity="0.65"/>`;
+      };
+
+      if (isFinite(it.aVal)) drawBracket(x1, true, it.incL);
+      else svg += `<path d="M${x1 - 4},${y} L${x1 + 4},${y - 4} M${x1 - 4},${y} L${x1 + 4},${y + 4}" fill="none" stroke="${col}" stroke-width="2"/>`;
+
+      if (isFinite(it.bVal)) drawBracket(x2, false, it.incR);
+      else svg += `<path d="M${x2 + 4},${y} L${x2 - 4},${y - 4} M${x2 + 4},${y} L${x2 - 4},${y + 4}" fill="none" stroke="${col}" stroke-width="2"/>`;
+
+      const midX = (x1 + x2) / 2;
+      html += `<div style="position:absolute;left:${midX}px;top:${y - 13}px;transform:translate(-50%,-50%);color:${col};font-weight:600;font-size:13px;background:var(--bg-primary,#faf9f5);padding:0 5px;border-radius:3px;white-space:nowrap;">${vtMath(it.labelTex)}</div>`;
+    });
+
+    return (
+      `<div class="nh-math-fig" style="overflow-x:auto;overflow-y:hidden;margin:14px 0;">` +
+      `<div style="position:relative;width:${W}px;height:${H}px;margin:0 auto;">` +
+      `<svg width="${W}" height="${H}" style="position:absolute;inset:0;overflow:visible;" aria-hidden="true">${svg}</svg>${html}` +
+      `</div></div>`
+    );
+  }
+
+  // ---------- 3. Arbre de probabilités (2, 3, N branches + événements contraires) ----------
+  function normTreeEventKey(s) {
+    let t = String(s == null ? "" : s).trim().replace(/\$/g, "");
+    let isBar = false;
+    if (/\\(?:overline|bar)\s*\{([^}]*)\}/i.test(t)) {
+      isBar = true;
+      t = t.replace(/\\(?:overline|bar)\s*\{([^}]*)\}/gi, "$1");
+    } else if (/^(?:non[\s_]+|not[\s_]+|¬|!)/i.test(t)) {
+      isBar = true;
+      t = t.replace(/^(?:non[\s_]+|not[\s_]+|¬|!)/i, "");
+    } else if (/['’\u0304\u0305]$/.test(t) || /_?bar$/i.test(t)) {
+      isBar = true;
+      t = t.replace(/['’\u0304\u0305]+$/, "").replace(/_?bar$/i, "");
+    }
+    const base = t.toLowerCase().replace(/[^a-z0-9]/g, "");
+    return (isBar ? "bar_" : "") + base;
+  }
+
+  function parseTreeSpec(text) {
+    const mk = (tok) => {
+      const m = tok.trim().match(/^(.*?)\s*\(\s*([^)]*)\)\s*$/);
+      return { ev: (m ? m[1] : tok).trim(), p: m ? m[2].trim() : "", kids: [], path: "", key: "" };
+    };
+    const defs = [];
+    String(text).split(/\r?\n/).forEach((ln) => {
+      const m = ln.trim().match(/^([^:]+):\s*(.*)$/);
+      if (!m) return;
+      const toks = m[2].split("|").map((t) => t.trim()).filter(Boolean);
+      if (!toks.length) return;
+      const am = m[1].match(/apr[eè]s[_\s]+(.+)$/i);
+      defs.push({ parent: am ? normTreeEventKey(am[1]) : null, toks });
+    });
+    if (!defs.length) return null;
+    const root = { ev: "", p: "", kids: [], path: "", key: "" };
+    const byPath = { "": root };
+    const byKey = {};
+    let rootDone = false;
+    defs.forEach((d) => {
+      let par = null;
+      if (d.parent === null) {
+        if (rootDone) return;
+        rootDone = true;
+        par = root;
+      } else {
+        par = byPath[d.parent] || byKey[d.parent] || null;
+      }
+      if (!par) return;
+      d.toks.forEach((t) => {
+        const nd = mk(t);
+        nd.key = normTreeEventKey(nd.ev);
+        nd.path = par.path ? par.path + "_" + nd.key : nd.key;
+        par.kids.push(nd);
+        byPath[nd.path] = nd;
+        if (!byKey[nd.key]) byKey[nd.key] = nd;
+      });
+    });
+    return root.kids.length ? root : null;
+  }
+
+  // Convertit aussi un arbre TikZ avec `child { node {...} edge from parent ... }` en arbre natif
+  function parseTikzChildTree(code) {
+    if (!/\bchild\s*\{/.test(code)) return null;
+    const parseChildren = (str) => {
+      const kids = [];
+      let i = 0;
+      while (i < str.length) {
+        const cm = str.slice(i).match(/\bchild\s*(?:\[[^\]]*\])?\s*\{/);
+        if (!cm) break;
+        const braceStart = i + cm.index + cm[0].length - 1;
+        const [inner, nextI] = tkBal(str, braceStart);
+        i = nextI;
+        let withoutSub = "";
+        let j = 0;
+        while (j < inner.length) {
+          const sub = inner.slice(j).match(/\bchild\s*(?:\[[^\]]*\])?\s*\{/);
+          if (!sub) { withoutSub += inner.slice(j); break; }
+          withoutSub += inner.slice(j, j + sub.index);
+          const [, afterSub] = tkBal(inner, j + sub.index + sub[0].length - 1);
+          j = afterSub;
+        }
+        const nm = withoutSub.match(/\bnode\s*(?:\[[^\]]*\])?\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}/);
+        const em = withoutSub.match(/edge\s+from\s+parent[\s\S]*?\bnode\s*(?:\[[^\]]*\])?\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}/);
+        const ev = nm ? nm[1].replace(/\$/g, "").trim() : "";
+        const p = em ? em[1].replace(/\$/g, "").trim() : "";
+        const subKids = parseChildren(inner);
+        if (ev || subKids.length) {
+          kids.push({ ev: ev || "•", p, kids: subKids });
+        }
+      }
+      return kids;
+    };
+    const topKids = parseChildren(code);
+    return topKids.length ? { ev: "", p: "", kids: topKids } : null;
+  }
+
+  function renderTreeSpec(root) {
+    const LEAF = 50, COLW = 205, PADL = 26, LBL = 44;
+    let depth = 0;
+    const countLeaves = (n, d) => {
+      depth = Math.max(depth, d);
+      return n.kids.length ? n.kids.reduce((s, k) => s + countLeaves(k, d + 1), 0) : 1;
+    };
+    const nl = countLeaves(root, 0);
+    const H = Math.max(120, nl * LEAF + 24), W = PADL + depth * COLW + 96;
+    let li = 0, svg = "", html = "";
+    const place = (n, d) => {
+      n.x = PADL + d * COLW;
+      if (!n.kids.length) n.y = 12 + LEAF * (li++ + 0.5);
+      else {
+        n.kids.forEach((k) => place(k, d + 1));
+        n.y = (n.kids[0].y + n.kids[n.kids.length - 1].y) / 2;
+      }
+    };
+    place(root, 0);
+    const evM = (s) => {
+      let t = String(s == null ? "" : s).replace(/\$/g, "").trim();
+      t = t.replace(/^non[\s_]+([A-Za-z0-9_]+)$/i, "\\overline{$1}");
+      t = t.replace(/^([A-Za-z]+)_?bar$/i, "\\overline{$1}");
+      t = t.replace(/^([A-Za-z])'(\d*)$/, (_, l, d) => `\\overline{${l}${d ? "_{" + d + "}" : ""}}`);
+      t = t.replace(/\\overline\{([A-Za-z]+)(\d+)\}/g, "\\overline{$1_{$2}}");
+      t = t.replace(/^([A-Za-z]+)(\d+)$/, "$1_{$2}");
+      return t;
+    };
+    const prM = (s) =>
+      /^\d+\.\d+$/.test(s) ? s.replace(".", ",") : s.replace(/^(\d+)\/(\d+)$/, "\\frac{$1}{$2}");
+    const draw = (n) =>
+      n.kids.forEach((k) => {
+        const x1 = n === root ? n.x : n.x + LBL;
+        const x2 = k.x - 8;
+        svg += `<line x1="${x1}" y1="${n.y}" x2="${x2}" y2="${k.y}" stroke="currentColor" stroke-width="1.45"/>`;
+        if (k.p) {
+          const mx = x1 + (x2 - x1) * 0.48;
+          const my = n.y + (k.y - n.y) * 0.48;
+          html += `<div style="position:absolute;left:${mx}px;top:${my}px;transform:translate(-50%,-50%);background:var(--bg-primary,#faf9f5);padding:1px 5px;border-radius:4px;font-size:12.5px;white-space:nowrap;">${vtMath(prM(k.p))}</div>`;
+        }
+        html += `<div style="position:absolute;left:${k.x}px;top:${k.y}px;transform:translate(0,-50%);white-space:nowrap;font-weight:500;">${vtMath(evM(k.ev))}</div>`;
+        draw(k);
+      });
+    draw(root);
+    svg += `<circle cx="${root.x}" cy="${root.y}" r="3.2" fill="currentColor"/>`;
+    return (
+      `<div class="nh-math-fig" style="overflow-x:auto;overflow-y:hidden;margin:14px 0;">` +
+      `<div style="position:relative;width:${W}px;height:${H}px;margin:0 auto;">` +
+      `<svg width="${W}" height="${H}" style="position:absolute;inset:0;overflow:visible;" aria-hidden="true">${svg}</svg>${html}</div></div>`
+    );
+  }
+
+  // ---------- 4. TikZ / pgfplots / Graphes -> SVG + HTML ----------
+  const TK_COL = {
+    red: [220, 38, 38], blue: [37, 99, 235], green: [22, 163, 74], darkgreen: [21, 128, 61],
+    black: [0, 0, 0], white: [255, 255, 255], gray: [128, 128, 128], grey: [128, 128, 128],
+    orange: [249, 115, 22], purple: [147, 51, 234], violet: [124, 58, 237], teal: [13, 148, 136],
+    cyan: [6, 182, 212], magenta: [217, 70, 239], brown: [146, 64, 14], yellow: [234, 179, 8],
+    lime: [132, 204, 22], pink: [236, 72, 153], olive: [113, 113, 22],
+  };
+  const TK_H = {
+    sin: (a) => Math.sin((a * Math.PI) / 180), cos: (a) => Math.cos((a * Math.PI) / 180),
+    tan: (a) => Math.tan((a * Math.PI) / 180), sinr: Math.sin, cosr: Math.cos, tanr: Math.tan,
+    ln: Math.log, log: Math.log10, exp: Math.exp, sqrt: Math.sqrt, abs: Math.abs,
+    deg: (a) => (a * 180) / Math.PI, rad: (a) => (a * Math.PI) / 180,
+    pow: Math.pow, atan: (a) => (Math.atan(a) * 180) / Math.PI, floor: Math.floor, ceil: Math.ceil,
+    min: Math.min, max: Math.max,
+  };
+
+  function tkColor(spec) {
+    const p = String(spec || "").trim().replace(/[{}]/g, "").split("!");
+    const base = (n) => TK_COL[String(n).trim().toLowerCase()] || [0, 0, 0];
+    let c = base(p[0]);
+    if (p.length > 1) {
+      const k = Math.max(0, Math.min(100, parseFloat(p[1]) || 0)) / 100;
+      const o = p[2] ? base(p[2]) : [255, 255, 255];
+      c = c.map((v, i) => Math.round(v * k + o[i] * (1 - k)));
+    }
+    if (c[0] === 0 && c[1] === 0 && c[2] === 0) return "currentColor";
+    if (c[0] === 255 && c[1] === 255 && c[2] === 255) return "var(--bg-primary,#faf9f5)";
+    return `rgb(${c[0]},${c[1]},${c[2]})`;
+  }
+
+  function tkLen(s) {
+    const m = String(s == null ? "" : s).trim().match(/^(-?[\d.]+)\s*(cm|mm|pt|em|ex)?$/);
+    if (!m) return NaN;
+    const v = parseFloat(m[1]);
+    const u = m[2] || "cm";
+    return u === "mm" ? v / 10 : u === "pt" ? v / 28.4527 : u === "em" ? v * 0.35 : u === "ex" ? v * 0.16 : v;
+  }
+
+  function tkCompile(expr) {
+    let s = String(expr == null ? "" : expr).trim().replace(/^\{([\s\S]*)\}$/, "$1");
+    if (!s) return null;
+    s = s.replace(/[{}]/g, (c) => (c === "{" ? "(" : ")"));
+    s = s.replace(/\\[xt]\b/g, "x").replace(/\\pi\b|\bpi\b/g, "(3.141592653589793)");
+    s = s.replace(/(sin|cos|tan)\s*\(\s*([^()]*?)\s+r\s*\)/g, "$1r($2)");
+    s = s.replace(/(\d)\s*(?=x\b|\()/g, "$1*");
+    s = s.replace(/\)\s*(?=x\b|\d|\()/g, ")*");
+    s = s.replace(/x\s*(?=\()/g, "x*");
+    for (let k = 0; k < 5; k++) {
+      s = s.replace(/([\w.]+|\([^()]*\))\s*\^\s*(-?[\w.]+|\([^()]*\))/g, "pow($1,$2)");
+    }
+    const ids = s.match(/[A-Za-z_]+/g) || [];
+    if (ids.some((w) => w !== "x" && w !== "e" && !(w in TK_H))) return null;
+    if (/[^\w\s+\-*/().,]/.test(s)) return null;
+    try {
+      const f = Function(...Object.keys(TK_H), "x", "e", "return (" + s + ");");
+      const vals = Object.values(TK_H);
+      return (x) => f(...vals, x, Math.E);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function tkNum(s) {
+    const t = String(s == null ? "" : s).trim();
+    const L = tkLen(t);
+    if (!isNaN(L)) return L;
+    const f = tkCompile(t);
+    if (!f) return NaN;
+    try {
+      const v = f(0);
+      return typeof v === "number" ? v : NaN;
+    } catch (_) {
+      return NaN;
+    }
+  }
+
+  function tkSplit(str, sep) {
+    const out = [];
+    let depth = 0, cur = "";
+    for (let i = 0; i < str.length; i++) {
+      const ch = str[i];
+      if ("([{".indexOf(ch) >= 0) depth++;
+      else if (")]}".indexOf(ch) >= 0) depth = Math.max(0, depth - 1);
+      if (ch === sep && depth === 0) { out.push(cur); cur = ""; } else cur += ch;
+    }
+    out.push(cur);
+    return out;
+  }
+
+  function tkBal(str, i) {
+    const open = str[i], close = { "(": ")", "[": "]", "{": "}" }[open];
+    let d = 0;
+    for (let j = i; j < str.length; j++) {
+      if (str[j] === open) d++;
+      else if (str[j] === close) { d--; if (d === 0) return [str.slice(i + 1, j), j + 1]; }
+    }
+    return [str.slice(i + 1), str.length];
+  }
+
+  function tkItems(list) {
+    const it = list.split(",").map((s) => s.trim()).filter(Boolean);
+    const k = it.indexOf("...");
+    if (k < 1) return it;
+    const a = parseFloat(it[k - 1]), b = parseFloat(it[it.length - 1]);
+    const step = k >= 2 ? a - parseFloat(it[k - 2]) : b >= a ? 1 : -1;
+    const out = it.slice(0, k);
+    if (!step || isNaN(step)) return out;
+    for (let v = a + step; step > 0 ? v <= b + 1e-9 : v >= b - 1e-9; v += step) out.push(String(+v.toFixed(6)));
+    return out;
+  }
+
+  function tkExpandForeach(code) {
+    for (let guard = 0; guard < 30; guard++) {
+      const m = code.match(/\\foreach\s*((?:\\[a-zA-Z]+\s*\/?\s*)+)in\s*/);
+      if (!m) break;
+      const vars = m[1].split("/").map((v) => v.trim().replace(/^\\/, ""));
+      let i = m.index + m[0].length;
+      if (code[i] !== "{") { code = code.slice(0, m.index) + code.slice(i); continue; }
+      const lr = tkBal(code, i);
+      const items = tkItems(lr[0]);
+      i = lr[1];
+      while (i < code.length && /\s/.test(code[i])) i++;
+      let body, end;
+      if (code[i] === "{") { const br = tkBal(code, i); body = br[0]; end = br[1]; }
+      else { const e = code.indexOf(";", i); end = e < 0 ? code.length : e + 1; body = code.slice(i, end); }
+      const expanded = items
+        .map((val) => {
+          const parts = String(val).split("/");
+          let b = body;
+          vars.forEach((v, idx) => {
+            const valPart = parts[idx] !== undefined ? parts[idx].trim() : parts[0].trim();
+            b = b.replace(new RegExp("\\\\" + v + "(?![a-zA-Z])", "g"), () => valPart);
+          });
+          return b;
+        })
+        .join("\n");
+      code = code.slice(0, m.index) + expanded + code.slice(end);
+    }
+    return code;
+  }
+
+  function tkParseCoord(inner, names) {
+    const t = String(inner == null ? "" : inner).trim().replace(/^axis\s+cs\s*:/i, "").trim();
+    const nm = t.match(/^([A-Za-z_][\w-]*)(?:\.([\w ]+))?$/);
+    if (nm) {
+      const n = names[nm[1]];
+      if (!n) return null;
+      return { x: n.x, y: n.y, r: n.r || 0, n: nm[1] };
+    }
+    if (/[$|!]/.test(t)) return null;
+    const pol = t.match(/^([^,:]+):([^,]+)$/);
+    if (pol) {
+      const a = (tkNum(pol[1]) * Math.PI) / 180, r = tkNum(pol[2]);
+      return isNaN(a) || isNaN(r) ? null : { x: r * Math.cos(a), y: r * Math.sin(a), r: 0 };
+    }
+    const parts = tkSplit(t, ",");
+    if (parts.length !== 2) return null;
+    const x = tkNum(parts[0]), y = tkNum(parts[1]);
+    return isNaN(x) || isNaN(y) ? null : { x, y, r: 0 };
+  }
+
+  function tkStyle(optStr, base) {
+    const st = Object.assign(
+      {
+        stroke: "currentColor", width: 1.3, fill: null, dash: "",
+        arrowE: false, arrowS: false, smooth: false, draw: true,
+        fillOp: 1, colorSet: false, step: 0, xstep: 0, ystep: 0,
+        domain: null, samples: null,
+      },
+      base || {}
+    );
+    const W = { "ultra thin": 0.45, "very thin": 0.65, thin: 0.9, semithick: 1.5, thick: 1.85, "very thick": 2.6, "ultra thick": 3.5 };
+    tkSplit(optStr || "", ",").forEach((raw) => {
+      const o = raw.trim();
+      if (!o) return;
+      const eq = o.indexOf("=");
+      const k = (eq < 0 ? o : o.slice(0, eq)).trim();
+      const v = eq < 0 ? "" : o.slice(eq + 1).trim().replace(/^\{([\s\S]*)\}$/, "$1");
+      if (k in W) st.width = W[k];
+      else if (k === "line width") { const n = tkLen(v); if (!isNaN(n)) st.width = Math.max(0.8, n * 28.4527 * 1.25); }
+      else if (/dashed$/.test(k)) st.dash = "6 4";
+      else if (/dotted$/.test(k)) st.dash = "1.8 3.5";
+      else if (k === "draw") { if (v === "none") st.draw = false; else if (v) { st.stroke = tkColor(v); st.colorSet = true; } }
+      else if (k === "fill") { if (v !== "none") st.fill = tkColor(v || (st.colorSet ? st.stroke : "black")); }
+      else if (k === "color") { st.stroke = tkColor(v); st.colorSet = true; }
+      else if (k === "opacity" || k === "fill opacity") st.fillOp = parseFloat(v) || 1;
+      else if (k === "smooth") st.smooth = true;
+      else if (k === "domain") {
+        const dm = v.match(/(-?[\d.]+)\s*:\s*(-?[\d.]+)/);
+        if (dm) st.domain = [+dm[1], +dm[2]];
+      } else if (k === "samples") {
+        const sm = parseInt(v, 10);
+        if (sm > 1) st.samples = sm;
+      } else if (k === "step") st.step = tkNum(v) || 0;
+      else if (k === "xstep") st.xstep = tkNum(v) || 0;
+      else if (k === "ystep") st.ystep = tkNum(v) || 0;
+      else if (k === "help lines") { st.stroke = tkColor("gray!35"); st.width = 0.65; }
+      else if (eq < 0 && /^(<|<->|<-)?-+(>|>>|stealth|latex|Stealth|\{[^}]*\})?$/.test(k)) {
+        if (k.charAt(0) === "<") st.arrowS = true;
+        if (/(>|stealth|latex|Stealth|\})$/.test(k)) st.arrowE = true;
+      } else if (eq < 0 && TK_COL[k.split("!")[0].toLowerCase()]) { st.stroke = tkColor(k); st.colorSet = true; }
+    });
+    return st;
+  }
+
+  function tkText(s) {
+    return String(s == null ? "" : s)
+      .split("\\\\")
+      .map((ln) =>
+        ln
+          .split("$")
+          .map((seg, i) =>
+            i % 2
+              ? renderMathExpression(seg, false)
+              : esc(
+                  seg
+                    .replace(/\\(?:textbf|textit|mathrm|text)\{([^}]*)\}/g, "$1")
+                    .replace(/\\(?:small|footnotesize|tiny|large|Large|bfseries|itshape)\b\s*/g, "")
+                    .trim()
+                )
+          )
+          .join("")
+      )
+      .join("<br>");
+  }
+
+  function tkAxisOpts(ao) {
+    const o = { lines: "box", grid: false, domain: null, samples: 120 };
+    tkSplit(ao, ",").forEach((raw) => {
+      const p = raw.split("=");
+      const k = p[0].trim();
+      const v = p.slice(1).join("=").trim().replace(/^\{([\s\S]*)\}$/, "$1");
+      if (["xmin", "xmax", "ymin", "ymax"].includes(k)) { const n = tkNum(v); if (!isNaN(n)) o[k] = n; }
+      else if (k === "width" || k === "height") { const n = tkLen(v); if (!isNaN(n)) o[k] = n; }
+      else if (k === "axis lines" || k === "axis x line" || k === "axis y line") {
+        if (v === "middle" || v === "center") o.lines = "middle";
+        else o.lines = v;
+      } else if (k === "grid") o.grid = v !== "none";
+      else if (k === "domain") { const m = v.match(/(-?[\d.]+)\s*:\s*(-?[\d.]+)/); if (m) o.domain = [+m[1], +m[2]]; }
+      else if (k === "samples") { const s = parseInt(v, 10); if (s > 1) o.samples = s; }
+      else if (k === "xlabel" || k === "ylabel") o[k] = v;
+    });
+    return o;
+  }
+
+  function tkGeom(e, Tf) {
+    const a = Tf(e.a), b = Tf(e.b);
+    // Support des boucles sur un sommet (self-loop : A -> A)
+    if (e.loopDir || (e.a.n && e.a.n === e.b.n)) {
+      const dir = e.loopDir || "above";
+      const angMap = { above: Math.PI / 2, below: -Math.PI / 2, left: Math.PI, right: 0 };
+      const baseAng = angMap[dir] !== undefined ? angMap[dir] : Math.PI / 2;
+      const spread = 0.52;
+      const r = Math.max(0.28, e.a.r || 0.35);
+      const reach = r + 0.95;
+      const p0 = { x: a.x + r * Math.cos(baseAng + spread), y: a.y + r * Math.sin(baseAng + spread) };
+      const p1 = { x: a.x + r * Math.cos(baseAng - spread), y: a.y + r * Math.sin(baseAng - spread) };
+      const c1 = { x: a.x + reach * Math.cos(baseAng + spread * 1.15), y: a.y + reach * Math.sin(baseAng + spread * 1.15) };
+      const c2 = { x: a.x + reach * Math.cos(baseAng - spread * 1.15), y: a.y + reach * Math.sin(baseAng - spread * 1.15) };
+      return { p0, c1, c2, p1, line: false, isLoop: true, loopDir: dir };
+    }
+    if (e.c1) return { p0: a, c1: Tf(e.c1), c2: Tf(e.c2), p1: b, line: false };
+    const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1e-9;
+    let ctrl = null;
+    if (e.bend) {
+      const off = (d / 2) * Math.tan((Math.abs(e.bend) * Math.PI) / 180) * Math.sign(e.bend);
+      ctrl = { x: (a.x + b.x) / 2 - (dy / d) * off, y: (a.y + b.y) / 2 + (dx / d) * off };
+    }
+    const tr = (from, toward, r) => {
+      if (!r) return from;
+      const vx = toward.x - from.x, vy = toward.y - from.y, l = Math.hypot(vx, vy) || 1;
+      return { x: from.x + (vx / l) * r, y: from.y + (vy / l) * r };
+    };
+    const p0 = tr(a, ctrl || b, e.a.r || 0), p1 = tr(b, ctrl || a, e.b.r || 0);
+    const lp = (p, q, t) => ({ x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t });
+    if (ctrl) return { p0, c1: lp(p0, ctrl, 2 / 3), c2: lp(p1, ctrl, 2 / 3), p1, line: false };
+    return { p0, c1: lp(p0, p1, 1 / 3), c2: lp(p0, p1, 2 / 3), p1, line: true };
+  }
+
+  function tkCub(g, t) {
+    const u = 1 - t, a = u * u * u, b = 3 * u * u * t, c = 3 * u * t * t, d = t * t * t;
+    return {
+      x: a * g.p0.x + b * g.c1.x + c * g.c2.x + d * g.p1.x,
+      y: a * g.p0.y + b * g.c1.y + c * g.c2.y + d * g.p1.y,
+    };
+  }
+
+  function tkPath(body, st, ctx, cmd) {
+    const P = { st, segs: [], circles: [], grids: [], closed: false, clip: ctx.clip, isPlot: false };
+    if (cmd === "path" && !/\bedge\b/.test(body)) st.draw = false;
+    const N = body.length;
+    let i = 0, cur = null, start = null, op = null, bend = 0, loopDir = null, last = null, pend = [];
+    const ws = () => { while (i < N && /\s/.test(body[i])) i++; };
+    const O = (x, y) => ({ x, y, r: 0 });
+    const addEdge = (a, b, kind, bd, lp) => {
+      let e;
+      if (kind === "-|" || kind === "|-") {
+        const m = kind === "-|" ? O(b.x, a.y) : O(a.x, b.y);
+        P.segs.push({ a, b: m, bend: 0 });
+        e = { a: m, b, bend: 0 };
+      } else e = { a, b, bend: bd || 0, loopDir: lp || null };
+      P.segs.push(e);
+      last = e;
+      return e;
+    };
+    const setEdge = (nd, e, o) => {
+      nd.edge = e;
+      const pm = o.match(/pos\s*=\s*([\d.]+)/);
+      nd.f = pm ? parseFloat(pm[1]) : /near start/.test(o) ? 0.25 : /near end/.test(o) ? 0.75 : /at start/.test(o) ? 0 : /at end/.test(o) ? 1 : 0.5;
+      nd.auto = /(^|[\s,])auto([\s,]|$)/.test(o) || Boolean(e.bend || e.loopDir);
+      nd.swap = /swap|right|below/.test(o);
+    };
+    const arrive = (pt) => {
+      if (cur && op) {
+        const eg = addEdge(cur, pt, op, op === "to" ? bend : 0, op === "to" ? loopDir : null);
+        pend.forEach((n) => setEdge(n, eg, n.opts));
+        pend = [];
+      } else if (!cur) start = pt;
+      cur = pt; op = null; bend = 0; loopDir = null;
+    };
+    const addPoly = (pts, smooth) => {
+      for (let k = 0; k < pts.length - 1; k++) {
+        const p0 = pts[Math.max(0, k - 1)], p1 = pts[k], p2 = pts[k + 1], p3 = pts[Math.min(pts.length - 1, k + 2)];
+        const e = { a: p1, b: p2, bend: 0 };
+        if (smooth) {
+          e.c1 = { x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6 };
+          e.c2 = { x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6 };
+        }
+        P.segs.push(e);
+        last = e;
+      }
+      if (pts.length) cur = pts[pts.length - 1];
+    };
+
+    while (i < N) {
+      ws();
+      if (i >= N) break;
+      const ch = body[i];
+      if (ch === "(") {
+        const r = tkBal(body, i); i = r[1];
+        const pt = tkParseCoord(r[0], ctx.names);
+        if (!pt) return;
+        arrive(pt);
+        continue;
+      }
+      if (body.startsWith("++(", i)) {
+        const r = tkBal(body, i + 2); i = r[1];
+        const d = tkParseCoord(r[0], ctx.names);
+        if (!d || !cur) return;
+        arrive({ x: cur.x + d.x, y: cur.y + d.y, r: 0 });
+        continue;
+      }
+      if (body.startsWith("--", i)) { op = "--"; i += 2; continue; }
+      if (body.startsWith("-|", i) || body.startsWith("|-", i)) { op = body.substr(i, 2); i += 2; continue; }
+      const rest = body.slice(i);
+      let m;
+      if ((m = rest.match(/^cycle\b/))) {
+        if (cur && start) addEdge(cur, start, "--", 0);
+        P.closed = true; i += 5; continue;
+      }
+      if ((m = rest.match(/^(?:to|edge)\b\s*/))) {
+        i += m[0].length; op = "to"; bend = 0; loopDir = null;
+        if (body[i] === "[") {
+          const r = tkBal(body, i); i = r[1];
+          const bm = r[0].match(/bend\s+(left|right)(?:\s*=\s*([\d.]+))?/);
+          if (bm) bend = (bm[1] === "left" ? 1 : -1) * (bm[2] ? parseFloat(bm[2]) : 28);
+          const lm = r[0].match(/\bloop(?:\s+(above|below|left|right))?/);
+          if (lm) loopDir = lm[1] || "above";
+          if (/->|stealth|latex/.test(r[0])) st.arrowE = true;
+          if (/<-|<->/.test(r[0])) st.arrowS = true;
+        }
+        continue;
+      }
+      if ((m = rest.match(/^rectangle\b\s*/))) {
+        i += m[0].length; ws();
+        if (body[i] === "(" && cur) {
+          const r = tkBal(body, i); i = r[1];
+          const p2 = tkParseCoord(r[0], ctx.names);
+          if (!p2) return;
+          const c = cur, A = O(p2.x, c.y), B = O(p2.x, p2.y), D = O(c.x, p2.y);
+          [[c, A], [A, B], [B, D], [D, O(c.x, c.y)]].forEach(([a, b]) => P.segs.push({ a, b, bend: 0 }));
+          P.closed = true; cur = B;
+        }
+        continue;
+      }
+      if ((m = rest.match(/^grid\b\s*/))) {
+        i += m[0].length; ws();
+        if (body[i] === "(" && cur) {
+          const r = tkBal(body, i); i = r[1];
+          const p2 = tkParseCoord(r[0], ctx.names);
+          if (!p2) return;
+          P.grids.push({ a: cur, b: p2 });
+          ctx.gridBounds = {
+            x0: Math.min(cur.x, p2.x), y0: Math.min(cur.y, p2.y),
+            x1: Math.max(cur.x, p2.x), y1: Math.max(cur.y, p2.y),
+          };
+          cur = p2;
+        }
+        continue;
+      }
+      if ((m = rest.match(/^circle\b\s*/))) {
+        i += m[0].length; ws();
+        let rad = 0.25;
+        if (body[i] === "[" || body[i] === "(") {
+          const r = tkBal(body, i); i = r[1];
+          const n = tkLen(r[0].replace(/^radius\s*=\s*/, ""));
+          if (!isNaN(n)) rad = n;
+        }
+        if (cur) P.circles.push({ c: cur, r: rad });
+        continue;
+      }
+      if ((m = rest.match(/^plot\b\s*/))) {
+        i += m[0].length; ws();
+        let po = "";
+        if (body[i] === "[") { const r = tkBal(body, i); po = r[0]; i = r[1]; ws(); }
+        P.isPlot = true;
+        if (body.startsWith("coordinates", i)) {
+          i += 11; ws();
+          const pts = [];
+          if (body[i] === "{") {
+            const r = tkBal(body, i); i = r[1];
+            (r[0].match(/\(([^()]+)\)/g) || []).forEach((q) => { const c = tkParseCoord(q.slice(1, -1), {}); if (c) pts.push(c); });
+          }
+          addPoly(pts, st.smooth || /smooth/.test(po));
+        } else if (body[i] === "(") {
+          const r = tkBal(body, i); i = r[1];
+          const parts = tkSplit(r[0], ",");
+          const fx = tkCompile(parts[0]), fy = tkCompile(parts.slice(1).join(","));
+          if (!fx || !fy) return;
+          const dm = po.match(/domain\s*=\s*(-?[\d.]+)\s*:\s*(-?[\d.]+)/);
+          const sm = po.match(/samples\s*=\s*(\d+)/);
+          const gb = ctx.gridBounds;
+          const a = dm ? +dm[1] : st.domain ? st.domain[0] : gb ? gb.x0 : -5;
+          const b = dm ? +dm[2] : st.domain ? st.domain[1] : gb ? gb.x1 : 5;
+          const S = Math.min(400, sm ? +sm[1] : st.samples || 120);
+          const yLow = gb ? gb.y0 - 1.5 : -25;
+          const yHigh = gb ? gb.y1 + 1.5 : 25;
+          if (gb && !P.clip) P.clip = { x0: gb.x0, y0: gb.y0, x1: gb.x1, y1: gb.y1 };
+          let run = [];
+          const flush = () => { if (run.length > 1) addPoly(run, st.smooth || /smooth/.test(po)); run = []; };
+          for (let k = 0; k <= S; k++) {
+            const t = a + ((b - a) * k) / S;
+            let X, Y;
+            try { X = fx(t); Y = fy(t); } catch (_) { X = NaN; }
+            if (isFinite(X) && isFinite(Y) && Y >= yLow && Y <= yHigh) run.push(O(X, Y));
+            else flush();
+          }
+          flush();
+        }
+        continue;
+      }
+      if ((m = rest.match(/^node\b\s*/))) {
+        i += m[0].length; ws();
+        let nopts = "", name = "", at = null, text = "";
+        if (body[i] === "[") { const r = tkBal(body, i); nopts = r[0]; i = r[1]; ws(); }
+        if (body[i] === "(") { const r = tkBal(body, i); name = r[0].trim(); i = r[1]; ws(); }
+        if (body.startsWith("at", i) && /[\s(]/.test(body[i + 2] || "")) {
+          i += 2; ws();
+          if (body[i] === "(") { const r = tkBal(body, i); at = tkParseCoord(r[0], ctx.names); i = r[1]; ws(); }
+        }
+        if (body[i] === "{") { const r = tkBal(body, i); text = r[0]; i = r[1]; }
+        const so = (ctx.every ? ctx.every + "," : "") + nopts;
+        const dr = /(^|[\s,])draw([\s,]|$)/.test(so), ci = /(^|[\s,])circle([\s,]|$)/.test(so);
+        const mn = tkLen((so.match(/minimum size\s*=\s*([\d.]+\s*[a-z]*)/) || [])[1]);
+        const rad = cmd === "coordinate" ? 0 : dr ? (isNaN(mn) ? (ci ? 0.36 : 0.32) : mn / 2) : text.trim() ? 0.2 : 0;
+        const inheritedColor = st.colorSet ? st.stroke : null;
+        const nd = { text, opts: nopts, inheritedColor, invisible: cmd === "coordinate" || (!text.trim() && !dr) };
+        if (at) { nd.x = at.x; nd.y = at.y; ctx.nodes.push(nd); }
+        else if (op && cur) {
+          if (loopDir) { nd.loopDir = loopDir; }
+          pend.push(nd); ctx.nodes.push(nd);
+        } else if (last && /(midway|near start|near end|at start|at end|pos\s*=|auto)/.test(nopts)) {
+          setEdge(nd, last, nopts); ctx.nodes.push(nd);
+        } else if (cur) { nd.x = cur.x; nd.y = cur.y; ctx.nodes.push(nd); }
+        else if (cmd === "node" || cmd === "coordinate") { nd.x = 0; nd.y = 0; ctx.nodes.push(nd); }
+        if (name && nd.x !== undefined) ctx.names[name] = { x: nd.x, y: nd.y, r: rad, n: name };
+        continue;
+      }
+      i++;
+    }
+    if (P.segs.length || P.circles.length || P.grids.length) ctx.paths.push(P);
+  }
+
+  function tkAddPlot(opts, rest, ctx, ax) {
+    const st = tkStyle(opts, { stroke: "rgb(37,99,235)", width: 1.9 });
+    const P = { st, segs: [], circles: [], grids: [], closed: false, clip: null, axisClip: true, plot: true, pts: [] };
+    let pts = [];
+    const trimmedRest = rest.trim();
+    if (trimmedRest[0] === "{" || /^[a-zA-Z0-9(\\-]/.test(trimmedRest) && !/^coordinates\b/.test(trimmedRest)) {
+      const exprStr = trimmedRest[0] === "{" ? tkBal(trimmedRest, 0)[0] : trimmedRest.replace(/;$/, "").trim();
+      const f = tkCompile(exprStr);
+      if (!f) return;
+      const dm = opts.match(/domain\s*=\s*(-?[\d.]+)\s*:\s*(-?[\d.]+)/);
+      const dom = dm ? [+dm[1], +dm[2]] : (ax && ax.domain) || [ax && ax.xmin != null ? ax.xmin : -5, ax && ax.xmax != null ? ax.xmax : 5];
+      const sm = opts.match(/samples\s*=\s*(\d+)/), S = Math.min(400, sm ? +sm[1] : (ax && ax.samples) || 120);
+      for (let k = 0; k <= S; k++) {
+        const x = dom[0] + ((dom[1] - dom[0]) * k) / S;
+        let y;
+        try { y = f(x); } catch (_) { y = NaN; }
+        pts.push(isFinite(y) && Math.abs(y) < 1e4 ? { x, y, r: 0 } : null);
+      }
+    } else if (/^coordinates\b/.test(trimmedRest)) {
+      const bi = trimmedRest.indexOf("{");
+      const inner = bi >= 0 ? tkBal(trimmedRest, bi)[0] : "";
+      (inner.match(/\(([^()]+)\)/g) || []).forEach((q) => pts.push(tkParseCoord(q.slice(1, -1), {})));
+    } else return;
+    let prev = null;
+    pts.forEach((p) => { if (p && prev) P.segs.push({ a: prev, b: p, bend: 0 }); prev = p; });
+    P.pts = pts.filter(Boolean);
+    if (P.segs.length) ctx.paths.push(P);
+  }
+
+  function tikzToHtml(codeRaw) {
+    const code = String(codeRaw).replace(/(^|[^\\])%.*$/gm, "$1");
+    const b0 = code.indexOf("\\begin{tikzpicture}"), b1 = code.lastIndexOf("\\end{tikzpicture}");
+    if (b0 < 0 || b1 < 0) return null;
+
+    // 1. Si le TikZ est un arbre avec `child { ... }`, utiliser notre moteur d'arbre natif
+    if (/\bchild\s*\{/.test(code)) {
+      const treeRoot = parseTikzChildTree(code);
+      if (treeRoot) return renderTreeSpec(treeRoot);
+    }
+
+    // 2. Si le TikZ est une `\matrix (m) [matrix of math nodes]` (issue de math_tikz.py), la convertir en tableau
+    const matMatch = code.match(/\\matrix\s*\([^)]*\)\s*\[[^\]]*matrix\s+of\s+(?:math\s+)?nodes[^\]]*\]\s*\{([\s\S]*?)\}\s*;/);
+    if (matMatch) {
+      const matRows = matMatch[1].split(/\\\\/).map((r) => r.trim()).filter(Boolean);
+      const vt = tabularToVtSpec(matRows);
+      if (vt) return renderVtSpec(vt);
+    }
+
+    let i0 = b0 + 19, pOpts = "";
+    while (i0 < code.length && /\s/.test(code[i0])) i0++;
+    if (code[i0] === "[") { const r = tkBal(code, i0); pOpts = r[0]; i0 = r[1]; }
+    let body = code.slice(i0, b1);
+    const scale = parseFloat((pOpts.match(/(?:^|[,\s])scale\s*=\s*([\d.]+)/) || [0, "1"])[1]) || 1;
+    const globalArrowE = /(?:^|[,\s])->(?:$|[,\s\]])/.test(pOpts);
+    let every = "";
+    const ei = pOpts.indexOf("every node/.style=");
+    if (ei >= 0) { const bi = pOpts.indexOf("{", ei); if (bi >= 0) every = tkBal(pOpts, bi)[0]; }
+
+    let ax = null;
+    const am = body.indexOf("\\begin{axis}");
+    if (am >= 0) {
+      let j = am + 12, ao = "";
+      while (j < body.length && /\s/.test(body[j])) j++;
+      if (body[j] === "[") { const r = tkBal(body, j); ao = r[0]; j = r[1]; }
+      const ae = body.lastIndexOf("\\end{axis}");
+      ax = tkAxisOpts(ao);
+      body = body.slice(j, ae < 0 ? body.length : ae);
+    }
+    body = tkExpandForeach(body.replace(/\\(?:begin|end)\{(?:center|figure)\}/g, ""));
+    if (ax) body = body.replace(/\\pgfkeysvalueof\{\/pgfplots\/(xmin|xmax|ymin|ymax)\}/g, (m0, k) => (ax[k] != null ? ax[k] : m0));
+
+    const ctx = { names: {}, nodes: [], paths: [], clip: null, every, gridBounds: null };
+    const clipStack = [];
+    tkSplit(body, ";").forEach((raw) => {
+      let s = raw.trim(), m;
+      while ((m = s.match(/^\\(begin|end)\{scope\}\s*/))) {
+        s = s.slice(m[0].length).trim();
+        if (m[1] === "begin") { clipStack.push(ctx.clip); if (s[0] === "[") s = s.slice(tkBal(s, 0)[1]).trim(); }
+        else ctx.clip = clipStack.pop() || null;
+      }
+      const cm = s.match(/^\\(draw|fill|filldraw|path|node|clip|coordinate|addplot\+?)\b\s*/);
+      if (!cm) return;
+      const cmd = cm[1];
+      let rest = s.slice(cm[0].length).trim();
+      if (cmd === "node" || cmd === "coordinate") { tkPath("node " + rest, tkStyle("", {}), ctx, cmd); return; }
+      let opts = "";
+      if (rest[0] === "[") { const r = tkBal(rest, 0); opts = r[0]; rest = rest.slice(r[1]).trim(); }
+      if (cmd === "clip") {
+        const mm = rest.match(/\(([^()]*)\)\s*rectangle\s*\(([^()]*)\)/);
+        if (mm) {
+          const a = tkParseCoord(mm[1], ctx.names), b = tkParseCoord(mm[2], ctx.names);
+          if (a && b) ctx.clip = { x0: Math.min(a.x, b.x), y0: Math.min(a.y, b.y), x1: Math.max(a.x, b.x), y1: Math.max(a.y, b.y) };
+        }
+        return;
+      }
+      if (cmd.indexOf("addplot") === 0) { tkAddPlot(opts, rest, ctx, ax); return; }
+      const st = tkStyle(opts, { arrowE: globalArrowE && cmd === "draw" });
+      if (cmd === "fill" || cmd === "filldraw") {
+        st.fill = st.fill || (st.colorSet ? st.stroke : "currentColor");
+        if (cmd === "fill") st.draw = false;
+      }
+      tkPath(rest, st, ctx, cmd);
+    });
+
+    // ----- transformation (repère pgfplots) + décor -----
+    let T = (p) => ({ x: p.x, y: p.y });
+    const deco = [];
+    if (ax) {
+      const dp = ctx.paths.filter((p) => p.plot).flatMap((p) => p.pts);
+      let xmin = ax.xmin, xmax = ax.xmax, ymin = ax.ymin, ymax = ax.ymax;
+      if (dp.length) {
+        const xs = dp.map((p) => p.x), ys = dp.map((p) => p.y).sort((a, b) => a - b);
+        const lo = ys[Math.floor(ys.length * 0.02)], hi = ys[Math.ceil(ys.length * 0.98) - 1], pd = (hi - lo) * 0.08 || 1;
+        if (xmin == null) xmin = Math.min(...xs);
+        if (xmax == null) xmax = Math.max(...xs);
+        if (ymin == null) ymin = lo - pd;
+        if (ymax == null) ymax = hi + pd;
+      }
+      xmin = xmin == null ? -5 : xmin; xmax = xmax == null ? 5 : xmax;
+      ymin = ymin == null ? -5 : ymin; ymax = ymax == null ? 5 : ymax;
+      if (xmax <= xmin) xmax = xmin + 1;
+      if (ymax <= ymin) ymax = ymin + 1;
+      const W = ax.width || 8.8, H = ax.height || 6.5, sx = W / (xmax - xmin), sy = H / (ymax - ymin);
+      T = (p) => ({ x: (p.x - xmin) * sx, y: (p.y - ymin) * sy });
+      ctx.paths.forEach((p) => { if (p.axisClip) p.clip = { x0: xmin, y0: ymin, x1: xmax, y1: ymax }; });
+      const tx = (x) => (x - xmin) * sx, ty = (y) => (y - ymin) * sy;
+      const mid = ax.lines === "middle" || ax.lines === "center";
+      const cx = mid ? Math.min(Math.max(0, xmin), xmax) : xmin, cy = mid ? Math.min(Math.max(0, ymin), ymax) : ymin;
+      const line = (x1, y1, x2, y2, base) =>
+        deco.push({ st: tkStyle("", base), segs: [{ a: { x: x1, y: y1, r: 0 }, b: { x: x2, y: y2, r: 0 }, bend: 0 }], circles: [], grids: [], noT: true });
+      const nice = (a, b) => {
+        const raw = (b - a) / 8, mag = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / mag;
+        const stp = (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * mag, out = [];
+        for (let v = Math.ceil(a / stp - 1e-9) * stp; v <= b + 1e-9; v += stp) out.push(+v.toFixed(10));
+        return out;
+      };
+      const fmt = (v) => String(+v.toFixed(6)).replace(".", ",").replace("-", "−");
+      const xt = nice(xmin, xmax), yt = nice(ymin, ymax);
+      const deNode = (x, y, t, pos) => ctx.nodes.push({ cm: true, x, y, html: t, pos, fs: 12 });
+      if (ax.grid) {
+        xt.forEach((v) => line(tx(v), 0, tx(v), H, { stroke: "rgb(190,190,190)", width: 0.6 }));
+        yt.forEach((v) => line(0, ty(v), W, ty(v), { stroke: "rgb(190,190,190)", width: 0.6 }));
+      }
+      if (mid) {
+        line(0, ty(cy), W + 0.3, ty(cy), { arrowE: true, width: 1.4 });
+        line(tx(cx), 0, tx(cx), H + 0.3, { arrowE: true, width: 1.4 });
+      } else {
+        line(0, 0, W, 0, {}); line(W, 0, W, H, {}); line(W, H, 0, H, {}); line(0, H, 0, 0, {});
+      }
+      xt.forEach((v) => {
+        line(tx(v), ty(cy) - 0.07, tx(v), ty(cy) + 0.07, {});
+        if (!(mid && Math.abs(v - cx) < 1e-9)) deNode(tx(v), ty(cy), fmt(v), "below");
+      });
+      yt.forEach((v) => {
+        line(tx(cx) - 0.07, ty(v), tx(cx) + 0.07, ty(v), {});
+        if (!(mid && Math.abs(v - cy) < 1e-9)) deNode(tx(cx), ty(v), fmt(v), "left");
+      });
+      if (ax.xlabel) deNode(W + 0.35, ty(cy), tkText(ax.xlabel), "right");
+      if (ax.ylabel) deNode(tx(cx), H + 0.4, tkText(ax.ylabel), "above");
+    }
+
+    // ----- arêtes réciproques : légère courbure -----
+    const seen = {};
+    ctx.paths.forEach((P) => P.segs.forEach((e) => {
+      if (e.a.n && e.b.n && e.a.n !== e.b.n && !e.bend && P.st.arrowE) seen[e.a.n + ">" + e.b.n] = e;
+    }));
+    Object.keys(seen).forEach((k) => { const ab = k.split(">"); if (seen[ab[1] + ">" + ab[0]]) seen[k].bend = 18; });
+
+    const allP = deco.concat(ctx.paths);
+    allP.forEach((P) => { const Tf = P.noT ? (p) => p : T; P.segs.forEach((e) => { e.g = tkGeom(e, Tf); }); P.g = P.segs.map((e) => e.g); });
+    ctx.nodes = ctx.nodes.filter((nd) => nd.cm || nd.edge || nd.x !== undefined);
+
+    // ----- boîte englobante -----
+    let minx = 1e9, miny = 1e9, maxx = -1e9, maxy = -1e9;
+    const bb = (p, mg) => { mg = mg || 0; minx = Math.min(minx, p.x - mg); maxx = Math.max(maxx, p.x + mg); miny = Math.min(miny, p.y - mg); maxy = Math.max(maxy, p.y + mg); };
+    allP.forEach((P) => {
+      const Tf = P.noT ? (p) => p : T;
+      P.g.forEach((g) => { bb(g.p0); bb(g.p1); bb(tkCub(g, 0.5)); });
+      P.circles.forEach((c) => bb(Tf(c.c), c.r));
+      P.grids.forEach((g) => { bb(Tf(g.a)); bb(Tf(g.b)); });
+    });
+    ctx.nodes.forEach((nd) => {
+      if (nd.edge && nd.edge.g) {
+        const g = nd.edge.g, p = tkCub(g, nd.f), q = tkCub(g, Math.min(1, nd.f + 0.02)), r2 = tkCub(g, Math.max(0, nd.f - 0.02));
+        nd.X = p.x; nd.Y = p.y;
+        if (g.isLoop) {
+          const ld = g.loopDir || "above";
+          if (ld === "above") nd.Y += 0.25;
+          else if (ld === "below") nd.Y -= 0.25;
+          else if (ld === "left") nd.X -= 0.35;
+          else if (ld === "right") nd.X += 0.35;
+          nd.autoCenter = true;
+        } else if (nd.auto) {
+          const tx_ = q.x - r2.x, ty_ = q.y - r2.y, l = Math.hypot(tx_, ty_) || 1, sg = nd.swap ? -1 : 1;
+          nd.X += (-ty_ / l) * 0.32 * sg; nd.Y += (tx_ / l) * 0.32 * sg;
+          nd.autoCenter = true;
+        }
+      } else { const q = nd.cm ? nd : T(nd); nd.X = q.x; nd.Y = q.y; }
+      bb({ x: nd.X, y: nd.Y }, 0.45);
+    });
+    if (!isFinite(minx)) return null;
+
+    const spanX = Math.max(0.5, maxx - minx);
+    const spanY = Math.max(0.5, maxy - miny);
+    let U = 42 * scale;
+    const pad = 34;
+    if (spanX * U + 2 * pad > 900) U = (900 - 2 * pad) / spanX;
+    if (spanY * U + 2 * pad > 680) U = Math.min(U, (680 - 2 * pad) / spanY);
+    const PW = Math.max(120, Math.ceil(spanX * U + 2 * pad));
+    const PH = Math.max(80, Math.ceil(spanY * U + 2 * pad));
+    const X = (x) => ((x - minx) * U + pad).toFixed(1), Y = (y) => ((maxy - y) * U + pad).toFixed(1);
+    const f2 = (p) => `${X(p.x)},${Y(p.y)}`;
+    const dOf = (gs) => {
+      let d = "", le = null;
+      gs.forEach((g) => {
+        if (!le || Math.hypot(le.x - g.p0.x, le.y - g.p0.y) > 1e-6) d += `M${f2(g.p0)}`;
+        d += g.line ? `L${f2(g.p1)}` : `C${f2(g.c1)} ${f2(g.c2)} ${f2(g.p1)}`;
+        le = g.p1;
+      });
+      return d;
+    };
+
+    const uid = ++__tkUid;
+    let defs = "", svg = "", html = "", nMk = 0, nClip = 0;
+    const markers = {}, clips = new Map();
+    const marker = (col) => {
+      if (!markers[col]) {
+        markers[col] = `tkm${uid}_${nMk++}`;
+        defs += `<marker id="${markers[col]}" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8.5" markerHeight="8.5" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0,0.5 L9.5,5 L0,9.5 z" fill="${col}"/></marker>`;
+      }
+      return markers[col];
+    };
+    const clipId = (c) => {
+      const key = `${c.x0}_${c.y0}_${c.x1}_${c.y1}`;
+      if (!clips.has(key)) {
+        const id = `tkc${uid}_${nClip++}`, a = T({ x: c.x0, y: c.y0 }), b = T({ x: c.x1, y: c.y1 });
+        defs += `<clipPath id="${id}"><rect x="${X(Math.min(a.x, b.x))}" y="${Y(Math.max(a.y, b.y))}" width="${Math.abs(b.x - a.x) * U}" height="${Math.abs(b.y - a.y) * U}"/></clipPath>`;
+        clips.set(key, id);
+      }
+      return clips.get(key);
+    };
+
+    allP.forEach((P) => {
+      const Tf = P.noT ? (p) => p : T, s = P.st;
+      P.grids.forEach((gr) => {
+        const a = Tf(gr.a), b = Tf(gr.b), sxp = s.xstep || s.step || 1, syp = s.ystep || s.step || 1;
+        const x0 = Math.min(a.x, b.x), x1 = Math.max(a.x, b.x), y0 = Math.min(a.y, b.y), y1 = Math.max(a.y, b.y);
+        const gs = `stroke="${s.stroke}" stroke-width="${s.width * 0.8}" opacity="0.85"`;
+        for (let x = Math.ceil(x0 / sxp - 1e-9) * sxp; x <= x1 + 1e-9; x += sxp) svg += `<line x1="${X(x)}" y1="${Y(y0)}" x2="${X(x)}" y2="${Y(y1)}" ${gs}/>`;
+        for (let y = Math.ceil(y0 / syp - 1e-9) * syp; y <= y1 + 1e-9; y += syp) svg += `<line x1="${X(x0)}" y1="${Y(y)}" x2="${X(x1)}" y2="${Y(y)}" ${gs}/>`;
+      });
+      const clipA = P.clip ? ` clip-path="url(#${clipId(P.clip)})"` : "";
+      const stroke = s.draw === false ? "none" : s.stroke;
+      const dash = s.dash ? ` stroke-dasharray="${s.dash}"` : "";
+      if (P.g.length) {
+        const nodeEnds = P.segs.some((e) => e.a.r || e.b.r || e.loopDir);
+        const me = s.arrowE ? ` marker-end="url(#${marker(s.stroke)})"` : "", ms = s.arrowS ? ` marker-start="url(#${marker(s.stroke)})"` : "";
+        const parts = nodeEnds && (s.arrowE || s.arrowS) && !P.closed ? P.g.map((g) => dOf([g])) : [dOf(P.g) + (P.closed ? "Z" : "")];
+        parts.forEach((d) => {
+          svg += `<path d="${d}" fill="${s.fill || "none"}" fill-opacity="${s.fillOp}" stroke="${stroke}" stroke-width="${s.width}"${dash} stroke-linejoin="round" stroke-linecap="round"${me}${ms}${clipA}/>`;
+        });
+      }
+      P.circles.forEach((c) => {
+        const q = Tf(c.c);
+        const rPx = Math.max(3.5, c.r * U);
+        svg += `<circle cx="${X(q.x)}" cy="${Y(q.y)}" r="${rPx.toFixed(1)}" fill="${s.fill || "none"}" stroke="${stroke}" stroke-width="${s.width}"${dash}${clipA}/>`;
+      });
+    });
+
+    const fsMap = { tiny: 10, scriptsize: 10.5, footnotesize: 11.5, small: 12.5, large: 15.5, Large: 17.5 };
+    ctx.nodes.forEach((nd) => {
+      if (nd.invisible) return;
+      const so = nd.cm ? "" : (ctx.every ? ctx.every + "," : "") + (nd.opts || "");
+      const posS = nd.cm ? nd.pos : nd.opts || "";
+      const has = (w) => new RegExp("(^|[\\s,])" + w + "([\\s,=]|$)").test(posS);
+      const ab = has("above"), be = has("below"), le = has("left"), ri = has("right");
+      const px_ = nd.autoCenter ? -50 : ri ? 0 : le ? -100 : -50, py_ = nd.autoCenter ? -50 : ab ? -100 : be ? 0 : -50;
+      const dx = nd.autoCenter ? 0 : ri ? 6 : le ? -6 : 0, dy = nd.autoCenter ? 0 : ab ? -5 : be ? 5 : 0;
+      const ns = tkStyle(so, {});
+      const draw = /(^|[\s,])draw([\s,]|$)/.test(so), circ = /(^|[\s,])circle([\s,]|$)/.test(so);
+      const mn = tkLen((so.match(/minimum size\s*=\s*([\d.]+\s*[a-z]*)/) || [])[1]);
+      let box = "";
+      if (draw) {
+        box = `border:${ns.width}px solid ${ns.stroke};background:var(--bg-primary,#faf9f5);`;
+        if (circ) { const d = (isNaN(mn) ? 0.72 : mn) * U; box += `border-radius:50%;width:${d}px;height:${d}px;display:flex;align-items:center;justify-content:center;`; }
+        else box += "border-radius:4px;padding:2px 7px;";
+      } else if (nd.edge) {
+        box = "background:var(--bg-primary,#faf9f5);padding:1px 4px;border-radius:3px;";
+      }
+      if (ns.fill && !nd.cm) box += `background:${ns.fill};`;
+      const fm = so.match(/\\?(tiny|scriptsize|footnotesize|small|large|Large)\b/);
+      const fsz = nd.fs || (fm ? fsMap[fm[1]] : 13.5);
+      const colr = ns.colorSet && !nd.cm ? `color:${ns.stroke};` : nd.inheritedColor && !draw ? `color:${nd.inheritedColor};` : "";
+      html += `<div style="position:absolute;left:${X(nd.X)}px;top:${Y(nd.Y)}px;transform:translate(calc(${px_}% + ${dx}px),calc(${py_}% + ${dy}px));white-space:nowrap;font-size:${fsz}px;line-height:1.2;${box}${colr}">${nd.cm ? nd.html : tkText(nd.text)}</div>`;
+    });
+
+    return (
+      `<div class="nh-math-fig" style="overflow-x:auto;overflow-y:hidden;margin:14px 0;">` +
+      `<div style="position:relative;width:${PW}px;height:${PH}px;margin:0 auto;">` +
+      `<svg width="${PW}" height="${PH}" viewBox="0 0 ${PW} ${PH}" style="position:absolute;inset:0;overflow:visible;" aria-hidden="true"><defs>${defs}</defs>${svg}</svg>${html}</div></div>`
+    );
+  }
+
+  // ---------- Aiguillage ----------
+  function renderSpecialBlock(lang, code) {
+    const lg = String(lang || "").trim().toLowerCase(), c = String(code || "");
+    try {
+      if (/\\begin\{tikzpicture\}/.test(c)) {
+        const h = tikzToHtml(c);
+        return h
+          ? h + `<details style="margin:-6px 0 10px;font-size:12px;"><summary style="cursor:pointer;opacity:.7;">Code TikZ</summary><pre><code>${esc(c)}</code></pre></details>`
+          : null;
+      }
+      if (["droite", "intervalle", "intervalles", "axe"].includes(lg) || (/^\s*(?:bornes|axe)\s*:/im.test(c) && /\[[^;\]]+;\s*[^\]]+\]/.test(c))) {
+        const nl = parseNumberLineSpec(c);
+        if (nl) return renderNumberLineSpec(nl);
+      }
+      if (lg === "arbre" || lg === "tree" || /^\s*Niveau_?\d/im.test(c)) {
+        const t = parseTreeSpec(c);
+        return t ? renderTreeSpec(t) : null;
+      }
+      const plain = ["", "text", "txt", "plaintext"].includes(lg);
+      if (["tableau", "variations", "signes", "tvar", "convexite"].includes(lg) || (plain && /^\s*\$?x\$?\s*:/im.test(c))) {
+        const sp = parseVtSpec(c);
+        if (!sp) return null;
+        return renderVtSpec(sp);
+      }
+    } catch (_) {}
+    return null;
+  }
+
   function formatAssistantContent(raw, isInnerLatex = false) {
     if (!raw) return "<em style='color:var(--text-secondary);'>Aucune sortie texte.</em>";
 
-    // Détection de contenu ou exercice LaTeX
-    const hasLatexMarkup = !isInnerLatex && /\\(?:textbf|textit|partie|section|subsection|begin\{(?:enumerate|itemize|document)\}|item|frac)/.test(raw);
+    // Détection du cadre LaTeX (calculée sur le texte d'origine, avant nettoyage)
+    const hasLatexMarkup =
+      !isInnerLatex &&
+      /\\(?:textbf|textit|partie|section|subsection|begin\{(?:enumerate|itemize|document|tabular)\}|item|frac)/.test(raw);
+
+    // Nettoyage du LaTeX brut (TikZ, center, enumerate, exo, partie...)
+    raw = sanitizeRawLatexForChat(raw);
 
     const codeBlocks = [];
     const mathBlocks = [];
     const inlineMathTokens = [];
 
-    let cleanedRaw = String(raw);
-
-    // Prétraitement des balises LaTeX vers HTML sémantique
-    cleanedRaw = cleanedRaw.replace(/\\partie\{([^}]+)\}/g, '<h3 class="latex-part-title"><span class="part-badge">Partie</span> $1</h3>');
-    cleanedRaw = cleanedRaw.replace(/\\section\{([^}]+)\}/g, '<h2 class="latex-section-title">$1</h2>');
-    cleanedRaw = cleanedRaw.replace(/\\subsection\{([^}]+)\}/g, '<h3 class="latex-subsection-title">$1</h3>');
-    cleanedRaw = cleanedRaw.replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>');
-    cleanedRaw = cleanedRaw.replace(/\\textit\{([^}]+)\}/g, '<em>$1</em>');
-    cleanedRaw = cleanedRaw.replace(/\\underline\{([^}]+)\}/g, '<u>$1</u>');
-    cleanedRaw = cleanedRaw.replace(/\\begin\{enumerate\}([\s\S]*?)(?:\\end\{enumerate\}|$)/g, function(_, inner) {
-      const items = inner.split(/\\item\s+/).filter(it => it.trim().length > 0);
-      return '<ol class="latex-enum-list">' + items.map(it => '<li>' + it.trim() + '</li>').join('') + '</ol>';
-    });
-    cleanedRaw = cleanedRaw.replace(/\\begin\{itemize\}([\s\S]*?)(?:\\end\{itemize\}|$)/g, function(_, inner) {
-      const items = inner.split(/\\item\s+/).filter(it => it.trim().length > 0);
-      return '<ul class="latex-item-list">' + items.map(it => '<li>' + it.trim() + '</li>').join('') + '</ul>';
-    });
-    cleanedRaw = cleanedRaw.replace(/\\item\s+([^\n]+)/g, '<li>$1</li>');
-
-    let working = String(raw).replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, function (_, lang, code) {
+    let working = String(raw).replace(/```([a-zA-Z0-9_+-]*)[ \t]*\r?\n([\s\S]*?)```/g, function (_, lang, code) {
       const token = `\n@@CODEBLOCK_${codeBlocks.length}@@\n`;
-      codeBlocks.push(`<pre><code class="lang-${esc(lang)}">${esc(code)}</code></pre>`);
+      const sp = renderSpecialBlock(lang, code);
+      codeBlocks.push(sp || `<pre><code class="lang-${esc(lang)}">${esc(code)}</code></pre>`);
       return token;
     });
+
+    // Tableaux Markdown à barres "| x | ... |" : tableau de variations/signes
+    working = working.replace(/(?:^[ \t]*\|.*(?:\n|$)){2,}/gm, function (blk) {
+      let h = null;
+      try {
+        h = mdPipeTableToHtml(blk);
+      } catch (_e) {
+        h = null;
+      }
+      if (!h) return blk;
+      const token = `\n@@CODEBLOCK_${codeBlocks.length}@@\n`;
+      codeBlocks.push(h);
+      return token;
+    });
+
+    // Conversion des \begin{tabular}...\end{tabular} en tableau de variations/signes ou tableau HTML
+    working = working.replace(
+      /\\begin\{tabular\}\{[^}]*\}([\s\S]*?)\\end\{tabular\}/g,
+      function (_, inner) {
+        const rows = inner
+          .replace(/\\(?:hline|cline\{[^}]*\})/g, "")
+          .split(/\\\\/)
+          .map((r) => r.trim())
+          .filter((r) => r.length > 0);
+        try {
+          const vt = tabularToVtSpec(rows);
+          if (vt) {
+            const vtHtml = renderVtSpec(vt);
+            if (vtHtml) {
+              const token = `\n@@CODEBLOCK_${codeBlocks.length}@@\n`;
+              codeBlocks.push(vtHtml);
+              return token;
+            }
+          }
+        } catch (_e) {}
+        function renderCell(txt) {
+          const t = String(txt).trim();
+          if (!t) return "&nbsp;";
+          return t
+            .split("$")
+            .map((seg, i) => {
+              if (i % 2 === 1) return renderMathExpression(seg, false);
+              return esc(seg.replace(/\\\\/g, "").replace(/\\textbf\{([^}]*)\}/g, "$1"));
+            })
+            .join("");
+        }
+        const cellStyle =
+          "border:1px solid var(--border-color, #cbd5e1); padding:6px 12px; text-align:center; min-width:42px;";
+        const html =
+          '<div style="overflow-x:auto; margin:12px 0;"><table style="border-collapse:collapse; margin:0 auto;"><tbody>' +
+          rows
+            .map(
+              (r) =>
+                "<tr>" +
+                r
+                  .split("&")
+                  .map((c) => `<td style="${cellStyle}">${renderCell(c)}</td>`)
+                  .join("") +
+                "</tr>"
+            )
+            .join("") +
+          "</tbody></table></div>";
+        const token = `\n@@CODEBLOCK_${codeBlocks.length}@@\n`;
+        codeBlocks.push(html);
+        return token;
+      }
+    );
 
     working = working.replace(/\$\$([\s\S]*?)\$\$/g, function (_, expr) {
       const token = `\n@@MATHBLOCK_${mathBlocks.length}@@\n`;
@@ -1828,15 +3443,16 @@ function isImageAttachmentPath(p) {
 
       const olMatch = line.match(/^(\s*)(\d+)[.)]\s+(.*)$/);
       if (olMatch) {
+        const itemNum = parseInt(olMatch[2], 10) || 1;
         const itemText = olMatch[3];
         if (currentListType === "ul") {
           closeList();
         }
         if (!currentListType) {
-          htmlParts.push("<ol>");
+          htmlParts.push(`<ol start="${itemNum}">`);
           currentListType = "ol";
         }
-        htmlParts.push(`<li>${formatInlineMarkdown(itemText, inlineMathTokens)}</li>`);
+        htmlParts.push(`<li value="${itemNum}">${formatInlineMarkdown(itemText, inlineMathTokens)}</li>`);
         continue;
       }
 

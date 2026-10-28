@@ -10,10 +10,12 @@ from pathlib import Path
 
 CANONICAL_SKILL_ORDER: tuple[str, ...] = (
     "analyze",
+    "antitriche",
     "auto",
     "bacblanc",
     "compare",
     "context",
+    "correction",
     "debug",
     "diagnostic",
     "dm",
@@ -30,7 +32,6 @@ CANONICAL_SKILL_ORDER: tuple[str, ...] = (
     "test",
     "workflow",
 )
-
 
 @dataclass(frozen=True)
 class SkillDescriptor:
