@@ -102,6 +102,13 @@ class IntentEngine:
                 "en 2026",
                 "sources web",
                 "liens web",
+                "recherche approfondie",
+                "deep research",
+                "état de l'art",
+                "etat de l'art",
+                "étude approfondie",
+                "etude approfondie",
+                "dossier complet",
             )
         )
 
@@ -319,6 +326,13 @@ class IntentEngine:
                 "bloc-notes",
                 "presse-papiers",
                 "clipboard",
+                "inspecte l'interface",
+                "inspecter l'interface",
+                "arbre ui",
+                "ui automation",
+                "set-of-mark",
+                "clique sur le bouton",
+                "clique sur l'élément",
             )
         )
         if explicit_operator_request:
@@ -379,9 +393,10 @@ class IntentEngine:
                 coding_tools = ["read_file", "write_file", "list_files"]
             else:
                 coding_tools = [
-                    "list_files", "find_file", "search_files", "read_file", "read_document",
-                    "write_file", "patch_file", "run_python", "run_tests",
-                ]   
+                    "list_files", "find_file", "search_files", "code_ast_map", "diagnose_code",
+                    "read_file", "read_document", "write_file", "patch_file", "edit_file",
+                    "run_python", "run_tests",
+                ]  
             for op_tool in operator_tools:
                 if op_tool not in coding_tools:
                     coding_tools.append(op_tool)
@@ -456,21 +471,30 @@ class IntentEngine:
             return self._decision(
                 "file_analysis", request, 0.92,
                 capabilities=["file_analysis"],
-                tools=["list_files", "find_file", "search_files", "read_file", "read_document"],
+                tools=["list_files", "find_file", "search_files", "read_file", "read_document", "analyze_dataset", "generate_excel"],
                 workspace=True,
                 file_read=True,
-                criteria=["fichier réellement lu", "synthèse fondée sur le contenu extrait"],
-                rationale=["action d'analyse appliquée à un fichier/document identifié"],
+                criteria=["fichier réellement lu et profilé statistiquement", "synthèse fondée sur le contenu extrait"],
+                rationale=["action d'analyse appliquée à un fichier/document ou jeu de données identifié"],
             )
 
         if asks_research:
+            wants_deep = any(
+                m in text
+                for m in (
+                    "approfondi", "deep research", "état de l'art", "etat de l'art",
+                    "dossier complet", "étude complète", "etude complete", "en détail", "en detail",
+                    "multi-sources", "compare", "comparatif",
+                )
+            )
+            r_tools = ["deep_research", "web_search", "fetch_url"] if (asks_web or wants_deep) else []
             return self._decision(
-                "research", request, 0.90,
+                "research", request, 0.94 if wants_deep else 0.90,
                 capabilities=["research"],
-                tools=["web_search"] if asks_web else [],
-                web=asks_web,
-                criteria=["faits séparés des inférences", "sources citées uniquement si consultées"],
-                rationale=["demande de recherche, de vérification ou de sources détectée"],
+                tools=r_tools,
+                web=asks_web or wants_deep,
+                criteria=["faits séparés des inférences", "sources croisées et citées avec numéros [1]..[N]"],
+                rationale=["demande de recherche approfondie (Deep Research) ou vérification multi-sources détectée"],
             )
 
         if files:
@@ -591,8 +615,8 @@ class IntentEngine:
             tools.extend([
                 "window_list", "window_active", "window_find", "window_focus",
                 "window_minimize", "window_maximize", "window_restore", "window_close",
-                "computer_screenshot", "computer_ocr", "computer_compare_screens",
-                "computer_mouse_move", "computer_click", "computer_drag", "computer_scroll",
+                "computer_screenshot", "computer_inspect_ui", "computer_ocr", "computer_compare_screens",
+                "computer_mouse_move", "computer_click", "computer_click_element", "computer_drag", "computer_scroll",
                 "computer_type", "computer_press", "computer_hotkey", "computer_action_verified",
             ])
         if wants_terminal:

@@ -85,6 +85,25 @@ class GitWorkspace:
         result = self._run("merge", "--no-edit", "--", branch_name)
         return {"branch": branch_name, "output": result["output"]}
 
+    def list_worktrees(self) -> dict[str, Any]:
+        """Liste les worktrees Git isolés actifs pour le développement parallèle."""
+        self._verify_repository_boundary()
+        result = self._run("worktree", "list", "--porcelain")
+        return {"repository": str(self.root), "output": result["output"]}
+
+    def create_worktree(self, name: str, branch: str = "") -> dict[str, Any]:
+        """Crée un espace de travail Git isolé (.harness/worktrees/<name>) pour un agent parallèle."""
+        self._verify_repository_boundary()
+        safe_name = "".join(c for c in name if c.isalnum() or c in "-_")[:40]
+        if not safe_name:
+            raise ValueError("Nom de worktree invalide.")
+        wt_path = self.root / ".harness" / "worktrees" / safe_name
+        wt_path.parent.mkdir(parents=True, exist_ok=True)
+        branch_name = branch.strip() or f"wt/{safe_name}"
+        self._run("check-ref-format", "--branch", branch_name)
+        result = self._run("worktree", "add", "-B", branch_name, str(wt_path))
+        return {"worktree_path": str(wt_path), "branch": branch_name, "output": result["output"]}
+
 def status() -> str:
     return "[GIT SIMULATION] status : aucun dépôt Git interrogé."
 

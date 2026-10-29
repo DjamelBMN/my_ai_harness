@@ -196,8 +196,12 @@ class PolicyEngine:
         "search_files": "filesystem.read",
         "read_file": "filesystem.read",
         "read_document": "filesystem.read",
+        "analyze_dataset": "filesystem.read",
+        "generate_excel": "filesystem.write",
         "view_file": "filesystem.read",
         "search_code": "filesystem.read",
+        "code_ast_map": "filesystem.read",
+        "diagnose_code": "filesystem.read",
         "write_file": "filesystem.write",
         "patch_file": "filesystem.write",
         "edit_file": "filesystem.write",
@@ -212,6 +216,7 @@ class PolicyEngine:
         "git_commit_staged": "git.mutate",
         "git_merge": "git.mutate",
         "web_search": "browser.observe",
+        "deep_research": "browser.observe",
         "fetch_url": "browser.observe",
         "download_resource": "browser.download",
         "navigate_url": "browser.observe",
@@ -240,9 +245,11 @@ class PolicyEngine:
         "window_close": "windows.close",
         "computer_screenshot": "computer_use.observe",
         "computer_ocr": "computer_use.observe",
+        "computer_inspect_ui": "computer_use.observe",
         "computer_compare_screens": "computer_use.observe",
         "computer_mouse_move": "computer_use.mouse",
         "computer_click": "computer_use.mouse",
+        "computer_click_element": "computer_use.action_verified",
         "computer_drag": "computer_use.mouse",
         "computer_scroll": "computer_use.mouse",
         "computer_type": "computer_use.keyboard",
@@ -443,9 +450,18 @@ class PolicyEngine:
         if tool_name == "computer_hotkey":
             keys = "+".join(str(k) for k in (args.get("keys") or []))
             return f"Exécuter le raccourci clavier : {keys}"
+        if tool_name == "computer_inspect_ui":
+            return "Inspecter l'arbre UI Automation Windows et générer la carte Set-of-Mark"
+        if tool_name == "computer_click_element":
+            eid = args.get("element_id", "?")
+            extra = f" et saisir '{str(args.get('text_to_type'))[:30]}'" if args.get("text_to_type") else ""
+            return f"Cliquer sur l'élément UI [{eid}]{extra} avec vérification en boucle fermée"
         if tool_name == "computer_action_verified":
             act = args.get("action_type") or args.get("action") or "action GUI"
-            target = args.get("expected_window") or f"({args.get('x', '?')}, {args.get('y', '?')})"
+            if args.get("element_id") is not None:
+                target = f"l'élément UI [{args.get('element_id')}]"
+            else:
+                target = args.get("expected_window") or f"({args.get('x', '?')}, {args.get('y', '?')})"
             return f"Exécuter l'action Computer Use '{act}' vers {target} avec vérification visuelle"
         if tool_name == "window_focus":
             return f"Activer la fenêtre '{args.get('title') or args.get('hwnd') or ''}'"
@@ -459,4 +475,6 @@ class PolicyEngine:
             return f"Exécuter dans le terminal : {cmd[:80]}"
         if tool_name == "clipboard_set":
             return "Copier du texte dans le presse-papiers Windows"
+        if tool_name == "deep_research":
+            return f"Lancer une recherche profonde parallèle (Deep Research) sur '{str(args.get('query', ''))[:60]}'"
         return f"Exécuter {tool_name}"

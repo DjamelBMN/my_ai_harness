@@ -44,7 +44,8 @@ _SKIP_SUBPAGE_EXTS = (".png", ".jpg", ".jpeg", ".gif", ".svg", ".css", ".js",
 def _clean_html(raw: str) -> str:
     if not raw:
         return ""
-    without_tags = re.sub(r"<[^>]+>", " ", raw)
+    no_scripts = re.sub(r"<(script|style|noscript|svg|head)[^>]*>[\s\S]*?</\1>", " ", raw, flags=re.I)
+    without_tags = re.sub(r"<[^>]+>", " ", no_scripts)
     unescaped = html.unescape(without_tags)
     return re.sub(r"\s+", " ", unescaped).strip()
 
@@ -179,6 +180,30 @@ def _search_bing(query: str, timeout: float = 6.0) -> list[dict[str, Any]]:
         })
     return results
 
+def _search_ddgs(query: str, timeout: float = 8.0, max_results: int = 8) -> list[dict[str, Any]]:
+    """Recherche via la bibliothèque ddgs (sans clé API). Les liens publicitaires sont écartés."""
+    from ddgs import DDGS  # ImportError remontée volontairement : visible dans errors
+
+    ad_markers = ("bing.com/aclick", "duckduckgo.com/y.js", "/aclick?")
+    results: list[dict[str, Any]] = []
+    for item in DDGS(timeout=int(timeout)).text(query, region="fr-fr", max_results=max_results + 3):
+        url = str(item.get("href") or "").strip()
+        title = _clean_html(str(item.get("title") or ""))
+        if not url.startswith(("http://", "https://")) or not title:
+            continue
+        if any(marker in url for marker in ad_markers):
+            continue
+        results.append({
+            "title": title,
+            "url": url,
+            "snippet": _clean_html(str(item.get("body") or "")),
+            "source": urllib.parse.urlparse(url).netloc or "Web",
+            "published_at": "",
+            "provider": "ddgs",
+        })
+        if len(results) >= max_results:
+            break
+    return results
 
 def _search_duckduckgo_lite(query: str, timeout: float = 8.0) -> list[dict[str, Any]]:
     body = urllib.parse.urlencode({"q": query}).encode("utf-8")
@@ -1009,6 +1034,7 @@ def fetch_url(
     output_path: str = "",
     workspace: str | Path = WORKSPACE_ROOT,
     timeout: float = 12.0,
+    max_chars: int = 4000,
 ) -> dict[str, Any]:
     """Récupère réellement le contenu d'une URL Web distante (HTML, texte, PDF, etc.)."""
     clean_url = (url or "").strip()
@@ -1046,7 +1072,7 @@ def fetch_url(
             title = _clean_html(m_title.group(1))
         download_links = _extract_download_links(decoded_html, clean_url)
         all_links = _extract_all_links(decoded_html, clean_url)
-        clean_text = _clean_html(decoded_html)
+        clean_text = _clean_html_main(decoded_html) or _clean_html(decoded_html)
     else:
         clean_text = raw_bytes[:10000].decode("utf-8", errors="replace")
 
@@ -1058,7 +1084,7 @@ def fetch_url(
         "download_links": download_links,
         "download_links_count": len(download_links),
         "links": all_links,
-        "text": clean_text[:4000],
+        "text": clean_text[:max_chars],
         "size_bytes": len(raw_bytes),
         "saved_path": saved_path,
     }
@@ -1135,6 +1161,8 @@ def web_search(
     )
 
     bing_results: list[dict[str, Any]] = []
+    ddgs_results: list[dict[str, Any]] = []
+    bing_results: list[dict[str, Any]] = []
     ddg_results: list[dict[str, Any]] = []
     news_results: list[dict[str, Any]] = []
     wiki_results: list[dict[str, Any]] = []
@@ -1159,7 +1187,22 @@ def web_search(
             errors.append(f"direct_url: {type(error).__name__}: {error}")
 
     try:
+        ddgs_results = _search_ddgs(search_terms, timeout=min(timeout, 8.0))
+        if ddgs_results:
+            backends_used.append("ddgs")
+    except Exception as error:
+        errors.append(f"ddgs: {type(error).__name__}: {error}")
+
+    try:
         bing_results = _search_bing(search_terms, timeout=min(timeout, 6.0))
+        # Bing sert parfois une page de remplissage hors sujet : on ne garde que le pertinent
+        bing_results = [
+            r for r in bing_results
+            if _relevant(
+                {"url": r["url"], "provenance": {"content_excerpt": f"{r['title']} {r['snippet']}"}},
+                search_terms,
+            )
+        ]
         if bing_results:
             backends_used.append("bing")
     except Exception as error:
@@ -1179,7 +1222,7 @@ def web_search(
     except Exception as error:
         errors.append(f"google_news_rss: {type(error).__name__}: {error}")
 
-    if len(bing_results) + len(ddg_results) + len(news_results) < limit:
+    if len(ddgs_results) + len(bing_results) + len(ddg_results) + len(news_results) < limit:
         try:
             wiki_results = _search_wikipedia_fr(search_terms, timeout=timeout)
             if wiki_results:
@@ -1191,16 +1234,19 @@ def web_search(
     if direct_url_candidate:
         ordered_candidates.append(direct_url_candidate)
     if is_news_query:
-        max_len = max(len(news_results), len(bing_results), len(ddg_results))
+        max_len = max(len(news_results), len(ddgs_results), len(bing_results), len(ddg_results))
         for idx in range(max_len):
             if idx < len(news_results):
                 ordered_candidates.append(news_results[idx])
+            if idx < len(ddgs_results):
+                ordered_candidates.append(ddgs_results[idx])
             if idx < len(bing_results):
                 ordered_candidates.append(bing_results[idx])
             if idx < len(ddg_results):
                 ordered_candidates.append(ddg_results[idx])
         ordered_candidates.extend(wiki_results)
     else:
+        ordered_candidates.extend(ddgs_results)
         ordered_candidates.extend(bing_results)
         ordered_candidates.extend(ddg_results)
         ordered_candidates.extend(news_results)
@@ -1301,3 +1347,573 @@ def search_web(query: str, *, backend_enabled: bool = False) -> str:
         )
     payload = web_search(query, backend_enabled=True)
     return str(payload.get("formatted", ""))
+
+
+# ---------------------------------------------------------------------------
+# CHANTIER 4 : MOTEUR DEEP RESEARCH (ESSAIM PARALLÈLE + LECTURE PROFONDE + VÉRIFICATION CROISÉE)
+# ---------------------------------------------------------------------------
+
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+
+def _classify_domain_authority(url: str) -> tuple[str, int]:
+    """Évalue le niveau d'autorité d'une source Web (3 = Institutionnel/Académique, 2 = Référence/Presse, 1 = Web spécialisé)."""
+    dom = urllib.parse.urlparse(url).netloc.lower()
+    if "news.google.com" in dom:
+        return "Agrégateur d'actualités", 0
+    if any(
+        dom.endswith(ext) or ext in dom
+        for ext in (
+            ".gouv.fr", ".gov", ".edu", "europa.eu", "insee.fr", "legifrance.gouv.fr",
+            "service-public.fr", "eduscol.education.gouv.fr", "arxiv.org", "hal.science",
+            "cnrs.fr", "inria.fr", "cea.fr", "inserm.fr", "banque-france.fr", "ocde.org", "oecd.org", "who.int",
+        )
+    ):
+        return "Institutionnel / Académique (Haute autorité)", 3
+    if any(
+        ext in dom
+        for ext in (
+            "wikipedia.org", "lemonde.fr", "lesechos.fr", "lefigaro.fr", "francetvinfo.fr",
+            "reuters.com", "bbc.com", "nature.com", "science.org", "ieee.org", "acm.org",
+            "github.com", "python.org", "microsoft.com", "google.com", "openai.com", "anthropic.com",
+        )
+    ):
+        return "Source de référence / Presse établie", 2
+    return "Source Web spécialisée", 1
+
+
+_FRENCH_QUESTION_SCAFFOLDING = {
+    "quel", "quelle", "quels", "quelles", "comment", "pourquoi", "combien", "quand",
+    "est", "sont", "etre", "avoir", "faire", "peut", "faut", "doit", "vaut",
+    "ce", "cet", "cette", "ces", "cela", "ca", "il", "elle", "ils", "elles", "on",
+    "un", "une", "le", "la", "les", "de", "du", "des", "au", "aux", "en", "dans",
+    "sur", "avec", "pour", "par", "sans", "sous", "vers", "chez", "plus", "moins",
+    "tres", "vraiment", "bien", "bon", "bonne", "meilleur", "meilleure",
+    "fais", "faire", "recherche", "avancee", "approfondie", "complete", "analyse",
+    "explique", "donne", "trouve", "cherche", "dis", "moi", "nous", "vous",
+}
+
+# Mots qui expriment ce que l'utilisateur veut savoir, pas le sujet lui-même
+_INTENT_WORDS = {
+    "avis", "prix", "tarif", "tarifs", "occasion", "occasions", "reconditionne", "reconditionnes",
+    "test", "tests", "comparatif", "comparaison", "promo", "promos", "soldes", "acheter", "achat",
+}
+
+
+def _deterministic_parse_query(raw_query: str) -> dict[str, Any]:
+    """Analyse grammaticale déterministe de la demande utilisateur :
+    1. Extrait le Groupe Nominal Sujet (pivot) sans les verbes/auxiliaires interrogatifs.
+    2. Identifie l'intention syntaxique (évaluation 'est-il...', choix 'quel...', mécanisme 'comment...').
+    3. Isole les mots-ancres obligatoires (les termes les plus spécifiques du sujet).
+    """
+    raw = " ".join((raw_query or "").strip().split())
+    # 1. Retrait déterministe des préfixes de commande et d'interrogation
+    clean = re.sub(
+        r"(?i)^(?:/research\s+)?(?:(?:fais|effectue|lance)(?:-moi)?\s+une\s+recherche\s+"
+        r"(?:avancée|avancee|approfondie|complète|complete)?\s*(?:sur\s+|concernant\s+)?|"
+        r"(?:cherche|recherche|trouve|analyse|explique)(?:-moi)?\s+)",
+        "",
+        raw,
+    ).strip()
+
+    # Détection de la structure interrogative avant nettoyage
+    low_clean = _norm_txt(clean)
+    is_evaluation = bool(
+        re.search(r"\b(?:est[- ]il|est[- ]elle|sont[- ]ils|vaut[- ]il|efficace|puissant|fiable|dangereux|avis)\b", low_clean)
+    )
+    is_choice = bool(
+        re.search(r"^(?:quel|quelle|quels|quelles|que\s+faire| comment\s+choisir)\b", low_clean)
+    )
+
+    # Extraction du pivot nominal (sujet pur) et du prédicat évaluatif éventuel
+    eval_predicate = ""
+    m_eval = re.search(
+        r"(?i)^(.+?)\s+(?:est[- ]il|est[- ]elle|sont[- ]ils|sont[- ]elles|est\s+il|est\s+elle)\s+(.+?)\s*[?!.]*$",
+        clean,
+    )
+    if m_eval:
+        pivot = m_eval.group(1).strip(" ?.!,:;-")
+        eval_predicate = m_eval.group(2).strip(" ?.!,:;-")
+    else:
+        pivot = re.sub(
+            r"(?i)^(?:quel(?:le)?s?\s+|comment\s+|pourquoi\s+|qu['’]est[- ]ce\s+qu(?:e|')\s*|est[- ]ce\s+qu(?:e|')\s*)",
+            "",
+            clean,
+        )
+        pivot = re.sub(r"(?i)\b(?:faire\s+après|faire\s+avec|faire\s+pour)\b", lambda m: m.group(0).split()[-1], pivot)
+        pivot = pivot.strip(" ?.!,:;-")
+
+    # Extraction déterministe des tokens substantifs du pivot (mots >= 3 lettres hors mots-outils)
+    pivot_words_raw = re.findall(r"[a-zA-ZÀ-ÿ0-9]{3,}", pivot)
+    content_tokens: list[str] = []
+    for w in pivot_words_raw:
+        w_norm = _norm_txt(w)
+        if (
+            w_norm not in _FRENCH_QUESTION_SCAFFOLDING
+            and w_norm not in _INTENT_WORDS
+            and w_norm not in content_tokens
+        ):
+            content_tokens.append(w)
+
+    if not content_tokens:
+        content_tokens = [w for w in re.findall(r"[a-zA-ZÀ-ÿ0-9]{3,}", clean) if _norm_txt(w) not in _FRENCH_QUESTION_SCAFFOLDING][:4]
+
+    short_subject = " ".join(content_tokens[:4]) if content_tokens else pivot[:50]
+    has_intent_words = bool(set(re.findall(r"[a-z0-9]+", low_clean)) & _INTENT_WORDS)
+    display_subject = short_subject if (has_intent_words and short_subject) else (pivot if len(pivot) <= 55 else short_subject)
+
+    # Les racines d'ancrage obligatoires (au moins 1 de ces racines DOIT figurer dans toute page retenue)
+    anchor_stems = [_norm_txt(w).rstrip("s") for w in content_tokens if len(_norm_txt(w)) >= 3][:4]
+
+    return {
+        "raw": raw,
+        "display_subject": display_subject,
+        "short_keywords": short_subject,
+        "eval_predicate": eval_predicate,
+        "is_evaluation": is_evaluation,
+        "is_choice": is_choice,
+        "anchor_stems": anchor_stems,
+        "wants_used": bool(re.search(r"occasion|seconde\s+main|reconditionn", low_clean)),
+        "wants_price": bool(re.search(r"\b(?:prix|tarifs?|cout|combien|promo\w*|solde\w*)\b", low_clean)),
+    }
+
+
+def _build_human_research_axes(core_topic: str) -> list[dict[str, str]]:
+    """Axes de base + axes ciblés selon l'intention détectée (occasion, prix, fiche technique)."""
+    parsed = _deterministic_parse_query(core_topic)
+    axes = _build_base_research_axes(core_topic)
+    subj, kw = parsed["display_subject"], parsed["short_keywords"]
+    if parsed["wants_used"]:
+        axes.append({
+            "title": f"6. Marché de l'occasion et du reconditionné : prix constatés ({subj})",
+            "pill": "Occasion",
+            "query": f"{kw} occasion reconditionné prix leboncoin back market",
+        })
+        axes.append({
+            "title": f"7. Cote, décote et points à vérifier avant d'acheter d'occasion ({subj})",
+            "pill": "Achat occasion",
+            "query": f"{kw} occasion que vérifier garantie batterie",
+        })
+    elif parsed["wants_price"]:
+        axes.append({
+            "title": f"6. Prix actuels, historique et promotions ({subj})",
+            "pill": "Prix",
+            "query": f"{kw} prix comparateur promotion",
+        })
+    axes.append({
+        "title": f"{len(axes) + 1}. Fiche technique et caractéristiques ({subj})",
+        "pill": "Fiche technique",
+        "query": f"{kw} fiche technique caractéristiques",
+    })
+    return axes
+
+
+def _build_base_research_axes(core_topic: str) -> list[dict[str, str]]:
+    """Génère de façon 100% déterministe 5 axes de recherche lisibles par un humain
+    avec des requêtes moteurs courtes (3 à 5 mots) centrées sur le sujet réel."""
+    parsed = _deterministic_parse_query(core_topic)
+    subj = parsed["display_subject"]
+    kw = parsed["short_keywords"]
+    pred = parsed["eval_predicate"]
+
+    if parsed["is_evaluation"]:
+        crit = pred if (pred and len(pred) <= 35) else "efficacité et performances"
+        return [
+            {
+                "title": f"1. Présentation, nature et fonctionnement de « {subj} »",
+                "pill": "Fonctionnement",
+                "query": f"{kw} fonctionnement composition",
+            },
+            {
+                "title": f"2. Évaluation directe : {subj} ({crit})",
+                "pill": "Évaluation & Preuves",
+                "query": f"{kw} efficacité test puissance",
+            },
+            {
+                "title": f"3. Avis vérifiés et retours d'expérience sur « {subj} »",
+                "pill": "Retours & Avis",
+                "query": f"{kw} avis résultats",
+            },
+            {
+                "title": f"4. Utilisation pratique, cadre d'usage et précautions ({subj})",
+                "pill": "Usage & Limites",
+                "query": f"{kw} utilisation conseils limites",
+            },
+            {
+                "title": f"5. Comparaison, alternatives et rapport qualité/efficacité ({subj})",
+                "pill": "Comparatif",
+                "query": f"{kw} comparatif alternatives",
+            },
+        ]
+
+    if parsed["is_choice"]:
+        return [
+            {
+                "title": f"1. Panorama complet des options possibles : {subj}",
+                "pill": "Options principales",
+                "query": f"{kw} options filières principales",
+            },
+            {
+                "title": f"2. Comparatif détaillé des différentes voies ({subj})",
+                "pill": "Comparatif",
+                "query": f"{kw} comparatif différences",
+            },
+            {
+                "title": f"3. Débouchés concrets, résultats et perspectives ({subj})",
+                "pill": "Débouchés & Résultats",
+                "query": f"{kw} débouchés métiers perspectives",
+            },
+            {
+                "title": f"4. Critères de sélection, prérequis et chiffres clés ({subj})",
+                "pill": "Chiffres & Critères",
+                "query": f"{kw} critères statistiques admission",
+            },
+            {
+                "title": f"5. Conseils pratiques pour faire le bon choix ({subj})",
+                "pill": "Conseils de choix",
+                "query": f"{kw} conseils comment choisir",
+            },
+        ]
+
+    return [
+        {
+            "title": f"1. Définition, principes clés et fonctionnement : {subj}",
+            "pill": "Principes clés",
+            "query": f"{kw} définition fonctionnement",
+        },
+        {
+            "title": f"2. Données factuelles, chiffres clés et constats sur « {subj} »",
+            "pill": "Faits & Chiffres",
+            "query": f"{kw} chiffres statistiques étude",
+        },
+        {
+            "title": f"3. Applications concrètes, avantages et exemples ({subj})",
+            "pill": "Applications & Avantages",
+            "query": f"{kw} avantages applications exemples",
+        },
+        {
+            "title": f"4. Comparatif des solutions et acteurs de référence ({subj})",
+            "pill": "Comparatif",
+            "query": f"{kw} comparatif référence",
+        },
+        {
+            "title": f"5. Limites, points de vigilance et évolutions ({subj})",
+            "pill": "Limites & Perspectives",
+            "query": f"{kw} limites risques perspectives",
+        },
+    ]
+
+
+def _build_default_subqueries(core_topic: str) -> list[str]:
+    return [ax["query"] for ax in _build_human_research_axes(core_topic)]
+
+
+def _extract_key_facts(text: str, max_facts: int = 5) -> list[str]:
+    """Extrait les phrases denses contenant des faits chiffrés, dates, pourcentages ou constats."""
+    if not text:
+        return []
+    sentences = re.split(r"(?<=[.!?])\s+", text)
+    scored: list[tuple[int, str]] = []
+    for s in sentences:
+        s_clean = s.strip()
+        if len(s_clean) < 45 or len(s_clean) > 320:
+            continue
+        score = 0
+        if re.search(r"\b\d+(?:[.,]\d+)?\s*(?:%|Md€|M€|milliards?|millions?|ans?|km|Go|To|ms|ml|L)\b", s_clean, re.I):
+            score += 4
+        if re.search(r"\b202[3-9]\b", s_clean):
+            score += 2
+        if re.search(r"\b(?:selon|d'après|étude|rapport|officiel|mesure|hausse|baisse|résultat|efficace|odeur|bactérie|enzyme)\b", s_clean, re.I):
+            score += 2
+        if score > 0:
+            scored.append((score, s_clean))
+    scored.sort(key=lambda item: item[0], reverse=True)
+    seen: set[str] = set()
+    out: list[str] = []
+    for _, fact in scored:
+        norm = fact[:60].lower()
+        if norm not in seen:
+            seen.add(norm)
+            out.append(fact)
+            if len(out) >= max_facts:
+                break
+    return out
+
+
+_USED_MARKET_HINTS = (
+    "leboncoin.", "backmarket.", "rakuten.com", "ebay.", "vinted.", "cashconverters.",
+    "easycash.", "recommerce", "refurb", "reconditionn", "occasion",
+)
+
+
+def _is_used_market(url: str, title: str = "") -> bool:
+    """Source orientée occasion / reconditionné (domaine ou titre)."""
+    hay = _norm_txt(f"{url} {title}")
+    return any(h in hay for h in _USED_MARKET_HINTS)
+
+
+def _clean_html_main(raw: str) -> str:
+    """Texte principal d'une page : retire menus, en-têtes, pieds de page et encarts."""
+    if not raw:
+        return ""
+    m = re.search(r"<(article|main)[^>]*>([\s\S]*?)</\1>", raw, re.I)
+    body = m.group(2) if (m and len(m.group(2)) > 1500) else raw
+    body = re.sub(r"<(nav|header|footer|aside|form|iframe)[^>]*>[\s\S]*?</\1>", " ", body, flags=re.I)
+    return _clean_html(body)
+
+
+def _select_relevant_passages(text: str, anchor_stems: list[str], max_chars: int = 3500) -> str:
+    """Garde les phrases utiles (mots-clés du sujet, chiffres, prix, specs) au lieu du début de page."""
+    scored: list[tuple[int, int, str]] = []
+    for idx, sent in enumerate(re.split(r"(?<=[.!?])\s+", text or "")):
+        s = sent.strip()
+        if len(s) < 40 or len(s) > 400:
+            continue
+        n = _norm_txt(s)
+        score = sum(2 for k in anchor_stems if k in n)
+        if re.search(r"\d", s):
+            score += 1
+        if re.search(r"€|\beuros?\b", s, re.I):
+            score += 2
+        if re.search(r"\b\d+(?:[.,]\d+)?\s*(?:W|AW|Wh|dB|kg|min|L|mAh|cm|ans?|%)\b", s):
+            score += 2
+        if score >= 2:
+            scored.append((score, idx, s))
+    top = sorted(scored, key=lambda t: t[0], reverse=True)[:14]
+    top.sort(key=lambda t: t[1])  # retour à l'ordre de lecture
+    return " ".join(s for _, _, s in top)[:max_chars]
+
+
+def _extract_price_points(text: str, anchor_stems: list[str], max_items: int = 6) -> list[dict[str, Any]]:
+    """Relève les prix en € proches d'un mot-clé du sujet (évite les prix d'accessoires sans rapport)."""
+    flat = re.sub(r"(?<![\d.,])(\d{1,3})[\u202f\u00a0 ](\d{3})(?!\d)", r"\1\2", text or "")
+    out: list[dict[str, Any]] = []
+    seen: set[float] = set()
+    for m in re.finditer(r"(\d{1,5}(?:[.,]\d{1,2})?)\s*(?:€|euros?\b)", flat, re.I):
+        try:
+            value = float(m.group(1).replace(",", "."))
+        except ValueError:
+            continue
+        if value < 5 or value > 20000 or value in seen:
+            continue
+        ctx = flat[max(0, m.start() - 110): m.end() + 60]
+        if anchor_stems and not any(k in _norm_txt(ctx) for k in anchor_stems):
+            continue
+        seen.add(value)
+        out.append({"value": value, "context": " ".join(ctx.split())})
+        if len(out) >= max_items:
+            break
+    return out
+
+
+def deep_research(
+    query: str,
+    sub_queries: list[str] | None = None,
+    max_sources: int = 12,
+    read_full_pages: bool = True,
+    workspace: str | Path = WORKSPACE_ROOT,
+) -> dict[str, Any]:
+    """Exécute une recherche profonde en essaim parallèle (Deep Research style GPT) avec filtrage déterministe."""
+    if not isinstance(query, str) or not query.strip():
+        raise ValueError("Une requête principale 'query' non vide est requise pour deep_research.")
+
+    started = time.monotonic()
+    clean_main = " ".join(query.strip().split())
+    parsed_q = _deterministic_parse_query(clean_main)
+    anchor_stems = parsed_q["anchor_stems"]
+    primary_anchor = anchor_stems[0] if anchor_stems else ""
+
+    human_axes = _build_human_research_axes(clean_main)
+    queries_list = [q.strip() for q in (sub_queries or []) if isinstance(q, str) and q.strip()]
+    if not queries_list:
+        queries_list = [ax["query"] for ax in human_axes]
+    else:
+        queries_list = list(dict.fromkeys(queries_list))[:5]
+        human_axes = [
+            {"title": f"{i+1}. {q}", "pill": f"Axe {i+1}", "query": q}
+            for i, q in enumerate(queries_list)
+        ]
+
+    cap_sources = max(3, min(int(max_sources or 12), 16))
+    raw_candidates: list[dict[str, Any]] = []
+    search_errors: list[str] = []
+
+    # Phase 1 : Recherche Web en essaim parallèle sur les requêtes courtes
+    def _run_subquery(sq: str) -> tuple[str, list[dict[str, Any]], str]:
+        try:
+            res = web_search(sq, max_results=8, download=False, timeout=8.0, workspace=workspace)            
+            return sq, list(res.get("results") or []), ""
+        except Exception as exc:
+            return sq, [], f"{sq}: {exc}"
+
+    with ThreadPoolExecutor(max_workers=min(len(queries_list), 5)) as pool:
+        futs = [pool.submit(_run_subquery, sq) for sq in queries_list]
+        for fut in as_completed(futs):
+            sq, items, err = fut.result()
+            if err:
+                search_errors.append(err)
+            for it in items:
+                it_copy = dict(it)
+                it_copy["matched_subquery"] = sq
+                raw_candidates.append(it_copy)
+
+    # Porte de pertinence déterministe : rejet strict de tout résultat hors-sujet
+    def _relevance_tuple(c: dict[str, Any]) -> tuple[int, int, int]:
+        url = str(c.get("url") or "")
+        hay = _norm_txt(f"{c.get('title', '')} {c.get('snippet', '')} {url}")
+        has_primary = 1 if (primary_anchor and primary_anchor in hay) else 0
+        kw_hits = sum(1 for k in anchor_stems if k in hay)
+        _, auth_tier = _classify_domain_authority(url)
+        # Priorité absolue : 1) Présence de l'ancre principale, 2) Nombre de mots-clés du sujet, 3) Autorité
+        return (has_primary, kw_hits, auth_tier)
+
+    # Filtrer les pages qui n'ont AUCUN mot-clé du sujet (élimine Pont Neuf, Pornichet, etc.)
+    filtered_candidates = [
+        c for c in raw_candidates
+        if not anchor_stems or _relevance_tuple(c)[1] > 0
+    ]
+    if not filtered_candidates:
+        filtered_candidates = raw_candidates
+
+    filtered_candidates.sort(key=_relevance_tuple, reverse=True)
+    seen_urls: set[str] = set()
+    domain_counts: dict[str, int] = {}
+    selected: list[dict[str, Any]] = []
+    for cand in filtered_candidates:
+        u = str(cand.get("url") or "").strip()
+        if not u.startswith(("http://", "https://")) or u in seen_urls:
+            continue
+        dom = urllib.parse.urlparse(u).netloc.lower()
+        if domain_counts.get(dom, 0) >= 2:
+            continue
+        seen_urls.add(u)
+        domain_counts[dom] = domain_counts.get(dom, 0) + 1
+        selected.append(cand)
+        if len(selected) >= cap_sources:
+            break
+
+    # Si l'utilisateur parle d'occasion, réserver quelques places aux sources de seconde main
+    if parsed_q.get("wants_used"):
+        extra_used = [
+            c for c in filtered_candidates
+            if str(c.get("url") or "").startswith(("http://", "https://"))
+            and str(c.get("url")) not in seen_urls
+            and _is_used_market(str(c.get("url") or ""), str(c.get("title") or ""))
+        ]
+        for cand in extra_used[:3]:
+            seen_urls.add(str(cand.get("url")))
+            selected.append(cand)
+
+    # Phase 2 : Lecture parallèle en profondeur des pages sélectionnées
+    def _enrich_source(idx_and_item: tuple[int, dict[str, Any]]) -> dict[str, Any]:
+        idx, item = idx_and_item
+        url = str(item.get("url") or "")
+        auth_label, auth_score = _classify_domain_authority(url)
+        full_text = ""
+        facts: list[str] = []
+        price_points: list[dict[str, Any]] = []
+        if read_full_pages:
+            try:
+                page = fetch_url(url, timeout=9.0, workspace=workspace, max_chars=60000)
+                raw_text = str(page.get("text") or "").strip()
+                full_text = _select_relevant_passages(raw_text, anchor_stems) or raw_text[:3500]
+                facts = _extract_key_facts(raw_text, max_facts=8)
+                price_points = _extract_price_points(raw_text, anchor_stems)
+            except Exception:
+                full_text = ""
+        if not facts and item.get("snippet"):
+            facts = _extract_key_facts(str(item.get("snippet")), max_facts=2)
+        return {
+            "citation_id": idx,
+            "citation_tag": f"[{idx}]",
+            "markdown_citation": f"[[{idx}]]({url})",
+            "title": str(item.get("title") or url),
+            "url": url,
+            "domain": urllib.parse.urlparse(url).netloc,
+            "authority_label": auth_label,
+            "authority_tier": auth_score,
+            "published_at": str(item.get("published_at") or ""),
+            "matched_subquery": str(item.get("matched_subquery") or clean_main),
+            "snippet": str(item.get("snippet") or ""),
+            "extracted_content": full_text[:3500] if full_text else str(item.get("snippet") or ""),
+            "key_facts": facts,
+            "price_points": price_points,
+            "is_used_market": _is_used_market(url, str(item.get("title") or "")),
+        }
+    enriched_sources: list[dict[str, Any]] = []
+    if selected:
+        with ThreadPoolExecutor(max_workers=min(len(selected), 6)) as pool:
+            enriched_sources = list(pool.map(_enrich_source, enumerate(selected, start=1)))
+
+    # Phase 3 : Matrice de vérification croisée (détection des concepts corroborés par >= 2 domaines distincts)
+    term_domains: dict[str, set[str]] = {}
+    for src in enriched_sources:
+        dom = src["domain"]
+        words = set(re.findall(r"[a-z0-9]{5,}", _norm_txt(f"{src['title']} {src['extracted_content']}")))
+        for w in words - _SEM_STOP:
+            term_domains.setdefault(w, set()).add(dom)
+
+    corroborated_terms = sorted(
+        [(term, len(doms)) for term, doms in term_domains.items() if len(doms) >= 2],
+        key=lambda x: x[1],
+        reverse=True,
+    )[:15]
+
+    elapsed_s = round(time.monotonic() - started, 2)
+    report_lines = [
+        f"=== DOSSIER DEEP RESEARCH : « {clean_main} » ===",
+        f"Axes explorés en parallèle ({len(queries_list)}) : " + " | ".join(queries_list),
+        f"Sources lues en profondeur : {len(enriched_sources)} domaines distincts en {elapsed_s}s",
+        "Concepts corroborés par sources multiples : "
+        + (", ".join(f"{t} ({c} sources)" for t, c in corroborated_terms[:10]) or "analyse directe"),
+        "",
+        "--- SOURCES VÉRIFIÉES & EXTRAITS PROFONDS ---",
+    ]
+    for src in enriched_sources:
+        prices_txt = ", ".join(f"{p['value']:.0f} €" for p in src["price_points"])
+        report_lines.append(
+            f"\n{src['citation_tag']} {src['title']} ({src['domain']} — {src['authority_label']})"
+            + (" [MARCHÉ OCCASION]" if src["is_used_market"] else "")
+            + f"\nURL : {src['url']}\n"
+            f"Axe : {src['matched_subquery']}\n"
+            + (f"Faits clés extraits : {' ; '.join(src['key_facts'])}\n" if src["key_facts"] else "")
+            + (f"Prix relevés : {prices_txt}\n" if prices_txt else "")
+            + f"Contenu extrait : {src['extracted_content'][:2500]}"
+        )
+
+    def _price_stats(vals: list[float]) -> str:
+        vals = sorted(vals)
+        return f"min {vals[0]:.0f} € · médiane {vals[len(vals) // 2]:.0f} € · max {vals[-1]:.0f} € ({len(vals)} relevés)"
+
+    new_prices = [p["value"] for s in enriched_sources if not s["is_used_market"] for p in s["price_points"]]
+    used_prices = [p["value"] for s in enriched_sources if s["is_used_market"] for p in s["price_points"]]
+    report_lines += [
+        "",
+        "--- PRIX RELEVÉS DANS LES SOURCES (extraction automatique, à recouper) ---",
+        "Neuf : " + (_price_stats(new_prices) if new_prices else "aucun prix relevé"),
+        "Occasion / reconditionné : "
+        + (_price_stats(used_prices) if used_prices else "AUCUN prix d'occasion relevé dans les sources, ne rien estimer"),
+    ]
+    covered_queries = {s["matched_subquery"] for s in enriched_sources}
+    missing_axes = [ax["pill"] for ax in human_axes if ax["query"] not in covered_queries]
+    if missing_axes:
+        report_lines += [
+            "",
+            "--- AXES SANS SOURCE (le signaler explicitement, ne rien extrapoler) ---",
+            ", ".join(missing_axes),
+        ]
+    return {
+        "status": "success",
+        "verified": len(enriched_sources) > 0,
+        "query": clean_main,
+        "sub_queries": queries_list,
+        "research_axes": human_axes,
+        "sources_count": len(enriched_sources),
+        "distinct_domains": len(domain_counts),
+        "elapsed_seconds": elapsed_s,
+        "corroborated_terms": [{"term": t, "sources_count": c} for t, c in corroborated_terms],
+        "sources": enriched_sources,
+        "results": enriched_sources,
+        "formatted": "\n".join(report_lines),
+        "errors": search_errors,
+    }

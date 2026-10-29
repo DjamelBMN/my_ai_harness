@@ -73,12 +73,28 @@ class ContextManager:
 
     @staticmethod
     def _summarize_older_turns(turns: list[str]) -> str:
-        extracted = []
+        extracted: list[str] = []
+        preserved_files: list[str] = []
+        preserved_symbols: list[str] = []
+
         for t in turns:
             lines = t.strip().splitlines()
             first_line = lines[0] if lines else ""
             clean_first = re.sub(r"\s+", " ", first_line).strip()[:150]
             if clean_first:
                 extracted.append(clean_first)
-        summary_body = " -> ".join(extracted[-5:]) if extracted else "Historique antérieur archivé"
-        return f"[SYNTHÈSE TOURS ANCIENS ({len(turns)} archivés)] : {summary_body}"
+            for fm in re.findall(r"\b[a-zA-Z0-9_\-/]+\.(?:py|tex|pdf|docx|html|md|json|csv)\b", t):
+                if fm not in preserved_files:
+                    preserved_files.append(fm)
+            for sym in re.findall(r"\b(?:class|def)\s+([a-zA-Z_][a-zA-Z0-9_]*)", t):
+                if sym not in preserved_symbols:
+                    preserved_symbols.append(sym)
+
+        summary_body = " -> ".join(extracted[-6:]) if extracted else "Historique antérieur archivé"
+        invariants = []
+        if preserved_files:
+            invariants.append(f"Fichiers cités: {', '.join(preserved_files[:10])}")
+        if preserved_symbols:
+            invariants.append(f"Symboles: {', '.join(preserved_symbols[:10])}")
+        inv_str = f" ({' | '.join(invariants)})" if invariants else ""
+        return f"[SYNTHÈSE TOURS ANCIENS ({len(turns)} archivés){inv_str}] : {summary_body}"

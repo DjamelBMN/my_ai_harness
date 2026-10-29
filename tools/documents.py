@@ -893,3 +893,281 @@ def compile_html(
     }
 
 
+# ---------------------------------------------------------------------------
+# CHANTIER 7 : DATA ANALYST AUTONOME (PROFILAGE STATISTIQUE & EXCEL .XLSX ENRICHI)
+# ---------------------------------------------------------------------------
+
+def _try_float(val: Any) -> float | None:
+    if val is None or isinstance(val, bool):
+        return None
+    if isinstance(val, (int, float)):
+        return float(val)
+    s = str(val).strip().replace("\u00a0", "").replace(" ", "")
+    if not s or s.startswith("="):
+        return None
+    if "," in s and "." not in s:
+        s = s.replace(",", ".")
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def analyze_dataset(
+    relative_path: str,
+    *,
+    sheet_name: str = "",
+    filesystem: WorkspaceFilesystem | None = None,
+) -> dict[str, Any]:
+    """Analyse statistique autonome d'un jeu de données (.csv, .tsv, .xlsx, .json, .sqlite/.db) :
+    schéma, valeurs manquantes, moyenne/médiane/écart-type, corrélations de Pearson et détection d'anomalies (outliers)."""
+    import hashlib
+    import math
+    import sqlite3
+    import statistics
+
+    fs = filesystem or WorkspaceFilesystem()
+    target = fs.resolve(relative_path)
+    if not target.is_file():
+        raise FileNotFoundError(f"Jeu de données introuvable : {relative_path}")
+
+    rel = target.relative_to(fs.root).as_posix()
+    ext = target.suffix.lower()
+    headers: list[str] = []
+    rows: list[list[Any]] = []
+
+    if ext in {".csv", ".tsv"}:
+        raw_text = _decode_text(fs.read_bytes(rel))
+        delim = "\t" if ext == ".tsv" else (";" if raw_text.splitlines()[0].count(";") > raw_text.splitlines()[0].count(",") else ",")
+        all_rows = [r for r in csv.reader(io.StringIO(raw_text), delimiter=delim) if any( str(c).strip() for c in r )]
+        if all_rows:
+            headers = [str(h).strip() or f"col_{i+1}" for i, h in enumerate(all_rows[0])]
+            rows = all_rows[1:]
+    elif ext == ".xlsx":
+        from openpyxl import load_workbook
+
+        wb = load_workbook(io.BytesIO(fs.read_bytes(rel)), read_only=True, data_only=True)
+        try:
+            ws = wb[sheet_name] if (sheet_name and sheet_name in wb.sheetnames) else wb.worksheets[0]
+            all_rows = [list(r) for r in ws.iter_rows(values_only=True) if any(c is not None and str(c).strip() != "" for c in r)]
+            if all_rows:
+                headers = [str(h).strip() if h is not None else f"col_{i+1}" for i, h in enumerate(all_rows[0])]
+                rows = all_rows[1:]
+        finally:
+            wb.close()
+    elif ext == ".json":
+        parsed = json.loads(_decode_text(fs.read_bytes(rel)))
+        records = parsed if isinstance(parsed, list) else (parsed.get("data") or parsed.get("items") or [])
+        if isinstance(records, list) and records and isinstance(records[0], dict):
+            headers = list(records[0].keys())
+            rows = [[rec.get(h) for h in headers] for rec in records if isinstance(rec, dict)]
+    elif ext in {".sqlite", ".db"}:
+        con = sqlite3.connect(str(target))
+        try:
+            tables = [r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
+            t_name = sheet_name if (sheet_name and sheet_name in tables) else (tables[0] if tables else "")
+            if t_name:
+                cur = con.execute(f'SELECT * FROM "{t_name}" LIMIT 5000')
+                headers = [d[0] for d in cur.description]
+                rows = [list(r) for r in cur.fetchall()]
+        finally:
+            con.close()
+    else:
+        raise ValueError(f"Format de données non supporté pour analyze_dataset : {ext}")
+
+    row_count = len(rows)
+    col_count = len(headers)
+    columns_profile: list[dict[str, Any]] = []
+    numeric_series: dict[str, dict[int, float]] = {}
+
+    for col_idx, col_name in enumerate(headers):
+        raw_vals = [r[col_idx] if col_idx < len(r) else None for r in rows]
+        non_empty = [v for v in raw_vals if v is not None and str(v).strip() != ""]
+        missing = row_count - len(non_empty)
+        num_map: dict[int, float] = {}
+        for r_idx, v in enumerate(raw_vals):
+            fv = _try_float(v)
+            if fv is not None and math.isfinite(fv):
+                num_map[r_idx] = fv
+
+        if len(num_map) >= max(1, int(0.6 * len(non_empty))) and len(num_map) > 0:
+            vals = list(num_map.values())
+            vals_sorted = sorted(vals)
+            n_v = len(vals)
+            mean_v = statistics.mean(vals)
+            median_v = statistics.median(vals_sorted)
+            stdev_v = statistics.stdev(vals) if n_v > 1 else 0.0
+            q1 = vals_sorted[n_v // 4]
+            q3 = vals_sorted[(3 * n_v) // 4]
+            iqr = q3 - q1
+
+            outliers: list[dict[str, Any]] = []
+            for r_idx, fv in num_map.items():
+                is_z_outlier = stdev_v > 0 and abs(fv - mean_v) / stdev_v > 2.4
+                is_iqr_outlier = iqr > 0 and (fv < q1 - 1.5 * iqr or fv > q3 + 1.5 * iqr)
+                if is_z_outlier or is_iqr_outlier:
+                    outliers.append({"row": r_idx + 2, "value": round(fv, 4)})
+
+            numeric_series[col_name] = num_map
+            columns_profile.append({
+                "name": col_name,
+                "type": "numeric",
+                "count": n_v,
+                "missing": missing,
+                "min": round(min(vals), 4),
+                "max": round(max(vals), 4),
+                "sum": round(sum(vals), 4),
+                "mean": round(mean_v, 4),
+                "median": round(median_v, 4),
+                "std_dev": round(stdev_v, 4),
+                "outliers_count": len(outliers),
+                "outliers": outliers[:8],
+            })
+        else:
+            freq: dict[str, int] = {}
+            for v in non_empty:
+                sv = str(v).strip()[:80]
+                freq[sv] = freq.get(sv, 0) + 1
+            top_vals = sorted(freq.items(), key=lambda x: x[1], reverse=True)[:5]
+            columns_profile.append({
+                "name": col_name,
+                "type": "categorical",
+                "count": len(non_empty),
+                "missing": missing,
+                "unique_values": len(freq),
+                "top_values": [{"value": k, "count": c} for k, c in top_vals],
+            })
+
+    # Calcul des corrélations de Pearson entre colonnes numériques
+    correlations: list[dict[str, Any]] = []
+    num_cols = list(numeric_series.keys())
+    for i in range(len(num_cols)):
+        for j in range(i + 1, len(num_cols)):
+            c1, c2 = num_cols[i], num_cols[j]
+            common_idx = sorted(set(numeric_series[c1].keys()) & set(numeric_series[c2].keys()))
+            if len(common_idx) >= 3:
+                x = [numeric_series[c1][k] for k in common_idx]
+                y = [numeric_series[c2][k] for k in common_idx]
+                mx, my = statistics.mean(x), statistics.mean(y)
+                num = sum((a - mx) * (b - my) for a, b in zip(x, y))
+                den = math.sqrt(sum((a - mx) ** 2 for a in x) * sum((b - my) ** 2 for b in y))
+                if den > 1e-12:
+                    r_val = round(num / den, 4)
+                    correlations.append({"col_a": c1, "col_b": c2, "pearson_r": r_val})
+
+    correlations.sort(key=lambda item: abs(item["pearson_r"]), reverse=True)
+    return {
+        "status": "success",
+        "verified": True,
+        "path": rel,
+        "format": ext.lstrip("."),
+        "row_count": row_count,
+        "column_count": col_count,
+        "columns": columns_profile,
+        "correlations": correlations[:15],
+        "sample_rows": rows[:5],
+    }
+
+
+def generate_excel_workbook(
+    output_path: str,
+    headers: list[str],
+    rows: list[list[Any]],
+    *,
+    sheet_title: str = "Données",
+    include_formulas: bool = True,
+    filesystem: WorkspaceFilesystem | None = None,
+) -> dict[str, Any]:
+    """Génère un classeur Excel (.xlsx) professionnel stylisé avec calcul automatique des totaux/moyennes par formules natives."""
+    import hashlib
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.utils import get_column_letter
+
+    fs = filesystem or WorkspaceFilesystem()
+    clean_out = (output_path or "analyse_donnees.xlsx").strip()
+    if not clean_out.lower().endswith(".xlsx"):
+        clean_out += ".xlsx"
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = (sheet_title or "Données")[:31]
+
+    header_fill = PatternFill(start_color="185ABD", end_color="185ABD", fill_type="solid")
+    header_font = Font(color="FFFFFF", bold=True, size=11)
+    total_fill = PatternFill(start_color="F0F4FA", end_color="F0F4FA", fill_type="solid")
+    total_font = Font(color="0F6CBD", bold=True, size=10.5)
+    thin_border = Border(
+        left=Side(style="thin", color="D2D2D2"),
+        right=Side(style="thin", color="D2D2D2"),
+        top=Side(style="thin", color="D2D2D2"),
+        bottom=Side(style="thin", color="D2D2D2"),
+    )
+
+    ws.append(list(headers))
+    for col_idx in range(1, len(headers) + 1):
+        cell = ws.cell(row=1, column=col_idx)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = thin_border
+
+    numeric_cols: set[int] = set()
+    for r_data in rows:
+        converted_row: list[Any] = []
+        for c_idx, val in enumerate(r_data):
+            fv = _try_float(val)
+            if fv is not None and not isinstance(val, str):
+                converted_row.append(fv)
+                numeric_cols.add(c_idx + 1)
+            elif fv is not None and isinstance(val, str) and re.fullmatch(r"-?\d+(?:[.,]\d+)?", val.strip()):
+                converted_row.append(fv)
+                numeric_cols.add(c_idx + 1)
+            else:
+                converted_row.append(val)
+        ws.append(converted_row)
+
+    last_data_row = len(rows) + 1
+    formulas_added = 0
+    if include_formulas and len(rows) >= 2 and numeric_cols:
+        sum_row_idx = last_data_row + 1
+        avg_row_idx = last_data_row + 2
+        ws.cell(row=sum_row_idx, column=1, value="TOTAL").font = total_font
+        ws.cell(row=avg_row_idx, column=1, value="MOYENNE").font = total_font
+        for c_idx in range(1, len(headers) + 1):
+            col_let = get_column_letter(c_idx)
+            c_sum = ws.cell(row=sum_row_idx, column=c_idx)
+            c_avg = ws.cell(row=avg_row_idx, column=c_idx)
+            c_sum.fill = total_fill
+            c_avg.fill = total_fill
+            c_sum.border = thin_border
+            c_avg.border = thin_border
+            if c_idx in numeric_cols:
+                c_sum.value = f"=SUM({col_let}2:{col_let}{last_data_row})"
+                c_avg.value = f"=AVERAGE({col_let}2:{col_let}{last_data_row})"
+                c_sum.font = total_font
+                c_avg.font = total_font
+                formulas_added += 2
+
+    # Ajustement automatique de la largeur des colonnes
+    for col in ws.columns:
+        max_len = max((len(str(cell.value or "")) for cell in col), default=10)
+        col_letter = get_column_letter(col[0].column)
+        ws.column_dimensions[col_letter].width = max(12, min(max_len + 4, 42))
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    raw_bytes = buf.getvalue()
+    write_info = fs.write_bytes(clean_out, raw_bytes, overwrite=True)
+
+    return {
+        "status": "success",
+        "verified": True,
+        "path": write_info["path"],
+        "size_bytes": write_info["bytes"],
+        "sha256": hashlib.sha256(raw_bytes).hexdigest(),
+        "rows_written": len(rows),
+        "columns_written": len(headers),
+        "formulas_added": formulas_added,
+    }
+

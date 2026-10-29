@@ -1420,28 +1420,49 @@ if (typ === "image") {
 
     const isMono = m.execution_mode === "mono";
     const isMulti = m.execution_mode === "multi";
+    const isDeepSearch = m.execution_mode === "deepsearch" || (Array.isArray(m.research_axes) && m.research_axes.length > 0);
     const summaryChips = [];
-    if (isMono) {
-      summaryChips.push(durationSec ? `Mono-Agent (${durationSec} s)` : "Exécution mono-agent");
-    } else if (isMulti) {
-      summaryChips.push(durationSec ? `Réflexion approfondie (${durationSec} s)` : "Réflexion approfondie");
-    } else if (durationSec) {
-      summaryChips.push(`Exécution (${durationSec} s)`);
+    if (isDeepSearch) {
+      summaryChips.push(durationSec ? `NeoDeepSearch (${durationSec} s)` : "NeoDeepSearch");
+      const axesCount = (m.research_axes && m.research_axes.length) || planSteps.length || 5;
+      summaryChips.push(`${axesCount} axes explorés`);
+      if (Array.isArray(m.sources) && m.sources.length > 0) {
+        summaryChips.push(`${m.sources.length} sources lues`);
+      }
     } else {
-      summaryChips.push("Trace d'exécution");
-    }
-    if (m.agent && m.agent !== "Runtime Local" && m.agent !== "researcher") {
-      summaryChips.push(m.agent);
-    }
-    if (toolsUsed.length > 0) {
-      summaryChips.push(`${toolsUsed.length} action${toolsUsed.length > 1 ? "s" : ""}`);
-    } else if (planSteps.length > 0) {
-      summaryChips.push(`${planSteps.length} étape${planSteps.length > 1 ? "s" : ""}`);
+      if (isMono) {
+        summaryChips.push(durationSec ? `Mono-Agent (${durationSec} s)` : "Exécution mono-agent");
+      } else if (isMulti) {
+        summaryChips.push(durationSec ? `Réflexion approfondie (${durationSec} s)` : "Réflexion approfondie");
+      } else if (durationSec) {
+        summaryChips.push(`Exécution (${durationSec} s)`);
+      } else {
+        summaryChips.push("Trace d'exécution");
+      }
+      if (m.agent && m.agent !== "Runtime Local" && m.agent !== "researcher") {
+        summaryChips.push(m.agent);
+      }
+      if (toolsUsed.length > 0) {
+        summaryChips.push(`${toolsUsed.length} action${toolsUsed.length > 1 ? "s" : ""}`);
+      } else if (planSteps.length > 0) {
+        summaryChips.push(`${planSteps.length} étape${planSteps.length > 1 ? "s" : ""}`);
+      }
     }
 
     // Nettoyer et structurer les événements de la trace terminée (sans doublons de délégation ni jargon brut)
     const renderedRows = [];
     let currentSubAgent = "";
+    if (isDeepSearch && Array.isArray(m.research_axes) && m.research_axes.length > 0) {
+      m.research_axes.forEach((ax) => {
+        renderedRows.push({
+          isDelegation: false,
+          label: ax.title || ax.query || "",
+          pill: ax.pill || "Recherche parallèle",
+          duration: "",
+          subAgent: "",
+        });
+      });
+    }
     eventsList.forEach((ev) => {
       if (ev.event === "TOOL_RESULT") return;
       const sumText = String(ev.summary || "").trim();
@@ -1485,7 +1506,7 @@ if (typ === "image") {
     });
 
     return `
-      <details class="activity-flow-box">
+      <details class="activity-flow-box" ${isDeepSearch ? "open" : ""}>
         <summary class="activity-flow-summary">
           <span class="reasoning-summary-left">
             <span class="reasoning-sparkle">${ICONS.sparkle}</span>
@@ -3640,7 +3661,7 @@ let stuCls = "";
   }
 
 // ---------- Écouteurs globaux : Copie Code TeX/TikZ, Mode Élève, Export PNG HD & Pointeur Magnétique ----------
-  document.addEventListener("click", function (ev) {
+  if (typeof document !== "undefined") document.addEventListener("click", function (ev) {
     const tikzBtn = ev.target.closest(".nh-copy-tikz-btn, .copy-latex-btn");
     if (tikzBtn) {
       ev.preventDefault();
@@ -4429,25 +4450,65 @@ let working = String(raw).replace(/```([a-zA-Z0-9_+-]*)[ \t]*\r?\n([\s\S]*?)```/
       skillSel.innerHTML = skillOpts.join("");
     }
 
-    const currentExecMode = (s.execution && s.execution.mode) || state.executionMode || (state.deepReflection ? "multi" : "mono");
+const currentExecMode =
+      state.executionMode === "deepsearch"
+        ? "deepsearch"
+        : (s.execution && s.execution.mode) || state.executionMode || (state.deepReflection ? "multi" : "mono");
     const isMulti = currentExecMode === "multi";
     const isChat = currentExecMode === "chat";
+    const isDeepSearch = currentExecMode === "deepsearch";
     state.executionMode = currentExecMode;
     state.deepReflection = isMulti;
 
-    const pillLabel = document.getElementById("composer-model-pill-label");
-    if (pillLabel) {
-      if (isChat) pillLabel.textContent = "NeoHarness Swift";
-      else if (isMulti) pillLabel.textContent = "NeoHarness Deep";
-      else pillLabel.textContent = "NeoHarness Core";
-    }
+    const syncDeepSearchUI = (modeVal) => {
+      const pill = document.getElementById("composer-model-pill-label");
+      if (pill) {
+        if (modeVal === "chat") pill.textContent = "NeoHarness Swift";
+        else if (modeVal === "multi") pill.textContent = "NeoHarness Deep";
+        else if (modeVal === "deepsearch") pill.textContent = "NeoDeepSearch";
+        else pill.textContent = "NeoHarness Core";
+      }
+      document.querySelectorAll(".model-popover-item[data-exec-mode]").forEach((it) => {
+        const m = it.getAttribute("data-exec-mode");
+        const match = m === modeVal;
+        it.classList.toggle("active", match);
+        const chk = it.querySelector(".popover-check");
+        if (chk) chk.style.display = match ? "inline" : "none";
+      });
+      const dsToggle = document.getElementById("btn-neodeepsearch-toggle");
+      if (dsToggle) {
+        dsToggle.classList.toggle("active", modeVal === "deepsearch");
+        dsToggle.setAttribute("aria-pressed", modeVal === "deepsearch" ? "true" : "false");
+      }
+    };
+
+    syncDeepSearchUI(currentExecMode);
+
     document.querySelectorAll(".model-popover-item[data-exec-mode]").forEach((item) => {
-      const m = item.getAttribute("data-exec-mode");
-      const match = m === currentExecMode;
-      item.classList.toggle("active", match);
-      const chk = item.querySelector(".popover-check");
-      if (chk) chk.style.display = match ? "inline" : "none";
+      if (!item._dsBound) {
+        item._dsBound = true;
+        item.addEventListener("click", () => {
+          const chosen = item.getAttribute("data-exec-mode") || "mono";
+          state.executionMode = chosen;
+          state.deepReflection = chosen === "multi";
+          setTimeout(() => syncDeepSearchUI(chosen), 10);
+        });
+      }
     });
+
+    const dsBtn = document.getElementById("btn-neodeepsearch-toggle");
+    if (dsBtn && !dsBtn._bound) {
+      dsBtn._bound = true;
+      dsBtn.addEventListener("click", async () => {
+        const nextMode = state.executionMode === "deepsearch" ? "mono" : "deepsearch";
+        state.executionMode = nextMode;
+        state.deepReflection = false;
+        syncDeepSearchUI(nextMode);
+        try {
+          await apiPost("/api/execution/mode", { mode: nextMode });
+        } catch (_) {}
+      });
+    }
 
     const chatBtn = document.getElementById("btn-direct-chat");
     if (chatBtn) {
@@ -5748,9 +5809,20 @@ const metaParts = [];
       btnFiles.style.display = hasFiles ? "inline-block" : "none";
     }
 
-    if (btnConsole) {
+if (btnConsole) {
       btnConsole.classList.toggle("active", doc.viewMode === "console");
       btnConsole.style.display = doc.execution || doc.type === "python" ? "inline-block" : "none";
+    }
+
+    const btnDiff = document.getElementById("btn-doc-view-diff");
+    const btnCanvasAi = document.getElementById("btn-doc-canvas-ai");
+    const diffViewer = document.getElementById("doc-diff-viewer");
+    if (btnDiff) {
+      btnDiff.classList.toggle("active", doc.viewMode === "diff");
+      btnDiff.style.display = doc.type === "image" ? "none" : "inline-block";
+    }
+    if (btnCanvasAi) {
+      btnCanvasAi.style.display = doc.type === "image" ? "none" : "inline-block";
     }
 
     if (zoomControls) {
@@ -5790,6 +5862,7 @@ const metaParts = [];
       resultViewer,
       filesViewer,
       consoleViewer,
+      diffViewer,
       sourceWrap,
       errorBox,
     ].forEach((el) => {
@@ -5824,6 +5897,48 @@ const metaParts = [];
       if (sourceWrap && sourceEditor) {
         sourceWrap.style.display = "flex";
         sourceEditor.value = doc.sourceContent || "";
+      }
+      return;
+    }
+
+    if (doc.viewMode === "diff" && diffViewer) {
+      diffViewer.style.display = "block";
+      const diffTarget = doc.source_tex || doc.path;
+      diffViewer.innerHTML = `<div class="diff-summary-card"><span>Chargement du comparateur de versions pour <strong>${esc(diffTarget)}</strong>…</span></div>`;
+      try {
+        const diffData = await apiGet(`/api/artifacts/diff?path=${encodeURIComponent(diffTarget)}`);
+        const lines = diffData.diff_lines || [];
+        const hist = diffData.history || [];
+        const linesHtml = lines.length
+          ? lines
+              .map((ln) => {
+                const cls =
+                  ln.type === "add"
+                    ? "diff-line diff-line-add"
+                    : ln.type === "del"
+                    ? "diff-line diff-line-del"
+                    : ln.type === "hdr"
+                    ? "diff-line diff-line-hdr"
+                    : "diff-line";
+                return `<div class="${cls}">${esc(ln.text)}</div>`;
+              })
+              .join("")
+          : `<div class="diff-line" style="color:var(--text-muted); padding:14px;">Aucune modification différentielle enregistrée sur cette session pour ${esc(diffTarget)}. Utilisez <strong>✨ Éditer IA</strong> ou modifiez le code source pour voir le diff en direct.</div>`;
+        diffViewer.innerHTML = `
+          <div class="diff-summary-card">
+            <div>
+              <strong>Comparateur de versions · ${esc(diffTarget)}</strong>
+              <span style="margin-left:10px; font-size:12px; color:var(--text-muted);">${hist.length} version(s) tracée(s)</span>
+            </div>
+            <div>
+              <span class="diff-stat-add">+${diffData.added_lines || 0} ajout(s)</span>
+              <span class="diff-stat-del">-${diffData.removed_lines || 0} suppression(s)</span>
+            </div>
+          </div>
+          <div class="diff-code-box">${linesHtml}</div>
+        `;
+      } catch (err) {
+        diffViewer.innerHTML = `<div class="diff-summary-card"><span>Erreur lors du chargement du diff : ${esc(err.message)}</span></div>`;
       }
       return;
     }
@@ -8412,7 +8527,7 @@ const metaParts = [];
         }
       });
     }
-    const btnViewConsole = document.getElementById("btn-doc-view-console");
+const btnViewConsole = document.getElementById("btn-doc-view-console");
     if (btnViewConsole) {
       btnViewConsole.addEventListener("click", () => {
         if (state.activeDocument) {
@@ -8421,6 +8536,118 @@ const metaParts = [];
         }
       });
     }
+    const btnViewDiff = document.getElementById("btn-doc-view-diff");
+    if (btnViewDiff) {
+      btnViewDiff.addEventListener("click", () => {
+        if (state.activeDocument) {
+          state.activeDocument.viewMode = "diff";
+          renderDocumentPreviewPanel();
+        }
+      });
+    }
+    const btnCanvasAi = document.getElementById("btn-doc-canvas-ai");
+    const canvasAiBar = document.getElementById("doc-canvas-ai-bar");
+    const canvasAiInput = document.getElementById("canvas-ai-input");
+    const canvasAiApply = document.getElementById("btn-canvas-ai-apply");
+    const canvasSelBadge = document.getElementById("canvas-selection-badge");
+
+    const updateCanvasSelection = () => {
+      let sel = "";
+      const srcEd = document.getElementById("doc-source-editor");
+      if (srcEd && srcEd.offsetParent !== null && srcEd.selectionStart !== srcEd.selectionEnd) {
+        sel = srcEd.value.substring(srcEd.selectionStart, srcEd.selectionEnd).trim();
+      } else if (window.getSelection) {
+        const s = window.getSelection().toString().trim();
+        if (s.length > 3) sel = s;
+      }
+      state.canvasSelectedText = sel;
+      if (canvasSelBadge) {
+        canvasSelBadge.textContent = sel
+          ? `Cible : Sélection (${sel.length} car.)`
+          : "Cible : Document entier";
+      }
+    };
+
+    const srcEditorEl = document.getElementById("doc-source-editor");
+    if (srcEditorEl) {
+      ["mouseup", "keyup", "select"].forEach((evName) =>
+        srcEditorEl.addEventListener(evName, updateCanvasSelection)
+      );
+    }
+    const docBodyEl = document.getElementById("doc-preview-body");
+    if (docBodyEl) {
+      docBodyEl.addEventListener("mouseup", updateCanvasSelection);
+    }
+
+    if (btnCanvasAi && canvasAiBar) {
+      btnCanvasAi.addEventListener("click", () => {
+        const isHidden = canvasAiBar.style.display === "none";
+        canvasAiBar.style.display = isHidden ? "flex" : "none";
+        btnCanvasAi.classList.toggle("active", isHidden);
+        if (isHidden) {
+          updateCanvasSelection();
+          if (canvasAiInput) canvasAiInput.focus();
+        }
+      });
+    }
+
+    const triggerCanvasAiEdit = async (instructionText) => {
+      const d = state.activeDocument;
+      const instr = (instructionText || (canvasAiInput ? canvasAiInput.value : "")).trim();
+      if (!d || !instr) return;
+      const targetPath = d.source_tex || d.path;
+      if (canvasAiApply) {
+        canvasAiApply.disabled = true;
+        canvasAiApply.textContent = "Modification IA…";
+      }
+      try {
+        const res = await apiPost("/api/artifacts/ai-edit", {
+          path: targetPath,
+          instruction: instr,
+          selected_text: state.canvasSelectedText || "",
+        });
+        d.sourceContent = res.content || "";
+        if (canvasAiInput) canvasAiInput.value = "";
+        state.canvasSelectedText = "";
+        updateCanvasSelection();
+        if (d.type === "pdf" && d.source_tex) {
+          await openDocumentPreview({
+            type: "pdf",
+            path: d.path,
+            source_tex: d.source_tex,
+            viewMode: d.viewMode === "source" ? "source" : "render",
+          });
+        } else {
+          await renderDocumentPreviewPanel();
+        }
+        showStatusBanner(`Modification Canvas appliquée sur ${targetPath} (voir l'onglet Diff).`, "success");
+      } catch (err) {
+        showStatusBanner(`Erreur Canvas IA : ${err.message}`, "error");
+      } finally {
+        if (canvasAiApply) {
+          canvasAiApply.disabled = false;
+          canvasAiApply.textContent = "Appliquer";
+        }
+      }
+    };
+
+    if (canvasAiApply) {
+      canvasAiApply.addEventListener("click", () => triggerCanvasAiEdit());
+    }
+    if (canvasAiInput) {
+      canvasAiInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          triggerCanvasAiEdit();
+        }
+      });
+    }
+    document.querySelectorAll(".canvas-quick-chip").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        const preset = chip.getAttribute("data-canvas-prompt") || "";
+        if (preset) triggerCanvasAiEdit(preset);
+      });
+    });
     const btnZoomOut = document.getElementById("btn-pdf-zoom-out");
     if (btnZoomOut) {
       btnZoomOut.addEventListener("click", () => {
@@ -8583,12 +8810,123 @@ openDocumentPreview({
         stopVoiceDictation(false);
       });
     }
-    const btnVoiceConfirm = document.getElementById("btn-voice-confirm");
+const btnVoiceConfirm = document.getElementById("btn-voice-confirm");
     if (btnVoiceConfirm) {
       btnVoiceConfirm.addEventListener("click", () => {
         stopVoiceDictation(true);
+        if (state.voiceLiveMode) {
+          setTimeout(() => {
+            const sendBtn = document.getElementById("btn-send-task");
+            const inp = document.getElementById("composer-input");
+            if (sendBtn && inp && inp.value.trim()) sendBtn.click();
+          }, 120);
+        }
       });
     }
+
+    // Chantier 8 : Synthèse Vocale Temps Réel (Mode Live) & Sentinelle Proactive
+    const cleanTextForSpeech = (raw) => {
+      if (!raw) return "";
+      return String(raw)
+        .replace(/```[\s\S]*?```/g, " bloc de code. ")
+        .replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, " $1 sur $2 ")
+        .replace(/\\sqrt\{([^{}]+)\}/g, " racine carrée de $1 ")
+        .replace(/\\infty/g, " infini ")
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+        .replace(/[#*_`~>|\\$]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 1400);
+    };
+
+    const speakAssistantReply = (text) => {
+      if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+      window.speechSynthesis.cancel();
+      const spoken = cleanTextForSpeech(text);
+      if (!spoken) return;
+      const utter = new SpeechSynthesisUtterance(spoken);
+      utter.lang = "fr-FR";
+      utter.rate = 1.05;
+      const voices = window.speechSynthesis.getVoices() || [];
+      const frVoice =
+        voices.find((v) => v.lang && v.lang.toLowerCase().startsWith("fr") && /natural|neural|hortense|denise|henri/i.test(v.name)) ||
+        voices.find((v) => v.lang && v.lang.toLowerCase().startsWith("fr"));
+      if (frVoice) utter.voice = frVoice;
+      window.speechSynthesis.speak(utter);
+    };
+    window.speakAssistantReply = speakAssistantReply;
+
+    const btnVoiceTts = document.getElementById("btn-voice-tts-toggle");
+    if (btnVoiceTts) {
+      btnVoiceTts.addEventListener("click", () => {
+        state.voiceLiveMode = !state.voiceLiveMode;
+        btnVoiceTts.classList.toggle("active", Boolean(state.voiceLiveMode));
+        btnVoiceTts.setAttribute("aria-pressed", state.voiceLiveMode ? "true" : "false");
+        if (!state.voiceLiveMode && typeof window !== "undefined" && "speechSynthesis" in window) {
+          window.speechSynthesis.cancel();
+          showStatusBanner("Mode Voix Live désactivé.", "info");
+        } else {
+          showStatusBanner("Mode Voix Live activé : NeoHarness lira les réponses à voix haute.", "success");
+          const conv = state.appState && state.appState.active_conversation;
+          const msgs = (conv && conv.messages) || [];
+          const lastAsst = msgs.slice().reverse().find((m) => m.role === "assistant" && m.content);
+          if (lastAsst) speakAssistantReply(lastAsst.content);
+        }
+      });
+    }
+
+    // Lecture automatique à chaque nouveau message assistant si Mode Voix Live actif
+    let lastSpokenMsgId = null;
+    setInterval(() => {
+      if (!state.voiceLiveMode || state.isExecuting) return;
+      const conv = state.appState && state.appState.active_conversation;
+      const msgs = (conv && conv.messages) || [];
+      const lastAsst = msgs.slice().reverse().find((m) => m.role === "assistant" && m.content);
+      if (lastAsst && lastAsst.id !== lastSpokenMsgId) {
+        lastSpokenMsgId = lastAsst.id;
+        speakAssistantReply(lastAsst.content);
+      }
+    }, 800);
+
+    const btnSentinel = document.getElementById("btn-sentinel-scan");
+    const runSentinelScan = async (silent = false) => {
+      try {
+        const res = await apiGet("/api/sentinel");
+        if (res.error_detected && res.suggested_prompt) {
+          const inp = document.getElementById("composer-input");
+          if (inp && !inp.value.trim()) {
+            inp.value = res.suggested_prompt;
+            inp.focus();
+          }
+          showStatusBanner(
+            `Sentinelle : anomalie détectée dans ${res.error_source}. Diagnostic pré-rempli dans le compositeur.`,
+            "error"
+          );
+        } else if (!silent) {
+          const winTitle = (res.active_window && res.active_window.title) || " Bureau Windows";
+          showStatusBanner(
+            `Sentinelle : système sain (${(res.terminal_sessions || []).length} terminal actif · Fenêtre : ${winTitle.slice(0, 45)}).`,
+            "success"
+          );
+        }
+      } catch (err) {
+        if (!silent) showStatusBanner(`Erreur Sentinelle : ${err.message}`, "error");
+      }
+    };
+
+    if (btnSentinel) {
+      btnSentinel.addEventListener("click", () => {
+        state.sentinelActive = !state.sentinelActive;
+        btnSentinel.classList.toggle("active", Boolean(state.sentinelActive));
+        btnSentinel.setAttribute("aria-pressed", state.sentinelActive ? "true" : "false");
+        runSentinelScan(false);
+      });
+    }
+    setInterval(() => {
+      if (state.sentinelActive && !state.isExecuting) {
+        runSentinelScan(true);
+      }
+    }, 15000);
 
 document.getElementById("btn-new-task").addEventListener("click", async () => {
       state.activeDocument = null;

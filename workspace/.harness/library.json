@@ -1,5 +1,39 @@
 [
   {
+    "id": "lib-82fe7dae",
+    "title": "Fraisier recette",
+    "category": "Ressources",
+    "type": "svg",
+    "path": "fraisier_recette.svg",
+    "summary": "Fichier SVG dans l'espace de travail",
+    "content": "",
+    "tags": [
+      "svg"
+    ],
+    "size_bytes": 3260,
+    "created_at": "2026-10-29T22:04:35.271388+00:00",
+    "updated_at": "2026-10-29T22:04:35.272787+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-48bd9ccb",
+    "title": "Canvas test",
+    "category": "Notes",
+    "type": "note",
+    "path": "canvas_test.md",
+    "summary": "Fichier NOTE dans l'espace de travail",
+    "content": "# Version 2\nBonjour NeoHarness Canvas 2.0",
+    "tags": [
+      "note"
+    ],
+    "size_bytes": 41,
+    "created_at": "2026-10-29T19:18:18.181917+00:00",
+    "updated_at": "2026-10-29T19:18:18.181917+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
     "id": "lib-6a387424",
     "title": "Dm maths",
     "category": "Documents",

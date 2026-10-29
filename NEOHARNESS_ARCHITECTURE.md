@@ -1,561 +1,540 @@
-Voici le document NEOHARNESS_ARCHITECTURE.md complet et intégralement mis à
-jour, prêt à être copié-collé pour remplacer le fichier existant à la racine de
-ton projet :
+Voici le document NEOHARNESS_ARCHITECTURE.md intégralement mis à jour, complet
+de la première à la dernière ligne, intégrant l'ensemble des nouveaux moteurs et
+capacités validés lors de cette session (Computer Use 2.0 Set-of-Mark, Canvas
+Co-Éditable 2.0 & Diff, NeoDeepSearch Google Grounding, Intelligence du Code
+AST, Mémoire Hybride & Graphe, Data Analyst Excel/Outliers, Voix Live &
+Sentinelle).
 
-# NEOHARNESS_ARCHITECTURE.md — Documentation Technique et Architecture Complète de NeoHarness AI
+Tu peux copier-coller l'intégralité du contenu ci-dessous pour remplacer le
+fichier existant à la racine de ton projet :
 
-> **Créateur & Architecte : Djamel BENMAKHLOUF**
-> **Document de référence d'architecture, de fonctionnement interne et de maintenance de NeoHarness AI**
-> Ce document reflète **strictement l'état réel du dépôt** vérifié fichier par fichier et par exécution directe, sans inventer de composant, de modèle, de skill ou d'outil inexistant.
+NEOHARNESS_ARCHITECTURE.md — Documentation Technique et Architecture Complète de NeoHarness AI
 
----
+Créateur & Architecte : Djamel BENMAKHLOUF
+Document de référence d'architecture, de fonctionnement interne et de
+maintenance de NeoHarness AI
+Ce document reflète strictement l'état réel du dépôt vérifié fichier par fichier
+et par exécution directe, sans inventer de composant, de modèle, de skill ou
+d'outil inexistant.
 
-## Table des matières
+Table des matières
 
-- [NEOHARNESS\_ARCHITECTURE.md — Documentation Technique et Architecture Complète de NeoHarness AI](#neoharness_architecturemd--documentation-technique-et-architecture-complète-de-neoharness-ai)
-  - [Table des matières](#table-des-matières)
-  - [1. Vue d'ensemble du projet](#1-vue-densemble-du-projet)
-    - [1.1 Qu'est-ce que NeoHarness AI ?](#11-quest-ce-que-neoharness-ai-)
-    - [1.2 Philosophie : « Complexité cachée. Fonctionnalités 100 % réelles. Zéro simulation. Sécurité proportionnée. »](#12-philosophie---complexité-cachée-fonctionnalités-100--réelles-zéro-simulation-sécurité-proportionnée-)
-  - [2. Arborescence complète finale](#2-arborescence-complète-finale)
-- [Lancer le serveur web NeoHarness AI (en ignorant les anciens caches .pyc)](#lancer-le-serveur-web-neoharness-ai-en-ignorant-les-anciens-caches-pyc)
-- [Lancer les tests de l'agent opérateur Windows (Computer Use, HITL, Policy Engine, Terminal)](#lancer-les-tests-de-lagent-opérateur-windows-computer-use-hitl-policy-engine-terminal)
-- [Lancer les suites de validation du noyau, des skills et de l'interface UI](#lancer-les-suites-de-validation-du-noyau-des-skills-et-de-linterface-ui)
+  - 1. Vue d'ensemble du projet
+      - 1.1 Qu'est-ce que NeoHarness AI ?
+      - 1.2 Philosophie : « Complexité cachée. Fonctionnalités 100 % réelles.
+        Zéro simulation. Sécurité proportionnée. »
+  - 2. Arborescence complète finale
+  - 3. Description détaillée fichier par fichier
+      - 3.1 Entrée et Normalisation des Contrats
+      - 3.2 Sécurité, Gouvernance & Tool Gateway
+      - 3.3 Couche Opérateur Windows & Computer Use 2.0 (UI Automation &
+        Set-of-Mark)
+      - 3.4 Intelligence du Code Chirurgicale (AST & Diagnostic Statique)
+      - 3.5 Moteur de Recherche Web & NeoDeepSearch (Google Grounding Officiel)
+      - 3.6 Data Analyst Autonome (Profilage Statistique, Outliers & Excel
+        Natif)
+      - 3.7 Mémoire Hybride Sémantique, Graphe de Connaissances & Compaction
+      - 3.8 Interface Utilisateur, Canvas Co-Éditable 2.0, Voix Live &
+        Sentinelle
+  - 4. Fonctionnement global de bout en bout
+  - 5. Cycle de vie complet d'une requête
+  - 6. Fonctionnement détaillé du Model Router & Streaming
+  - 7. Architecture complète des 22 Skills
+  - 8. Architecture des Agents
+  - 9. Classification des risques et politique de gouvernance (Policy Engine)
+  - 10. Dépendances et bibliothèques
+  - 11. Commandes de lancement et suites de tests
+  - 12. Journal des modifications architecturales
 
----
+1. Vue d'ensemble du projet
 
-## 1. Vue d'ensemble du projet
+1.1 Qu'est-ce que NeoHarness AI ?
 
-### 1.1 Qu'est-ce que NeoHarness AI ?
-**NeoHarness AI** est un **harness agentique multi-modèles, multi-agents et opérateur Windows en boucle fermée (Computer Use)** écrit en Python, doté à la fois :
-- d'une interface **CLI interactive** complète (`python main.py`),
-- et d'une **interface web minimaliste d'environnement opératoire IA** (`python -B main.py --ui --port 8765`), bâtie sans dépendance externe lourde (serveur HTTP/SSE natif Python + interface HTML5/CSS3/JS épurée avec KaTeX, MathJax, Web Audio API et aperçu documentaire multi-formats).
+NeoHarness AI est un harness agentique multi-modèles, multi-agents, opérateur
+Windows en boucle fermée (Computer Use 2.0) et environnement de travail IA
+complet écrit en Python. Il dispose :
 
-### 1.2 Philosophie : « Complexité cachée. Fonctionnalités 100 % réelles. Zéro simulation. Sécurité proportionnée. »
-NeoHarness AI combine :
-- un **Mode Clair raffiné par défaut** (`data-theme="light"`, palette pierre chaude `#F6F5F0` / `#EFECE6` / `#FFFFFF`) avec bascule instantanée vers le Mode Sombre (`data-theme="dark"`, `#0B0D10`) persistée dans `localStorage` ;
-- une **palette flottante immédiate des Slash Commands (`/`)** dans l'ordre canonique strict qui s'ouvre dès la saisie de `/` au début du compositeur ou après un espace ;
-- un **panneau latéral droit unifié (`#right-inspector`)**, fermé par défaut, capable d'afficher soit l'**Aperçu de Document** (**PDF compilé réellement avec Tectonic**, **Document Word `.docx` converti via Pandoc** ou **HTML interactif dans un `<iframe>` sandboxé**) soit l'**Inspecteur Technique**, sans jamais ouvrir une troisième colonne ;
-- une **dictée vocale style GPT** dans le compositeur utilisant de vraies données d'amplitude microphone (`navigator.mediaDevices.getUserMedia` + `AudioContext` + `AnalyserNode`) et la transcription vocale réelle (`SpeechRecognition` / `webkitSpeechRecognition`) ;
-- un **moteur d'agent opérateur Windows en boucle fermée (`Perception → Action → Observation → Vérification`)** contrôlé par un **Tool Gateway** central (`core/tool_gateway.py`), un **Policy Engine** déclaratif (`core/policy_engine.py`) et une validation **Human-In-The-Loop (HITL)** proportionnée au risque (`SAFE`, `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`, `BLOCKED`) ;
-- un **principe UX de proportionnalité stricte** : les actions simples et sûres (ex: prendre une capture d'écran et la poser sur le Bureau Windows, lister les fenêtres, copier dans le presse-papiers) s'exécutent directement via leur outil natif spécialisé en un minimum d'étapes, sans script Python intermédiaire ni confirmation bureaucratique inutile.
+  - d'une interface CLI interactive (python main.py),
+  - et d'une interface web opératoire d'élite (python -B main.py --ui
+    --port 8765), servie par un serveur HTTP/SSE natif Python avec une interface
+    HTML5/CSS3/JS épurée, KaTeX, MathJax, Web Audio API, Web Speech API et
+    aperçu documentaire multi-formats.
 
----
+1.2 Philosophie : « Complexité cachée. Fonctionnalités 100 % réelles. Zéro simulation. Sécurité proportionnée. »
 
-## 2. Arborescence complète finale
+  - Design System Pierre Chaude (#F6F5F0 / #EFECE6 / #FFFFFF) avec bascule
+    instantanée Mode Sombre (#0B0D10), 100 % icônes vectorielles SVG (zéro
+    émoticône).
+  - Palette flottante Slash (/) dans l'ordre canonique strict des 22 Skills
+    disponibles.
+  - Inspecteur latéral droit unifié (#right-inspector) transformé en Canvas
+    Co-Éditable 2.0 : édition de code source, modification chirurgicale par IA
+    d'une sélection, comparateur visuel de versions (Diff ligne par ligne V1
+    \leftrightarrow V2) et aperçus documentaires réels (PDF Tectonic, Word .docx
+    Pandoc, HTML sandboxé, SVG, Mermaid, Images).
+  - Moteur NeoDeepSearch en essaim parallèle : exploration Web multi-axes avec
+    décomposition déterministe, intégration officielle de Google Search
+    Grounding, lecture intégrale de pages en parallèle, détection de
+    corrélations et citations cliquables [Source N](url).
+  - Opérateur Windows Computer Use 2.0 : fusion de l'arbre d'accessibilité
+    Windows UI Automation (.NET), des contrôles Win32 natifs et du marquage
+    visuel Set-of-Mark ([1]..[N]) permettant le clic par ID d'élément en boucle
+    fermée.
+  - Intelligence du Code AST & Diagnostics : cartographie structurelle du code
+    (code_ast_map), recherche de définitions et références d'un symbole,
+    diagnostic statique (diagnose_code) et isolation en Git Worktrees.
+  - Data Analyst Autonome : profilage statistique de datasets (analyze_dataset :
+    CSV, TSV, XLSX, JSON, SQLite) avec détection d'anomalies (outliers) et
+    corrélations de Pearson, ainsi que génération de vrais classeurs Excel
+    (generate_excel) avec formules natives (=SUM, =AVERAGE).
+  - Compagnon Proactif Sentinelle & Voix Live : surveillance proactive du
+    terminal Windows et lecture vocale naturelle en français avec prononciation
+    adaptée des formules mathématiques.
 
-```text
+2. Arborescence complète finale
+
 my_ai_harness/
 ├── .gitignore                        # Règles d'exclusion Git (.env, __pycache__, etc.)
 ├── README.md                         # Présentation rapide et commandes de base
 ├── NEOHARNESS_ARCHITECTURE.md        # Documentation technique complète (ce document)
 ├── NEOHARNESS_ARTIFACT_ENGINE.md     # Documentation du moteur universel d'artefacts
 ├── NEOHARNESS_RUNTIME_VALIDATION.md  # Rapport de vérification runtime réelle de bout en bout
-├── requirements.txt                  # Dépendances Python (openai, google-genai, mistralai, Pillow, pytesseract, PyMuPDF, pypdf, PyYAML, prompt-toolkit)
+├── requirements.txt                  # Dépendances Python (google-genai, openai, mistralai, openpyxl, duckduckgo-search, primp, Pillow, pytesseract, PyMuPDF, pypdf, PyYAML, prompt-toolkit)
 ├── main.py                           # Point d'entrée principal CLI et lanceur UI (--ui)
 │
 ├── config/
-│   ├── config.yaml                   # Configuration centrale (providers, profils rate-limit, agents, routes, feature flags)
-│   └── custom_models.json            # Modèles LLM personnalisés ajoutés dynamiquement sans mise à jour
+│   ├── config.yaml                   # Configuration centrale (providers, routes, feature flags)
+│   └── custom_models.json            # Modèles LLM personnalisés ajoutés dynamiquement
 │
 ├── agents/
 │   ├── __init__.py                   # Package des agents spécialisés
-│   ├── coder.py                      # CodeAgent : développement, édition de fichiers, refactoring et pilotage Computer Use Windows
-│   ├── researcher.py                 # ResearchAgent : recherche locale et Internet, récupération et génération documentaire
-│   ├── reviewer.py                   # ReviewAgent & IndependentCritic : revue critique sur contexte vierge, audit qualité et risques
-│   └── tester.py                     # TestAgent : exécution et validation déterministe des suites de tests
+│   ├── coder.py                      # CodeAgent : programmation, cartographie AST, diagnostics, Computer Use
+│   ├── researcher.py                 # ResearchAgent : recherche locale, Deep Research et documents
+│   ├── reviewer.py                   # ReviewAgent & IndependentCritic : audit critique sur contexte vierge
+│   └── tester.py                     # TestAgent : exécution déterministe des suites de tests
 │
 ├── core/
 │   ├── __init__.py                   # Package du noyau d'orchestration
-│   ├── agent.py                      # Classe de base Agent (directive d'identité, directive opérateur Windows, ensure_task)
-│   ├── agent_loop.py                 # Boucle d'exécution agentique fermée (tools, web_search, streaming, auto-réparation, vérification)
+│   ├── agent.py                      # Classe de base Agent (directives d'identité et de gouvernance)
+│   ├── agent_loop.py                 # Boucle d'exécution fermée (outils, auto-réparation, vérification)
 │   ├── agent_registry.py             # Registre des agents disponibles (AgentRegistry)
-│   ├── agent_selector.py             # Sélection d'agent par scoring de capacités et d'intentions (AgentSelector)
-│   ├── artifact_intent.py            # Détection d'intention d'artefact, classification d'origine et conformité de livrable
+│   ├── agent_selector.py             # Sélection d'agent par scoring de capacités et d'intentions
+│   ├── artifact_intent.py            # Détection d'intention d'artefact et conformité de livrable
 │   ├── checkpoint.py                 # Points de reprise et backtracking (Shadow Git / snapshots)
 │   ├── context.py                    # Historique d'interactions léger et mémoire de mission (Context)
-│   ├── context_manager.py            # Gestionnaire de contexte workspace et budget de tokens (ContextManager)
-│   ├── dag_engine.py                 # Moteur d'exécution de graphes multi-agents acycliques (DAGEngine)
-│   ├── delegation.py                 # Délégation contrôlée de sous-tâches et graphes DAG entre agents (DelegationEngine)
-│   ├── event_bus.py                  # Bus d'événements normalisés temps réel et SSE (NormalizedEventBus)
-│   ├── events.py                     # Événements bas niveau du runtime et traducteur français (HarnessEvent, EventTranslator)
-│   ├── intent_engine.py              # Moteur de classification d'intention (coding, testing, research, computer_use, etc.)
-│   ├── library.py                    # Bibliothèque intelligente persistante (LibraryManager, .harness/library.json)
-│   ├── mcp_client.py                 # Client MCP JSON-RPC 2.0 stdio (MCPStdioClient, MCPClientManager) raccordé au ToolGateway
-│   ├── memory.py                     # Mémoire persistante cross-session, leçons expérientielles & injection prompt (MemoryManager, ReflectiveMemory)
+│   ├── context_manager.py            # Gestionnaire de contexte et compaction préservant les invariants
+│   ├── dag_engine.py                 # Moteur d'exécution de graphes multi-agents acycliques
+│   ├── delegation.py                 # Délégation contrôlée de sous-tâches entre agents
+│   ├── event_bus.py                  # Bus d'événements normalisés temps réel et SSE
+│   ├── events.py                     # Événements bas niveau du runtime et traducteur français
+│   ├── intent_engine.py              # Classification d'intention (coding, testing, research, computer_use, file_analysis...)
+│   ├── library.py                    # Bibliothèque intelligente persistante et recherche sémantique hybride
+│   ├── mcp_client.py                 # Client MCP JSON-RPC 2.0 stdio raccordé au ToolGateway
+│   ├── memory.py                     # Mémoire persistante, recherche hybride, graphe de connaissances et leçons réflexives
 │   ├── metrics_sink.py               # Collecteur de métriques d'exécution
-│   ├── model_registry.py             # Registre vérifié des Providers, Modèles et Capabilities (ModelCapabilityRegistry)
-│   ├── modes.py                      # Modes d'exécution globaux (EDIT, PLAN, ACCEPT, AUTO)
-│   ├── multi_agent_coordinator.py    # Coordination séquentielle et hiérarchique multi-agents (MultiAgentCoordinator)
-│   ├── orchestrator.py               # Orchestrateur central (Orchestrator, run, run_agentic)
-│   ├── permissions.py                # Politique de permissions (PermissionPolicy, RiskLevel, PermissionLevel STRICT/SESSION/AUTOMATIC, format_hitl_box)
-│   ├── planner.py                    # Planificateur d'étapes minimalistes et observations initiales (Planner, PlanStep)
-│   ├── policy_engine.py              # Moteur de sécurité (PolicyEngine, PolicyEvaluation, SAFE/LOW/MEDIUM/HIGH/CRITICAL/BLOCKED)
-│   ├── rate_limit_manager.py         # Gestionnaire de concurrence LLM, backoff, retry et circuit breaker (RateLimitManager)
-│   ├── replay.py                     # Rejeu déterministe de missions enregistrées (replay_mission)
-│   ├── router.py                     # Routeur de modèles par agent, intention, complexité et failover (ModelRouter)
-│   ├── self_audit.py                 # Télémétrie, auto-audit et benchmark interne (TelemetryStore)
-│   ├── skill_compatibility.py        # Moteur de compatibilité Provider -> Model -> Capabilities -> Skills
+│   ├── model_registry.py             # Registre vérifié des Providers, Modèles et Capabilities
+│   ├── modes.py                      # Modes de gouvernance globaux (AUTO, ACCEPT, EDIT, PLAN)
+│   ├── multi_agent_coordinator.py    # Coordination séquentielle et hiérarchique multi-agents
+│   ├── orchestrator.py               # Orchestrateur central (run, run_agentic)
+│   ├── permissions.py                # Politique de permissions proportionnée et Human-In-The-Loop
+│   ├── planner.py                    # Planificateur d'étapes minimalistes et observations initiales
+│   ├── policy_engine.py              # Moteur de sécurité et classification des risques réels
+│   ├── rate_limit_manager.py         # Gestionnaire de concurrence LLM, backoff et circuit breaker
+│   ├── replay.py                     # Rejeu déterministe de missions enregistrées
+│   ├── router.py                     # Routeur de modèles par agent, intention, complexité et failover
+│   ├── self_audit.py                 # Télémétrie, auto-audit et benchmark interne
+│   ├── skill_compatibility.py        # Moteur de compatibilité Provider -> Model -> Skills
 │   ├── task.py                       # Contrat de tâche (Task) et normalisateur strict ensure_task()
-│   ├── task_context.py               # Continuité multi-tours par conversation (TaskContext)
-│   ├── task_state.py                 # État riche d'exécution d'une tâche (TaskState, PlanStep, AgentResult)
-│   ├── tdd_engine.py                 # Moteur TDD en boucle fermée et scellement SHA-256 des tests (TestTamperingError)
+│   ├── task_context.py               # Continuité multi-tours et historique persistant par conversation
+│   ├── task_state.py                 # État riche d'exécution d'une tâche (PlanStep, AgentResult)
+│   ├── tdd_engine.py                 # Moteur TDD en boucle fermée et scellement SHA-256
 │   ├── title_generator.py            # Générateur intelligent de titres de tâches
-│   ├── tool_gateway.py               # Couche centrale Tool Gateway & journal d'observabilité (.harness/operator_audit.jsonl)
-│   ├── verifier.py                   # Vérificateur final déterministe (fichiers, tests, provenance Web, boucle fermée Computer Use)
-│   └── artifacts/
-│       ├── __init__.py
-│       ├── engine.py                 # UniversalArtifactEngine (cycle de vie multi-formats, versions, rollback)
-│       ├── handlers.py               # Handlers de validation/compilation par type d'artefact
-│       ├── models.py                 # Modèles de données d'artefacts (Artifact, ArtifactStatus, ArtifactType)
-│       ├── provenance.py             # Chaîne de provenance cryptographique des téléchargements (ProvenanceLedger)
-│       └── verifier.py               # Vérificateur physique d'artefacts (magic bytes, structure)
+│   ├── tool_gateway.py               # Tool Gateway central & journal d'observabilité (.harness/operator_audit.jsonl)
+│   ├── verifier.py                   # Vérificateur final déterministe (fichiers, tests, provenance Web, GUI)
+│   └── artifacts/                    # Moteur universel d'artefacts (UniversalArtifactEngine)
 │
 ├── providers/
-│   ├── __init__.py                   # Package des adaptateurs de fournisseurs LLM
-│   ├── base_provider.py              # Contrat abstrait BaseProvider, AgentTurn et ProviderToolCall
-│   ├── claude.py                     # ClaudeProvider (squelette non connecté par défaut)
-│   ├── gemini.py                     # GeminiProvider (API Google Gemini native, streaming, fallback quota 429 google_search -> web_search)
-│   ├── local.py                      # LocalProvider (fournisseur local déterministe pour tests hors-ligne)
+│   ├── __init__.py                   # Package des adaptateurs LLM
+│   ├── base_provider.py              # Contrat abstrait BaseProvider
+│   ├── claude.py                     # ClaudeProvider (squelette d'intégration Anthropic)
+│   ├── gemini.py                     # GeminiProvider (Google GenAI native, streaming, Google Search Grounding)
+│   ├── local.py                      # LocalProvider (fournisseur déterministe hors-ligne)
 │   ├── mistral.py                    # MistralProvider (SDK mistralai + client HTTP)
-│   ├── ollama.py                     # OllamaProvider (exécution locale via serveur HTTP Ollama)
-│   └── openai.py                     # OpenAIProvider (API OpenAI Responses / Chat Completions)
+│   ├── ollama.py                     # OllamaProvider (exécution locale Ollama)
+│   └── openai.py                     # OpenAIProvider (API OpenAI Completions)
 │
 ├── skills/
 │   ├── __init__.py                   # Export public du système de Skills
-│   ├── loader.py                     # Chargement dynamique des dossiers de Skills, commandes, agents, RAG et templates
-│   ├── registry.py                   # Registre central des Skills dans l'ordre canonique
-│   ├── router.py                     # Routage automatique par mots-clés, triggers et commandes slash (SkillRouter)
-│   ├── runtime.py                    # Exécution des commandes slash et état de session (SkillRuntime)
-│   ├── education/                    # Skills éducatifs spécialisés (bacblanc, dm, exercice) avec RAG et templates LaTeX officiels
+│   ├── loader.py                     # Chargement dynamique des Skills, RAG et gabarits LaTeX
+│   ├── registry.py                   # Registre central des 22 Skills dans l'ordre canonique strict
+│   ├── router.py                     # Routage automatique par triggers et commandes slash
+│   ├── runtime.py                    # Exécution des commandes slash et état de session
+│   ├── education/                    # Skills éducatifs (/exercice, /dm, /bacblanc, /antitriche, /correction)
 │   └── <dossiers de skills>/         # analyze, auto, compare, context, debug, diagnostic, export, memory,
 │                                     # mode, model, plan, refactor, research, review, route, test, workflow
 │
 ├── tools/
-│   ├── __init__.py                   # Package des outils (Tools)
-│   ├── browser.py                    # Navigateur dynamique Playwright Chromium avec conformité robots.txt et repli statique (DynamicBrowser)
+│   ├── __init__.py                   # Package des outils système et bureautiques
+│   ├── browser.py                    # Navigateur dynamique Playwright Chromium (DynamicBrowser)
 │   ├── clipboard.py                  # Presse-papiers Windows natif Win32 Unicode (clipboard_get, clipboard_set)
-│   ├── code_search.py                # Recherche de code par regex rapide (search_code)
-│   ├── compiler.py                   # Compilateur autonome LaTeX avec auto-correction (AutonomousCompiler)
-│   ├── computer_use.py               # Couche Computer Use Windows (screenshots, Bureau, diff d'écran, OCR, souris, clavier, boucle fermée)
-│   ├── documents.py                  # Lecture documentaire (read_document) et compilation LaTeX/HTML (compile_latex, compile_html)
-│   ├── docx.py                       # Génération et vérification physique de documents Word .docx via Pandoc (generate_docx)
-│   ├── editor.py                     # Édition chirurgicale de fichiers avec validation syntaxique (edit_file)
-│   ├── filesystem.py                 # Opérations fichiers confinées dans workspace/ (WorkspaceFilesystem)
-│   ├── git.py                        # Inspection et opérations Git (GitWorkspace)
-│   ├── math_tikz.py                  # Génération déterministe de tableaux de variations, arbres et courbes TikZ/pgfplots
-│   ├── process_manager.py            # Gestionnaire de processus Windows (process_list, process_start, process_status, process_stop)
-│   ├── process_utils.py              # Environnement de sous-processus nettoyé des secrets API (safe_subprocess_environment)
-│   ├── python_runtime.py             # Exécution Python headless avec capture automatique des figures Matplotlib
-│   ├── rasterizer.py                 # Rastérisation de pages PDF en PNG pour inspection visuelle
-│   ├── registry.py                   # Registre central des outils et intégration au ToolGateway (ToolRegistry)
-│   ├── search.py                     # Recherche Internet réelle (web_search), fetch_url et téléchargement vérifié (download_resource)
-│   ├── terminal.py                   # Exécution de tests (run_test_suite), scripts (run_python_script) et façade du terminal persistant
-│   ├── terminal_session.py           # Terminal interactif persistant Windows PowerShell/CMD/ConPTY (PersistentTerminalManager)
-│   ├── viewer.py                     # Lecture fenêtrée de fichiers avec numéros de lignes (view_file)
-│   ├── vision.py                     # Transcription OCR multi-passes fidèle avec marquage [illisible] (transcribe_image)
-│   └── windows.py                    # Contrôle natif Win32 des fenêtres Windows (window_list, window_active, window_find, window_focus, etc.)
+│   ├── code_search.py                # Regex rapide (search_code) et cartographie AST (code_ast_map)
+│   ├── compiler.py                   # Compilateur autonome LaTeX avec auto-correction
+│   ├── computer_use.py               # Computer Use 2.0 (UI Automation, Set-of-Mark, clic par ID, souris/clavier Win32)
+│   ├── documents.py                  # Lecture (read_document), compilation (LaTeX, HTML), profilage (analyze_dataset) et Excel (generate_excel)
+│   ├── docx.py                       # Génération Word .docx Pandoc avec équations OMML
+│   ├── editor.py                     # Édition chirurgicale (edit_file) et diagnostic statique AST (diagnose_code)
+│   ├── filesystem.py                 # Opérations fichiers confinées dans workspace/
+│   ├── git.py                        # Inspection Git et isolation en Git Worktrees (create_worktree)
+│   ├── math_tikz.py                  # Génération déterministe de figures mathématiques TikZ / SymPy
+│   ├── process_manager.py            # Gestionnaire de processus Windows (process_list, process_start, process_stop)
+│   ├── process_utils.py              # Environnement nettoyé des secrets API
+│   ├── python_runtime.py             # Exécution Python headless avec capture automatique Matplotlib
+│   ├── rasterizer.py                 # Rastérisation PDF -> PNG
+│   ├── registry.py                   # Registre central des outils et intégration au ToolGateway
+│   ├── search.py                     # Recherche Web, Google Search Grounding officiel, NeoDeepSearch et téléchargement vérifié
+│   ├── terminal.py                   # Façade du terminal persistant et exécution de scripts
+│   ├── terminal_session.py           # Sessions interactives Windows PowerShell/CMD avec sentinelles
+│   ├── viewer.py                     # Lecture fenêtrée de fichiers avec numéros de lignes
+│   ├── vision.py                     # Transcription OCR multi-passes fidèle
+│   └── windows.py                    # Contrôle natif Win32 des fenêtres (window_list, window_focus, etc.)
 │
 ├── ui/
-│   ├── __init__.py                   # Package de l'interface web
-│   ├── server.py                     # Pont runtime (NeoHarnessRuntimeBridge) + serveur HTTP REST, SSE, HITL & aperçu PDF/DOCX/HTML
+│   ├── __init__.py                   # Package de l'interface web opératoire
+│   ├── server.py                     # Pont runtime (NeoHarnessRuntimeBridge) + REST/SSE, Canvas IA, NeoDeepSearch & Sentinelle
 │   └── static/
-│       ├── index.html                # Interface Mode Clair par défaut, Palette Slash (/), Dictée Vocale GPT, Panneau Aperçu
-│       ├── styles.css                # Design system pierre chaude (#F6F5F0) / sombre (#0B0D10)
-│       └── app.js                    # Logique client réactive (SSE, HITL proportionné, Slash Palette, Web Audio, KaTeX, Aperçu)
+│       ├── index.html                # Interface HTML5 épurée (100% SVG vectoriel, Canvas IA, NeoDeepSearch, Voix Live)
+│       ├── styles.css                # Design system pierre chaude (#F6F5F0) / sombre (#0B0D10) et styles Canvas/Diff
+│       └── app.js                    # Logique client réactive, Canvas Co-Éditable, Diff, Voix Live et Sentinelle
 │
-├── docs/                             # Documentation spécialisée (ARCHITECTURE.md, AUDIT.md, EVALS.md, SECURITY.md, VISION.md)
-├── evals/                            # Suite de benchmarks et d'évaluation automatisée (runner.py, tasks.py)
-├── runtime/pandoc/                   # Binaire Pandoc embarqué (pandoc.exe) pour génération Word .docx / OMML
-├── tests/                            # Suites complètes de tests unitaires, d'intégration et E2E (dont test_windows_computer_use_agent.py)
-└── workspace/                        # Répertoire de travail isolé pour les opérations fichiers et livrables des agents
+├── docs/                             # Documentation spécialisée
+├── evals/                            # Suite de benchmarks automatisée
+├── runtime/pandoc/                   # Binaire Pandoc embarqué (pandoc.exe)
+├── tests/                            # Suites de tests complètes (100 % validées au vert)
+└── workspace/                        # Espace de travail confiné pour les opérations des agents
 
 3. Description détaillée fichier par fichier
 
-3.1 Entrée et Normalisation des Contrats (core/task.py, core/planner.py, core/orchestrator.py, core/agent_loop.py)
+3.1 Entrée et Normalisation des Contrats
 
   - core/task.py : Définit Task et la fonction frontière ensure_task(task: Task
-    | str, ...) qui convertit de manière déterministe toute chaîne brute en
-    instance Task typée.
-  - core/task_state.py : Normalise dans TaskState.__post_init__ tout élément de
-    self.plan en instance PlanStep et trace l'historique complet des outils,
-    sources et vérifications.
-  - core/planner.py, core/orchestrator.py, core/agent.py, core/agent_loop.py :
-    Appliquent ensure_task(...) dès l'entrée, injectent la directive d'identité
-    NeoHarness AI et la directive d'Agent Opérateur Windows, et exécutent la
-    boucle fermée d'action et de vérification.
+    | str, ...), garantissant qu'aucune chaîne brute ne parvient aux moteurs
+    d'orchestration sans conversion en contrat typé.
+  - core/task_state.py : Maintient l'état riche d'exécution de la mission
+    (PlanStep, observations, diffs, vérifications).
+  - core/planner.py & core/orchestrator.py : Génèrent le plan minimaliste le
+    plus court suffisant, injectent l'identité NeoHarness AI et coordonnent
+    l'exécution sans étapes parasites.
 
-3.2 Sécurité, Gouvernance & Tool Gateway (core/policy_engine.py, core/permissions.py, core/tool_gateway.py, core/mcp_client.py)
+3.2 Sécurité, Gouvernance & Tool Gateway
 
-  - core/policy_engine.py : Évalue dynamiquement chaque appel d'outil (nom +
-    arguments) pour déterminer son action canonique (filesystem.read,
-    filesystem.write, filesystem.delete_many, process.start, package.install,
-    registry.modify, system.shutdown, computer_use.*, terminal.*, etc.), son
-    niveau de risque (SAFE, LOW, MEDIUM, HIGH, CRITICAL, BLOCKED), sa
-    description humaine en français et l'éligibilité à l'approbation de session
-    (allow_session_approval = False pour HIGH, CRITICAL et BLOCKED). Bloque
-    strictement toute tentative de contournement UAC, de désactivation de
-    Windows Defender ou d'extraction de secrets système.
-  - core/permissions.py : Implémente PermissionPolicy, RiskLevel et
-    PermissionLevel (STRICT, SESSION, AUTOMATIC). Applique le principe de
-    proportionnalité UX : les lectures (SAFE) et les actions opérateur simples à
-    faible risque (computer_screenshot, copy_to_desktop, clipboard_set,
-    window_focus, window_minimize, window_maximize, window_restore,
-    terminal_start, terminal_stop) s'exécutent directement sans popup
-    bureaucratique (hors mode STRICT), tandis que les actions MEDIUM
-    (process_start, terminal_send, clics/clavier computer_*) et HIGH/CRITICAL
-    déclenchent une validation Human-In-The-Loop adaptée.
-  - core/tool_gateway.py : Point de passage unique entre les agents et les
-    outils. Regroupe les outils selon 11 domaines (filesystem, terminal,
-    computer_use, windows, process, clipboard, browser, git, search, documents,
-    mcp) et enregistre chaque étape horodatée (AGENT_CALL, POLICY, HITL,
-    VERIFICATION) en mémoire et dans workspace/.harness/operator_audit.jsonl.
-  - core/mcp_client.py : Client JSON-RPC 2.0 stdio permettant de connecter des
-    serveurs MCP externes et d'exposer leurs outils dans le ToolGateway sous le
-    contrôle du PolicyEngine.
+  - core/tool_gateway.py : Point de passage unique obligatoire entre les agents
+    et le système. Journalise chaque étape (AGENT_CALL, POLICY, HITL, EXECUTION,
+    VERIFICATION) dans workspace/.harness/operator_audit.jsonl.
+  - core/policy_engine.py : Moteur déclaratif classifiant chaque action selon 6
+    niveaux de risque (SAFE, LOW, MEDIUM, HIGH, CRITICAL, BLOCKED). Bloque
+    inconditionnellement tout contournement UAC, désactivation d'antivirus ou
+    extraction de secrets système.
+  - core/permissions.py : Applique le principe de proportionnalité UX : les
+    actions en lecture seule (SAFE) et les actions simples sûres s'exécutent
+    directement sans friction, tandis que les actions sensibles déclenchent une
+    validation humaine (HITL) adaptée.
 
-3.3 Couche Opérateur Windows & Computer Use (tools/computer_use.py, tools/windows.py, tools/terminal_session.py, tools/process_manager.py, tools/clipboard.py)
+3.3 Couche Opérateur Windows & Computer Use 2.0
 
   - tools/computer_use.py :
-      - computer_screenshot : capture l'écran actif (ou une région) via
-        PIL.ImageGrab, résout le vrai Bureau Windows via l'API Win32
-        SHGetFolderPathW(CSIDL_DESKTOPDIRECTORY) (compatible Bureau local et
-        OneDrive Bureau), et sauvegarde directement sur le Bureau lorsque
-        save_to_desktop=True.
-      - copy_to_desktop : copie nativement tout fichier ou capture du workspace
-        vers le Bureau Windows sans script Python intermédiaire.
-      - computer_ocr : extrait le texte à l'écran via pytesseract avec les
-        coordonnées (x, y) du centre de chaque mot pour permettre un clic
-        précis.
-      - computer_compare_screens : compare deux captures avant/après via
-        PIL.ImageChops.difference et calcule le diff_ratio, le nombre de pixels
-        modifiés et la boîte englobante du changement.
-      - computer_mouse_move, computer_click, computer_drag, computer_scroll,
-        computer_type, computer_press, computer_hotkey : pilotage souris/clavier
-        via l'API Win32 user32 avec Fail-Safe d'urgence au coin (0, 0).
-      - computer_action_verified : exécute une action GUI en boucle fermée
-        (Screenshot Avant → Action → Pause de stabilisation → Screenshot Après →
-        Comparaison d'écran & Vérification de la fenêtre attendue).
-  - tools/windows.py : Enumération et contrôle des fenêtres Windows via
-    ctypes.windll.user32 (window_list, window_active, window_find, window_focus,
-    window_minimize, window_maximize, window_restore, window_close).
-  - tools/terminal_session.py : Sessions persistantes PowerShell (powershell.exe
-    -NoLogo -NoProfile -NoExit -Command -) et CMD (cmd.exe /Q /K) avec support
-    ConPTY optionnel (pywinpty), threads de lecture non-bloquants stdout/stderr,
-    marqueur de fin d'exécution instantané (__NEOHARNESS_CMD_DONE__), détection
-    de prompts interactifs et maintien des serveurs de développement (npm run
-    dev) en arrière-plan.
-  - tools/process_manager.py : Inspection et gestion des processus Windows
-    (process_list, process_start avec vérification de survie post-démarrage,
-    process_status, process_stop).
-  - tools/clipboard.py : Lecture et écriture native du presse-papiers Windows en
-    Unicode (CF_UNICODETEXT) via user32 / kernel32 (clipboard_get,
-    clipboard_set).
+      - computer_inspect_ui : Inspection hybride de l'arbre d'accessibilité
+        Windows UI Automation (.NET System.Windows.Automation) et des contrôles
+        enfants Win32 (EnumChildWindows). Identifie chaque bouton, menu, champ
+        ou onglet avec ses coordonnées absolues. Génère une capture annotée
+        Set-of-Mark (SoM) numérotée [1]..[N] avec cadres colorés et badges haute
+        lisibilité.
+      - computer_click_element : Permet de cliquer sur l'élément [element_id] et
+        d'y saisir du texte en boucle fermée sans deviner de coordonnées (x, y)
+        manuelles.
+      - computer_screenshot : Capture d'écran Win32 haute fidélité avec
+        résolution automatique du vrai Bureau Windows (local ou OneDrive) via
+        SHGetFolderPathW.
+      - computer_compare_screens : Diff pixel par pixel (PIL.ImageChops) pour
+        détecter l'impact d'une action.
+      - computer_mouse_* & computer_type / computer_hotkey : Pilotage souris et
+        clavier via user32 avec Fail-Safe d'urgence au coin (0, 0).
+      - computer_action_verified : Boucle fermée GUI (Capture Avant → Action →
+        Stabilisation → Capture Après → Comparaison & Validation).
+  - tools/windows.py : Énumération et contrôle des fenêtres (window_list,
+    window_active, window_find, window_focus, window_close, etc.).
+  - tools/terminal_session.py : Sessions interactives persistantes PowerShell et
+    CMD avec sentinelles instantanées (__NEOHARNESS_CMD_DONE__).
+
+3.4 Intelligence du Code Chirurgicale
+
+  - tools/code_search.py :
+      - search_code : Recherche ciblée par expressions régulières avec exclusion
+        des répertoires parasites (.git, node_modules, __pycache__).
+      - code_ast_map : Analyse l'arbre syntaxique abstrait (ast) pour extraire
+        la radiographie complète du code (classes, méthodes, signatures
+        d'arguments avec types, docstrings, graphe d'appels et liste des
+        imports). Quand un symbol_query est fourni, localise immédiatement où le
+        symbole est défini et toutes ses références dans le projet.
+  - tools/editor.py :
+      - edit_file : Édition chirurgicale par remplacement de bloc unique avec
+        linting AST instantané, détection automatique des défauts sémantiques et
+        rollback immédiat en cas d'erreur.
+      - diagnose_code : Diagnostic statique avant exécution détectant le code
+        mort après return/raise, les arguments par défaut mutables (def
+        f(x=[])), les méthodes dupliquées et la validité structurelle JSON/HTML.
+  - tools/git.py :
+      - GitWorkspace : Opérations Git confinées et gestion des Git Worktrees
+        (create_worktree, list_worktrees) pour isoler les modifications d'agents
+        parallèles.
+
+3.5 Moteur de Recherche Web & NeoDeepSearch
+
+  - tools/search.py :
+      - _search_google_grounding : Interroge l'index officiel mondial de Google
+        Search via l'outil natif google_search de Gemini (100 % officiel, sans
+        scraping, zéro blocage).
+      - deep_research : Moteur de recherche approfondie en essaim parallèle :
+        1.  Décomposition déterministe du sujet en 5 axes thématiques structurés
+            avec intitulés clairs pour l'utilisateur.
+        2.  Recherches Web multi-axes en parallèle (ThreadPoolExecutor).
+        3.  Lecture intégrale simultanée des pages de domaines distincts via
+            fetch_url.
+        4.  Calcul des scores d'autorité, détection des concepts corroborés
+            entre sources indépendantes et génération de citations cliquables
+            [Source N](url).
+      - web_search : Recherche Web résiliente combinant Google Search Grounding
+        en priorité absolue, repli Bing avec session Edge, et téléchargement
+        autonome vérifié (download_resource).
+      - download_resource & verify_downloaded_file : Téléchargement physique
+        avec vérification des magic bytes et scellement dans la chaîne de
+        provenance cryptographique (ProvenanceLedger).
+
+3.6 Data Analyst Autonome
+
+  - tools/documents.py :
+      - analyze_dataset : Profilage statistique autonome de fichiers .csv, .tsv,
+        .xlsx, .json et .sqlite/.db. Calcule le schéma, les valeurs manquantes,
+        la moyenne, médiane, écart-type, quartiles, corrélations de Pearson
+        entre variables numériques, et détecte automatiquement les valeurs
+        aberrantes (outliers) par score Z et écart interquartile (IQR).
+      - generate_excel_workbook : Génération de classeurs Microsoft Excel .xlsx
+        professionnels avec mise en forme institutionnelle (#185ABD), ajustement
+        automatique de la largeur des colonnes et injection de formules natives
+        (=SUM(...), =AVERAGE(...)).
+      - compile_latex & compile_html : Compilateurs autonomes avec boucles
+        d'auto-réparation.
+
+3.7 Mémoire Hybride Sémantique, Graphe de Connaissances & Compaction
+
+  - core/memory.py :
+      - MemoryManager : Stockage cross-session (.harness/persistent_memory.json)
+        avec moteur de recherche hybride (hybrid_semantic_score) combinant
+        racines lexicales et trigrammes de caractères.
+      - build_knowledge_graph : Graphe de connaissances personnel reliant
+        automatiquement les souvenirs, les fichiers mentionnés, les concepts et
+        les ressources de bibliothèque sous forme de nœuds et d'arêtes.
+      - ReflectiveMemory : Base SQLite/FTS5 enregistrant les leçons
+        expérientielles post-mission avec décroissance temporelle (decay).
+  - core/library.py : Bibliothèque intelligente (.harness/library.json)
+    synchronisée avec le workspace et dotée de recherche sémantique hybride.
+  - core/context_manager.py : Compaction de contexte sanctuarisant
+    automatiquement tous les fichiers manipulés, symboles de code et décisions
+    validées lors de l'archivage des tours anciens.
+
+3.8 Interface Utilisateur, Canvas Co-Éditable 2.0, Voix Live & Sentinelle
+
+  - ui/server.py : Pont runtime REST et flux SSE temps réel
+    (/api/events/stream), gestion des routes d'approbation HITL, compilation
+    documentaire, endpoint Canvas IA (POST /api/artifacts/ai-edit), comparateur
+    de versions (GET /api/artifacts/diff), mode d'exécution NeoDeepSearch en
+    streaming et surveillance GET /api/sentinel.
+  - ui/static/index.html :
+      - Design system pierre chaude sans aucune émoticône (100 % icônes
+        vectorielles SVG).
+      - Bouton 1-clic et menu popover NeoDeepSearch.
+      - Boutons vectoriels Voix Live (#btn-voice-tts-toggle) et Sentinelle
+        (#btn-sentinel-scan).
+      - Panneau latéral droit #right-inspector unifié intégrant le Canvas
+        Co-Éditable (bouton Éditer IA, barre d'actions rapides, visualiseur de
+        Diff V1 \leftrightarrow V2).
+  - ui/static/app.js :
+      - Gestion du streaming SSE avec ouverture immédiate des 5 axes
+        déterministes de recherche à t = 0\text{s}.
+      - Mode Voix Live utilisant la synthèse vocale (SpeechSynthesis) en
+        français naturel avec traduction orale des formules mathématiques
+        (\sqrt{x} \rightarrow « racine carrée de x »).
+      - Sentinelle proactive surveillant périodiquement le terminal et proposant
+        des corrections en 1 clic en cas d'erreur.
+  - ui/static/styles.css : Design system complet, styling du Canvas IA, des
+    badges de diffs et des boutons d'état actif.
 
 4. Fonctionnement global de bout en bout
 
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
-│            UTILISATEUR (Interface Web Mode Clair par défaut ou CLI)                    │
-│   Palette Slash (/) │ Dictée Vocale GPT │ Bannière HITL │ Aperçu PDF/DOCX/HTML         │
+│            UTILISATEUR (Interface Web Mode Clair / Sombre ou CLI)                      │
+│   Palette Slash (22) │ Canvas Co-Éditable │ Voix Live │ Sentinelle │ NeoDeepSearch     │
 └───────────────────┬────────────────────────────────────────────────────▲───────────────┘
                     │ 1. Demande utilisateur                             │ 9. Flux SSE
                     ▼                                                    │ & Livrables
 ┌────────────────────────────────────────────────────────────────────────┴───────────────┐
 │                   PONT D'EXÉCUTION : NeoHarnessRuntimeBridge (ui/server.py)            │
-│   • IntentEngine & Planner : détection d'intention et construction du plan minimal     │
-│   • Orchestrator & AgentLoop : sélection de l'agent et boucle fermée d'exécution       │
-│   • ToolGateway & PolicyEngine : évaluation du risque (SAFE/LOW/MEDIUM/HIGH/CRITICAL)  │
-│   • HITL proportionné : exécution directe si SAFE/LOW, validation humaine si sensible  │
-│   • Action Windows / Workspace -> Observation post-action -> Verifier déterministe     │
+│   • IntentEngine : détection d'intention (Coding, Research, DeepSearch, Data, GUI)     │
+│   • Mode Dédié NeoDeepSearch : 5 axes déterministes + Google Search Grounding direct   │
+│   • Orchestrator & AgentLoop : sélection de l'agent et boucle fermée                   │
+│   • ToolGateway & PolicyEngine : évaluation du risque (SAFE à BLOCKED)                 │
+│   • HITL proportionné : validation uniquement sur actions sensibles                    │
+│   • Action Windows / Code AST / Dataset -> Verifier déterministe                       │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 
 5. Cycle de vie complet d'une requête
 
-1.  Saisie ou Dictée Vocale : L'utilisateur saisit sa demande, utilise / pour
-    sélectionner un skill, ou dicte sa demande au microphone.
-2.  Classification d'Intention & Planification Minimale : IntentEngine.decide()
-    identifie l'intention (coding, testing, research, file_analysis,
-    exam_creation, document_generation, computer_use, general_question) et
-    sélectionne uniquement les outils natifs pertinents. Planner.plan() génère
-    le plan le plus court suffisant (3 étapes pour une action opérateur simple).
-3.  Perception Initiale Automatique : Pour une tâche sur fichiers ou une tâche
-    simple de capture/fenêtres Windows, Planner.initial_observation_tools()
-    exécute immédiatement l'outil natif d'observation (computer_screenshot,
-    window_list, read_document). Si l'action simple demandée (ex: capture
-    d'écran posée sur le Bureau) est déjà accomplie et vérifiée par cette étape,
-    l'agent répond dès le premier tour sans appel redondant.
-4.  Passage par le Tool Gateway, le Policy Engine et le HITL : Chaque appel
-    d'outil est évalué par PolicyEngine.evaluate(). Les actions SAFE et LOW
-    s'exécutent sans friction ; les actions MEDIUM proposent [ Refuser ], [
-    Autoriser ], [ Autoriser pour cette session ] ; les actions HIGH et CRITICAL
-    proposent uniquement [ Refuser ] et [ Autoriser une fois ] ; les actions
-    BLOCKED sont rejetées.
-5.  Boucle Fermée & Vérification Déterministe : Après l'action,
-    Verifier.verify() contrôle les preuves physiques (hash SHA-256 des fichiers,
-    code retour des tests, chaîne de provenance Web, ou verified == True sur la
-    boucle fermée Computer Use). En cas d'action sans effet, AgentLoop injecte
-    un conseil d'auto-réparation ciblé.
+1.  Saisie utilisateur : L'utilisateur saisit sa demande, sélectionne un skill
+    via /, active le mode NeoDeepSearch, utilise la dictée vocale ou déclenche
+    une action via la Sentinelle.
+2.  Traitement direct NeoDeepSearch (si activé) :
+      - Émission immédiate des 5 axes thématiques déterministes sur le flux SSE
+        dès la milliseconde t = 0\text{s}.
+      - Interrogation en direct de l'index officiel mondial de Google Search via
+        le Grounding Gemini.
+      - Streaming temps réel du rapport complet avec citations Markdown [Source
+        N](url).
+3.  Traitement Agentic Standard :
+      - IntentEngine.decide() résout l'intention et sélectionne les outils
+        natifs nécessaires.
+      - Planner.plan() génère le plan minimaliste le plus court suffisant.
+      - Les appels d'outils passent par ToolGateway et PolicyEngine.evaluate().
+      - Exécution des outils (code_ast_map, edit_file avec linting AST,
+        analyze_dataset, generate_excel, computer_inspect_ui Set-of-Mark...).
+4.  Vérification déterministe & Canvas : Verifier.verify() contrôle les preuves
+    physiques. L'artefact généré s'ouvre dans le panneau Canvas droit avec son
+    comparateur de versions et ses options de retouche IA chirurgicale.
 
 6. Fonctionnement détaillé du Model Router & Streaming
 
-| ID Modèle           | Classe Provider                            | Modèle configuré (`config.yaml`) | État de connexion                         | Capacités principales                                                                              |
-| :------------------ | :----------------------------------------- | :------------------------------- | :---------------------------------------- | :------------------------------------------------------------------------------------------------- |
-| `gemini`            | `GeminiProvider` (`providers/gemini.py`)   | `gemini-3.5-flash-lite`          | **Connecté** (`GEMINI_API_KEY`)           | Vision, Long Context, Function Calling, Web Search, Streaming temps réel                           |
-| `gemini_flash_lite` | `GeminiProvider` (`providers/gemini.py`)   | `gemini-3.5-flash-lite`          | **Connecté** (`GEMINI_API_KEY`)           | Vision, Long Context, Function Calling, Web Search (fallback auto `web_search` sur 429), Streaming |
-| `openai`            | `OpenAIProvider` (`providers/openai.py`)   | `gpt-5-mini`                     | Actif si `OPENAI_API_KEY` présente        | Vision, Long Context, Function Calling, `web_search`, Reasoning                                    |
-| `mistral`           | `MistralProvider` (`providers/mistral.py`) | `mistral-small-latest`           | Actif si `MISTRAL_API_KEY` présente       | Function Calling, `web_search`, Structured Output                                                  |
-| `ollama`            | `OllamaProvider` (`providers/ollama.py`)   | `qwen3:1.7b`                     | **Connecté en local** (`127.0.0.1:11434`) | Exécution locale, Function Calling JSON, `web_search`                                              |
-| `claude`            | `ClaudeProvider` (`providers/claude.py`)   | `claude-sonnet-4`                | **Non connecté** (squelette)              | Signalé honnêtement comme indisponible                                                             |
+| ID Modèle           | Classe Provider                            | Modèle configuré (`config.yaml`)             | État de connexion                         | Capacités principales                                                                                          |
+| :------------------ | :----------------------------------------- | :------------------------------------------- | :---------------------------------------- | :------------------------------------------------------------------------------------------------------------- |
+| `gemini`            | `GeminiProvider` (`providers/gemini.py`)   | `gemini-3.8-flash` / `gemini-3.5-flash-lite` | **Connecté** (`GEMINI_API_KEY`)           | Vision multimodale, Long Context, Function Calling, **Google Search Grounding officiel**, Streaming temps réel |
+| `gemini_flash_lite` | `GeminiProvider` (`providers/gemini.py`)   | `gemini-3.5-flash-lite`                      | **Connecté** (`GEMINI_API_KEY`)           | Vitesse ultra-rapide, Function Calling, Google Search Grounding                                                |
+| `openai`            | `OpenAIProvider` (`providers/openai.py`)   | `gpt-5-mini`                                 | Actif si `OPENAI_API_KEY` présente        | Function Calling, Structured Output, Streaming                                                                 |
+| `mistral`           | `MistralProvider` (`providers/mistral.py`) | `mistral-small-latest`                       | Actif si `MISTRAL_API_KEY` présente       | Function Calling, Structured Output                                                                            |
+| `ollama`            | `OllamaProvider` (`providers/ollama.py`)   | `qwen3:1.7b`                                 | **Connecté en local** (`127.0.0.1:11434`) | Exécution 100% locale, Function Calling JSON                                                                   |
+| `claude`            | `ClaudeProvider` (`providers/claude.py`)   | `claude-sonnet-4`                            | Squelette d'intégration                   | Déclaré pour routage                                                                                           |
 
-6.1 Extensibilité des Modèles LLM Personnalisés (config/custom_models.json)
+Extensibilité : Ajout dynamique de modèles LLM personnalisés via l'interface
+(POST /api/models/custom/add), persistés dans config/custom_models.json.
 
-Tout utilisateur peut ajouter dynamiquement un modèle LLM via la modale
-#modal-add-custom-model (POST /api/models/custom/add), persisté dans
-config/custom_models.json.
+7. Architecture complète des 22 Skills
 
-7. Architecture complète des Skills (Ordre Canonique & Éducation)
+Les 22 Skills enregistrés dans SkillRegistry (skills/registry.py) respectent
+l'ordre canonique strict :
 
-Les Skills chargés par SkillRegistry (skills/registry.py) couvrent les commandes
-générales et les skills éducatifs spécialisés :
-
-  - Skills généraux : /analyze, /auto, /compare, /context, /debug, /diagnostic,
-    /export, /memory, /mode, /model, /plan, /refactor, /research, /review,
-    /route, /test, /workflow.
-  - Skills éducatifs (skills/education/) : /bacblanc, /dm, /exercice — équipés
-    des programmes officiels de mathématiques en RAG et de gabarits LaTeX
-    officiels compilés automatiquement via Tectonic.
+1.  /analyze : Analyse de fichiers, documents ou extraits du workspace.
+2.  /antitriche : Détection de plagiat et validation d'originalité.
+3.  /auto : Exécution autonome complète d'une mission complexe.
+4.  /bacblanc : Conception complète d'un sujet de Bac Blanc conforme aux
+    programmes officiels et compilé en PDF Tectonic.
+5.  /compare : Comparaison différentielle de fichiers ou solutions.
+6.  /context : Inspection du contexte actif et des fichiers suivis.
+7.  /correction : Barèmes détaillés et corrigés officiels.
+8.  /debug : Diagnostic de bugs et auto-réparation de code.
+9.  /diagnostic : Contrôle de santé des providers, compilateurs et outils.
+10. /dm : Génération de Devoirs Maison de mathématiques en LaTeX.
+11. /exercice : Conception d'exercices avec figures TikZ déterministes.
+12. /export : Exportation documentaire (PDF, Word DOCX, HTML).
+13. /memory : Consultation et gestion de la mémoire persistante.
+14. /mode : Bascule des modes de gouvernance (AUTO, ACCEPT, EDIT, PLAN).
+15. /model : Sélection et routage dynamique des modèles LLM.
+16. /plan : Planification déterministe d'étapes de mission.
+17. /refactor : Refactoring de code assisté par AST.
+18. /research : Recherche Web, documentation et synthèse.
+19. /review : Revue critique de code et audit de sécurité.
+20. /route : Inspection du routage de modèles par agent.
+21. /test : Exécution et validation des suites de tests unitaires.
+22. /workflow : Orchestration de flux multi-étapes.
 
 8. Architecture des Agents
 
-Les agents enregistrés dans AgentRegistry sont :
+1.  CodeAgent (coder) : Développement, édition chirurgicale (edit_file),
+    cartographie de code (code_ast_map), diagnostic statique (diagnose_code) et
+    pilotage de l'opérateur Windows Computer Use.
+2.  ResearchAgent (researcher) : Recherche Web approfondie en essaim,
+    interrogation de l'index Google Search officiel, vérification croisée et
+    génération de livrables Word .docx.
+3.  ReviewAgent (reviewer) & IndependentCritic : Revue de code impartiale sur
+    contexte vierge et détection des failles de sécurité.
+4.  TestAgent (tester) : Exécution et diagnostic déterministe des suites de
+    tests sans altération possible du code de test.
+5.  BacBlancAgent (bacblanc) : Conception complète de sujets et barèmes d'examen
+    en LaTeX officiel.
 
-1.  CodeAgent (coder) : Programmation, débogage, édition de fichiers et pilotage
-    de l'environnement Windows / Computer Use / Terminal.
-2.  ResearchAgent (researcher) : Recherche locale et Web, récupération
-    authentifiée de documents distants et génération Word .docx.
-3.  ReviewAgent (reviewer) & IndependentCritic : Revue de code et audit critique
-    sur contexte vierge.
-4.  TestAgent (tester) : Exécution et diagnostic des suites de tests unitaires
-    et de régression.
-5.  BacBlancAgent (bacblanc) : Conception complète de sujets et barèmes LaTeX
-    conformes aux programmes officiels.
+9. Classification des risques et politique de gouvernance
 
-9. Architecture Opérateur Windows : Tool Gateway, Computer Use, Policy Engine, HITL & Terminal Persistant
+| Niveau                         | Exemples d'outils et actions                                                                                                                                                                        | Comportement en mode standard (`AUTO` / `ACCEPT`)                                   |
+| :----------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------- |
+| **`SAFE`** (`READ_ONLY`)       | `filesystem.read`, `code_ast_map`, `diagnose_code`, `analyze_dataset`, `web_search`, `deep_research`, `computer_screenshot`, `computer_inspect_ui`, `window_list`, `clipboard_get`, `terminal_read` | **Exécution directe immédiate (0 confirmation)**                                    |
+| **`LOW`**                      | `copy_to_desktop`, `clipboard_set`, `window_focus`, `window_minimize`, `window_maximize`, `terminal_start`, `terminal_stop`, `filesystem.write`                                                     | **Exécution directe** pour les actions courantes sûres                              |
+| **`MEDIUM`** (`MODERATE`)      | `generate_excel`, `process_start`, `terminal_send`, `computer_click`, `computer_click_element`, `computer_type`, `computer_hotkey`, `computer_action_verified`                                      | **HITL standard** : `[ Refuser ]`, `[ Autoriser ]`, `[ Autoriser pour la session ]` |
+| **`HIGH`**                     | `delete_file`, `process_stop`, `window_close`, `git_create_branch`, `git_commit_staged`                                                                                                             | **HITL Sensible** : `[ Refuser ]` ou `[ Autoriser une fois ]` uniquement            |
+| **`CRITICAL`** (`DESTRUCTIVE`) | `git_merge`, `system.shutdown`                                                                                                                                                                      | **HITL Critique systématique** : `[ Refuser ]` ou `[ Autoriser une fois ]`          |
+| **`BLOCKED`**                  | Contournement UAC (`fodhelper`), arrêt Windows Defender, extraction LSASS/SAM                                                                                                                       | **Blocage inconditionnel immédiat** par le Policy Engine                            |
 
-9.1 Les 11 domaines du Tool Gateway (core/tool_gateway.py)
+10. Dépendances et bibliothèques
 
-Tous les appels d'outils passent par ToolGateway adossé à ToolRegistry
-(tools/registry.py) :
+  - Python (requirements.txt) : google-genai>=1.32.0, openai>=1.66.0,
+    mistralai>=3.2.0, openpyxl>=3.1.0, duckduckgo-search>=8.1.0, primp>=0.15.0,
+    Pillow>=10.0.0, pytesseract>=0.3.10, PyMuPDF>=1.24.0, pypdf>=4.0.0,
+    PyYAML>=6.0, prompt-toolkit>=3.0.43,<4.0.
+  - Navigateur dynamique : Playwright Chromium (tools/browser.py).
+  - APIs Windows natives (ctypes) : user32, kernel32, shell32, accessibilité
+    .NET System.Windows.Automation (zéro dépendance C++ fragile).
+  - Compilateurs documentaires : Tectonic (tectonic.exe pour LaTeX \rightarrow
+    PDF) et Pandoc (runtime/pandoc/pandoc.exe pour Markdown \rightarrow Word
+    .docx).
 
-  - filesystem : list_files, find_file, search_files, read_file, read_document,
-    view_file, search_code, write_file, patch_file, edit_file, delete_file,
-    move_file, copy_to_desktop.
-  - computer_use : computer_screenshot (avec save_to_desktop), computer_ocr,
-    computer_compare_screens, computer_mouse_move, computer_click,
-    computer_drag, computer_scroll, computer_type, computer_press,
-    computer_hotkey, computer_action_verified.
-  - windows : window_list, window_active, window_find, window_focus,
-    window_minimize, window_maximize, window_restore, window_close.
-  - terminal : terminal_start, terminal_send, terminal_read, terminal_stop,
-    terminal_list, run_tests.
-  - process : process_list, process_start, process_status, process_stop,
-    run_python.
-  - clipboard : clipboard_get, clipboard_set.
-  - browser : web_search, fetch_url, download_resource, navigate_url,
-    click_element, fill_input, download_via_browser, screenshot_page.
-  - git : git_status, git_current_branch, git_create_branch, git_commit_staged,
-    git_merge.
-  - documents : compile_document, generate_math_figure, generate_docx,
-    transcribe_image.
-  - mcp : outils externes enregistrés dynamiquement via MCPClientManager
-    (core/mcp_client.py).
+11. Commandes de lancement et suites de tests
 
-9.2 Classification des risques du Policy Engine (core/policy_engine.py)
-
-| Niveau                         | Exemples d'actions canoniques et outils                                                                                                                                   | Comportement HITL (Mode standard `SESSION` / `ACCEPT`)                                                             |
-| :----------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :----------------------------------------------------------------------------------------------------------------- |
-| **`SAFE`** (`READ_ONLY`)       | `filesystem.read`, `computer_screenshot`, `computer_ocr`, `window_list`, `window_active`, `process_list`, `clipboard_get`, `terminal_read`                                | **Exécution directe** (0 confirmation)                                                                             |
-| **`LOW`**                      | `copy_to_desktop`, `clipboard_set`, `window_focus`, `window_minimize`, `window_maximize`, `window_restore`, `terminal_start`, `terminal_stop`, `filesystem.write`         | **Exécution directe** pour les outils opérateur simples ; aperçu direct en mode `EDIT`                             |
-| **`MEDIUM`** (`MODERATE`)      | `process.start` (`process_start`), `package.install`, `terminal.send` (`terminal_send`), `computer_click`, `computer_type`, `computer_hotkey`, `computer_action_verified` | **HITL standard** : `[ Refuser ]`, `[ Autoriser ]`, `[ Autoriser pour cette session ]`                             |
-| **`HIGH`**                     | `filesystem.delete` (`delete_file`), `filesystem.delete_many`, `process.stop` (`process_stop`), `windows.close` (`window_close`), `registry.modify`                       | **HITL Action à risque** : uniquement `[ Refuser ]` ou `[ Autoriser une fois ]` (jamais d'autorisation de session) |
-| **`CRITICAL`** (`DESTRUCTIVE`) | `system.shutdown` (`shutdown /s`, `Stop-Computer`, `Restart-Computer`, formatage)                                                                                         | **HITL Critique systématique** : uniquement `[ Refuser ]` ou `[ Autoriser une fois ]`                              |
-| **`BLOCKED`**                  | Contournement UAC (`fodhelper`, `eventvwr`), désactivation Windows Defender (`Set-MpPreference`), extraction LSASS/SAM                                                    | **Blocage immédiat et inconditionnel** par le Policy Engine                                                        |
-
-10. Architecture de la Mémoire Persistante & de la Bibliothèque Intelligente
-
-  - Mémoire Persistante (core/memory.py) : Stockage cross-session dans
-    workspace/.harness/persistent_memory.json (rule, preference, context,
-    decision, knowledge) + mémoire réflexive expérientielle (ReflectiveMemory)
-    enregistrant automatiquement les leçons de résolution d'erreurs.
-  - Bibliothèque Intelligente (core/library.py) : Stockage dans
-    workspace/.harness/library.json synchronisé avec le workspace, recherche
-    temps réel, tags, épinglage et double liaison bidirectionnelle avec la
-    mémoire.
-
-11. Architecture du RAG
-
-Implémentée dans skills/loader.py et exposée via GET /api/rag avec extraction
-documentaire directe des dossiers rag/ et templates/ de chaque Skill ainsi que
-des documents du workspace/.
-
-12. Architecture de l'interface utilisateur minimaliste (Addendum Final)
-
-1.  Mode Clair par défaut (data-theme="light") et bascule Mode Sombre persistée.
-2.  Palette flottante des Slash Commands (#slash-command-palette) à l'ouverture
-    de /.
-3.  Bannière Human-In-The-Loop proportionnée (#approval-banner-container) :
-    affiche l'intitulé précis de l'action (human_description), l'outil
-    (category), le niveau de risque traduit (risk_label_fr) et masque
-    automatiquement le bouton [ Autoriser pour cette session ] lorsque l'action
-    est de niveau HIGH ou CRITICAL.
-4.  Panneau latéral droit unifié (#right-inspector) : Mode Aperçu Document (PDF
-    Tectonic, Word .docx Pandoc, HTML sandboxé, images, graphiques Python) et
-    Mode Inspecteur Technique.
-5.  Dictée vocale style GPT (#voice-dictation-bar) avec onde audio temps réel
-    AnalyserNode.
-
-13. Système d'événements, Observabilité et streaming SSE temps réel
-
-  - NormalizedEventBus (core/event_bus.py) diffuse en SSE (/api/events/stream)
-    tous les événements du cycle de vie (TASK_STARTED, PLAN_CREATED, TOOL_CALL,
-    TOOL_RESULT, APPROVAL_REQUIRED, STREAM_DELTA, ARTIFACT_READY,
-    TASK_COMPLETED).
-  - ToolGateway (core/tool_gateway.py) écrit une trace d'audit horodatée
-    complète dans workspace/.harness/operator_audit.jsonl permettant de retracer
-    chaque appel Agent → Policy → HITL → Verification.
-
-14. Dépendances et bibliothèques
-
-  - Python (requirements.txt) : openai>=1.66.0, google-genai>=1.32.0,
-    mistralai>=3.2.0, Brotli>=1.2.0, PyMuPDF>=1.24.0, pypdf>=4.0.0,
-    openpyxl>=3.1.0, pytesseract>=0.3.10, Pillow>=10.0.0, PyYAML>=6.0,
-    prompt-toolkit>=3.0.43,<4.0.
-  - APIs Windows natives : ctypes.windll.user32, ctypes.windll.kernel32,
-    ctypes.windll.shell32 (zéro dépendance C++ fragile pour le contrôle
-    souris/clavier, les fenêtres, le presse-papiers et la résolution du Bureau).
-  - Binaires documentaires : Tectonic (compilation LaTeX \rightarrow PDF) et
-    Pandoc (runtime/pandoc/pandoc.exe pour la génération Word .docx).
-
-15. Configuration et variables d'environnement
-
-Configurables via le bouton Paramètres de la Top Bar (POST /api/credentials),
-.env ou variables d'environnement (GEMINI_API_KEY, OPENAI_API_KEY,
-MISTRAL_API_KEY, ANTHROPIC_API_KEY).
-
-16. Flux de données (Data Flow)
-
-Composer UI / CLI
-  -> IntentEngine.decide() (sélectionne l'intention et les outils natifs strictement nécessaires)
-  -> Planner.plan() (construit un plan court : 3 étapes pour une action opérateur simple)
-  -> AgentLoop.run()
-       ├── Perception initiale (computer_screenshot / window_list / read_document)
-       ├── Appel du modèle actif (streaming SSE STREAM_DELTA)
-       ├── ToolRegistry.execute() <-> ToolGateway
-       │     ├── PolicyEngine.evaluate(tool, arguments)
-       │     ├── PermissionPolicy.authorize() (direct si SAFE/LOW, HITL si MEDIUM/HIGH/CRITICAL)
-       │     └── Exécution de l'outil natif Windows / Workspace + journalisation .jsonl
-       └── Verifier.verify() (contrôle déterministe du résultat et de la boucle fermée)
-  -> Livraison finale + ARTIFACT_READY SSE
-
-17. Carte des dépendances entre fichiers
-
-  - main.py et ui/server.py assemblent core/*, providers/*, agents/*, skills/*
-    et tools/*.
-  - tools/registry.py instancie ToolGateway (core/tool_gateway.py), qui s'appuie
-    sur PolicyEngine (core/policy_engine.py) et PermissionPolicy
-    (core/permissions.py).
-  - tools/registry.py expose les outils de tools/filesystem.py,
-    tools/computer_use.py, tools/windows.py, tools/terminal.py
-    (tools/terminal_session.py), tools/process_manager.py, tools/clipboard.py,
-    tools/browser.py, tools/documents.py, tools/docx.py, tools/vision.py et
-    core/mcp_client.py.
-
-18. Guide « Où modifier quoi ? »
-
-  - Ajouter une règle de sécurité ou ajuster le risque d'une action :
-    core/policy_engine.py (CANONICAL_ACTION_RISKS ou register_rule()).
-  - Modifier le comportement HITL ou la liste des outils sans friction :
-    core/permissions.py (_LOW_FRICTION_OPERATOR_TOOLS, authorize(),
-    format_hitl_box()).
-  - Modifier les actions souris/clavier, la capture d'écran ou la boucle fermée
-    GUI : tools/computer_use.py et tools/windows.py.
-  - Modifier le terminal interactif persistant PowerShell / CMD :
-    tools/terminal_session.py et tools/terminal.py.
-  - Connecter un serveur MCP externe : core/mcp_client.py
-    (MCPClientManager.register_server()).
-  - Ajuster la détection d'intention ou le plan minimal : core/intent_engine.py
-    et core/planner.py.
-
-19. Guide de démarrage et de lecture du code
-
-# Lancer le serveur web NeoHarness AI (en ignorant les anciens caches .pyc)
+# 1. Lancer le serveur web opératoire NeoHarness AI
 python -B main.py --ui --port 8765
 
-# Lancer les tests de l'agent opérateur Windows (Computer Use, HITL, Policy Engine, Terminal)
+# 2. Lancer la suite de validation de l'interface et du Canvas
+python -B -m unittest tests/test_ui_environment.py -v
+
+# 3. Lancer la suite de validation de l'agent opérateur Windows (Computer Use)
 python -B -m unittest tests/test_windows_computer_use_agent.py -v
 
-# Lancer les suites de validation du noyau, des skills et de l'interface UI
+# 4. Lancer toutes les suites de validation du noyau et des skills
 python -B -m unittest tests/test_runtime.py tests/test_skills.py tests/test_general_skills.py tests/test_multi_agent_runtime.py tests/test_ui_environment.py tests/test_windows_computer_use_agent.py -v
 
-20. Tests et validation
+12. Journal des modifications architecturales
 
-La validation automatisée couvre :
-
-  - tests/test_windows_computer_use_agent.py (15 tests) :
-      - Classification PolicyEngine (SAFE, LOW, MEDIUM, HIGH, CRITICAL) et
-        blocage des actions interdites (BLOCKED : UAC, Windows Defender, LSASS)
-        ;
-      - Règles personnalisées du PolicyEngine ;
-      - Workflow HITL complet (autorisation ponctuelle, refus, permission de
-        session, interdiction d'autorisation de session sur risque
-        HIGH/CRITICAL, retour au mode STRICT, timeout UI) ;
-      - ToolGateway et journalisation d'observabilité dans
-        .harness/operator_audit.jsonl ;
-      - Computer Use : capture d'écran, sauvegarde Bureau, comparaison visuelle
-        avant/après (computer_compare_screens), validation des coordonnées,
-        Fail-Safe (0, 0), et boucle fermée computer_action_verified ;
-      - PersistentTerminalSession (persistance des variables d'environnement
-        entre commandes PowerShell et fermeture propre sans ResourceWarning),
-        ProcessManager, Windows et Clipboard ;
-      - Récupération E2E de AgentLoop + Verifier après un clic sans effet.
-  - tests/test_ui_environment.py (32 tests), tests/test_general_skills.py,
-    tests/test_multi_agent_runtime.py, tests/test_skills.py,
-    tests/test_runtime.py : Validation complète de non-régression du runtime et
-    de l'interface.
-
-21. Journal des modifications architecturales
-
-1.  Architecture Agent Opérateur Windows & Computer Use en boucle fermée :
-    Création de core/policy_engine.py, core/tool_gateway.py, core/mcp_client.py,
-    tools/computer_use.py, tools/windows.py, tools/terminal_session.py,
-    tools/process_manager.py, tools/clipboard.py et
-    tests/test_windows_computer_use_agent.py.
-2.  Principe UX de Proportionnalité & Exécution Directe des Actions Simples :
-      - Ajout de save_to_desktop sur computer_screenshot et de l'outil natif
-        copy_to_desktop avec détection Win32 du dossier Bureau réel.
-      - Exécution directe sans confirmation bureaucratique pour les actions SAFE
-        et LOW non destructives (_LOW_FRICTION_OPERATOR_TOOLS).
-      - Planification minimale en 3 étapes pour les missions computer_use et
-        hiérarchie stricte privilégiant les outils natifs spécialisés sur
-        l'écriture de scripts Python temporaires.
-3.  Terminal PowerShell Persistant Instantané : Détection immédiate de fin de
-    commande par sentinelle (__NEOHARNESS_DONE__) et bascule automatique vers la
-    racine du projet lorsque la commande cible tests/ ou main.py.
-
-22. Risques connus et limites actuelles
-
-  - ClaudeProvider (providers/claude.py) reste un adaptateur squelette non
-    connecté (signalé explicitement comme Non connecté).
-  - OCR local (computer_ocr / transcribe_image) : L'extraction de texte dans les
-    captures d'écran utilise pytesseract et requiert que le binaire système
-    Tesseract OCR soit présent dans le PATH Windows pour l'analyse de texte sur
-    image (la capture d'écran et la comparaison pixel par pixel
-    computer_compare_screens fonctionnent nativement via Pillow sans Tesseract).
-
-23. Feuille de route technique (Roadmap)
-
-  - Connexion native de ClaudeProvider à l'API Anthropic Messages.
-  - Inspection de l'arbre d'accessibilité Windows UI Automation
-    (UIAutomationCore.dll) en complément de l'OCR et des coordonnées visuelles
-    dans tools/computer_use.py.
-
+1.  Computer Use 2.0 (UI Automation & Set-of-Mark) : Inspection de l'arbre
+    d'accessibilité Windows .NET et contrôles Win32, badges numérotés [1]..[N]
+    et clic déterministe par element_id (tools/computer_use.py).
+2.  Canvas Co-Éditable 2.0 & Comparateur Diff : Barre d'édition chirurgicale IA
+    sur sélection, recompilation automatique (Tectonic/HTML), comparateur visuel
+    de versions V1 \leftrightarrow V2 ligne par ligne (ui/server.py,
+    ui/static/app.js, ui/static/styles.css).
+3.  NeoDeepSearch & Google Search Grounding Officiel : Décomposition
+    déterministe en 5 axes thématiques, intégration du moteur Google mondial
+    officiel via le SDK google-genai (0 €), lecture intégrale en parallèle et
+    citations cliquables [Source N](url) (tools/search.py, ui/server.py).
+4.  Intelligence du Code AST & Diagnostics : Cartographie structurelle AST
+    (code_ast_map), recherche de définitions et références de symboles dans tout
+    le projet, diagnostic statique (diagnose_code) et isolation en Git Worktrees
+    (tools/code_search.py, tools/editor.py, tools/git.py, agents/coder.py).
+5.  Mémoire Hybride, Graphe de Connaissances & Compaction : Moteur de similarité
+    hybride (racines lexicales + trigrammes), graphe dynamique reliant souvenirs
+    et documents, et sanctuarisation des invariants lors de la compaction
+    (core/memory.py, core/library.py, core/context_manager.py).
+6.  Data Analyst Autonome & Excel Natif : Profilage statistique complet
+    (analyze_dataset : CSV, XLSX, JSON, SQLite) avec détection d'anomalies
+    (outliers) et corrélations de Pearson, ainsi que génération de vrais
+    classeurs Excel (generate_excel) avec formules natives =SUM / =AVERAGE
+    (tools/documents.py).
+7.  Mode Voix Live & Sentinelle Proactive : Synthèse vocale fluide en français
+    avec lecture naturelle des formules mathématiques, surveillance proactive du
+    terminal et de la fenêtre active (GET /api/sentinel), et interface 100 %
+    vectorielle SVG (ui/static/).
+8.  Alignement et Stabilisation des Tests : Validation stricte des 22 Skills
+    canoniques (avec antitriche et correction), protection de l'évaluation
+    Node.js dans test_ui_environment.py et passage à 100 % de tests au vert.

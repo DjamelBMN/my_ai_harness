@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 500" width="100%" height="100%">
+  <style>
+    .bg { fill: #fdfbf7; }
+    .title { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 20px; font-weight: bold; fill: #2c3e50; text-anchor: middle; }
+    .subtitle { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 13px; fill: #7f8c8d; text-anchor: middle; }
+    .label { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 500; fill: #34495e; }
+    .legend-line { stroke: #bdc3c7; stroke-width: 1.5; stroke-dasharray: 4,4; }
+    .genoise { fill: #f39c12; stroke: #d35400; stroke-width: 2; rx: 4; }
+    .creme { fill: #f1c40f; fill-opacity: 0.35; stroke: #f39c12; stroke-width: 2; rx: 4; }
+    .fraise { fill: #e74c3c; stroke: #c0392b; stroke-width: 1.5; }
+    .feuille { fill: #27ae60; }
+  </style>
+
+  <rect width="600" height="500" class="bg" rx="10" />
+
+  <text x="300" y="35" class="title">COUPE SCHÉMATIQUE D'UN FRAISIER TRADITIONNEL</text>
+  <text x="300" y="55" class="subtitle">Format SVG Légendé - De bas en haut</text>
+
+  <rect x="180" y="350" width="240" height="30" class="genoise" />
+  
+  <rect x="180" y="190" width="240" height="160" class="creme" />
+  
+  <circle cx="230" cy="270" r="14" class="fraise" />
+  <circle cx="310" cy="250" r="16" class="fraise" />
+  <circle cx="370" cy="300" r="15" class="fraise" />
+  <circle cx="260" cy="320" r="13" class="fraise" />
+
+  <path d="M 180 205 Q 160 220 180 235 Z" class="fraise" />
+  <path d="M 180 260 Q 160 275 180 290 Z" class="fraise" />
+  <path d="M 180 315 Q 160 330 180 345 Z" class="fraise" />
+  <path d="M 420 205 Q 440 220 420 235 Z" class="fraise" />
+  <path d="M 420 260 Q 440 275 420 290 Z" class="fraise" />
+  <path d="M 420 315 Q 440 330 420 345 Z" class="fraise" />
+
+  <rect x="180" y="160" width="240" height="30" class="genoise" />
+
+  <ellipse cx="300" cy="160" rx="120" ry="8" fill="#fadbd8" stroke="#e74c3c" stroke-width="1.5" />
+  
+  <g transform="translate(290, 130)">
+    <path d="M 10 0 Q 20 15 10 30 Q 0 15 10 0" class="fraise" />
+    <path d="M 10 2 Q 5 -5 10 -8 Q 15 -5 10 2" class="feuille" />
+  </g>
+
+  <line x1="300" y1="155" x2="100" y2="100" class="legend-line" />
+  <circle cx="100" cy="100" r="3" fill="#7f8c8d" />
+  <text x="90" y="95" class="label" text-anchor="end">1. Décor &amp; Fraise fraîche</text>
+
+  <line x1="420" y1="175" x2="480" y2="140" class="legend-line" />
+  <circle cx="480" cy="140" r="3" fill="#7f8c8d" />
+  <text x="490" y="145" class="label" text-anchor="start">2. Disque de génoise supérieur</text>
+
+  <line x1="420" y1="270" x2="500" y2="270" class="legend-line" />
+  <circle cx="500" cy="270" r="3" fill="#7f8c8d" />
+  <text x="510" y="275" class="label" text-anchor="start">3. Crème mousseline vanillée</text>
+
+  <line x1="165" y1="220" x2="80" y2="220" class="legend-line" />
+  <circle cx="80" cy="220" r="3" fill="#7f8c8d" />
+  <text x="70" y="225" class="label" text-anchor="end">4. Fraises coupées en bordure</text>
+
+  <line x1="420" y1="365" x2="480" y2="390" class="legend-line" />
+  <circle cx="480" cy="390" r="3" fill="#7f8c8d" />
+  <text x="490" y="395" class="label" text-anchor="start">5. Génoise imbibée de sirop</text>
+
+</svg>

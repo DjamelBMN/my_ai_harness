@@ -18,9 +18,11 @@ from tools.clipboard import clipboard_get, clipboard_set
 from tools.computer_use import (
     computer_action_verified,
     computer_click,
+    computer_click_element,
     computer_compare_screens,
     computer_drag,
     computer_hotkey,
+    computer_inspect_ui,
     computer_mouse_move,
     computer_ocr,
     computer_press,
@@ -29,7 +31,7 @@ from tools.computer_use import (
     computer_type,
     copy_to_desktop,
 )
-from tools.documents import read_document
+from tools.documents import analyze_dataset, generate_excel_workbook, read_document
 from tools.filesystem import WorkspaceFilesystem
 from tools.git import GitWorkspace
 from tools.process_manager import (
@@ -38,7 +40,7 @@ from tools.process_manager import (
     process_status,
     process_stop,
 )
-from tools.search import download_resource, fetch_url, web_search
+from tools.search import deep_research, download_resource, fetch_url, web_search
 from tools.terminal import (
     run_python_script,
     run_test_suite,
@@ -48,9 +50,9 @@ from tools.terminal import (
     terminal_start,
     terminal_stop,
 )
-from tools.editor import edit_file
+from tools.editor import diagnose_code, edit_file
 from tools.viewer import view_file
-from tools.code_search import search_code
+from tools.code_search import code_ast_map, search_code
 from tools.browser import DynamicBrowser
 from tools.compiler import AutonomousCompiler
 from tools.math_tikz import generate_math_figure
@@ -412,6 +414,39 @@ class ToolRegistry:
             timeout=180.0,
         )
         add(
+            "analyze_dataset",
+            "Exécute un profilage statistique complet d'un jeu de données (.csv, .tsv, .xlsx, .json, .sqlite) : schéma, moyenne, médiane, écart-type, corrélations de Pearson et détection des valeurs aberrantes (outliers).",
+            {"path": string, "sheet_name": optional_string},
+            ["path"],
+            lambda path, sheet_name="": analyze_dataset(path, sheet_name=sheet_name, filesystem=fs),
+            risk=RiskLevel.READ_ONLY,
+            mutates=False,
+            timeout=30.0,
+        )
+        add(
+            "generate_excel",
+            "Génère un classeur Excel (.xlsx) professionnel stylisé avec formules natives (=SUM, =AVERAGE) et ajustement automatique des colonnes.",
+            {
+                "output_path": string,
+                "headers": string_array,
+                "rows": {"type": "array", "items": {"type": "array"}},
+                "sheet_title": optional_string,
+                "include_formulas": boolean,
+            },
+            ["output_path", "headers", "rows"],
+            lambda output_path, headers, rows, sheet_title="Données", include_formulas=True: generate_excel_workbook(
+                output_path=output_path,
+                headers=headers,
+                rows=rows,
+                sheet_title=sheet_title,
+                include_formulas=include_formulas,
+                filesystem=fs,
+            ),
+            risk=RiskLevel.MODERATE,
+            mutates=True,
+            timeout=30.0,
+        )
+        add(
             "write_file",
             "Crée un fichier ou remplace un fichier après confirmation humaine.",
             {"path": string, "content": string, "overwrite": boolean},
@@ -461,6 +496,24 @@ class ToolRegistry:
             {"pattern": string, "path": optional_string, "file_glob": optional_string},
             ["pattern"],
             lambda pattern, path=".", file_glob=None: search_code(pattern, path=path, file_glob=file_glob, filesystem=fs),
+            risk=RiskLevel.READ_ONLY,
+        )
+        add(
+            "code_ast_map",
+            "Construit la carte structurelle AST du code (classes, méthodes, signatures, appels, imports) et localise les définitions et références d'un symbole.",
+            {"path": optional_string, "symbol_query": optional_string, "max_files": {"type": "integer"}},
+            [],
+            lambda path=".", symbol_query="", max_files=40: code_ast_map(
+                path=path, symbol_query=symbol_query, max_files=max_files, filesystem=fs
+            ),
+            risk=RiskLevel.READ_ONLY,
+        )
+        add(
+            "diagnose_code",
+            "Exécute un diagnostic statique et sémantique instantané (AST Python, code mort, arguments mutables, JSON) sur un fichier.",
+            {"path": string},
+            ["path"],
+            lambda path: diagnose_code(path=path, filesystem=fs),
             risk=RiskLevel.READ_ONLY,
         )
         add(
@@ -565,6 +618,27 @@ class ToolRegistry:
             risk=RiskLevel.READ_ONLY,
             mutates=False,
             timeout=35.0,
+        )
+        add(
+            "deep_research",
+            "Exécute une recherche profonde en essaim parallèle (Deep Research) : lance plusieurs sous-requêtes simultanées, lit le contenu complet de multiples sources indépendantes, croise les faits et génère des citations numérotées [1]..[N].",
+            {
+                "query": string,
+                "sub_queries": string_array,
+                "max_sources": {"type": "integer"},
+                "read_full_pages": boolean,
+            },
+            ["query"],
+            lambda query, sub_queries=None, max_sources=8, read_full_pages=True: deep_research(
+                query=query,
+                sub_queries=sub_queries,
+                max_sources=max_sources,
+                read_full_pages=read_full_pages,
+                workspace=fs.root,
+            ),
+            risk=RiskLevel.READ_ONLY,
+            mutates=False,
+            timeout=90.0,
         )
         add(
             "fetch_url",
@@ -1097,12 +1171,59 @@ class ToolRegistry:
             mutates=True,
         )
         add(
+            "computer_inspect_ui",
+            "Inspecte l'arbre d'accessibilité Windows UI Automation + Win32 de la fenêtre active et génère une capture Set-of-Mark (SoM) avec badges numérotés [1]..[N] et coordonnées exactes.",
+            {
+                "filter_text": optional_string,
+                "annotate_screenshot": boolean,
+                "max_elements": integer,
+            },
+            [],
+            lambda filter_text="", annotate_screenshot=True, max_elements=60: computer_inspect_ui(
+                filter_text=filter_text,
+                annotate_screenshot=annotate_screenshot,
+                max_elements=max_elements,
+                workspace=fs.root,
+            ),
+            risk=RiskLevel.READ_ONLY,
+            mutates=False,
+            timeout=20.0,
+        )
+        add(
+            "computer_click_element",
+            "Clique en boucle fermée sur un élément UI identifié par son numéro Set-of-Mark [element_id] (et saisit optionnellement du texte).",
+            {
+                "element_id": integer,
+                "button": optional_string,
+                "double": boolean,
+                "text_to_type": optional_string,
+                "press_enter": boolean,
+                "settle_ms": integer,
+            },
+            ["element_id"],
+            lambda element_id, button="left", double=False, text_to_type="", press_enter=False, settle_ms=350: (
+                computer_click_element(
+                    element_id=element_id,
+                    button=button,
+                    double=double,
+                    text_to_type=text_to_type,
+                    press_enter=press_enter,
+                    settle_ms=settle_ms,
+                    workspace=fs.root,
+                )
+            ),
+            risk=RiskLevel.MODERATE,
+            mutates=True,
+            timeout=25.0,
+        )
+        add(
             "computer_action_verified",
             "Exécute une action Computer Use en boucle fermée (Screenshot Avant -> Action -> Screenshot Après -> Vérification du changement d'écran et de fenêtre).",
             {
                 "action_type": string,
                 "x": integer,
                 "y": integer,
+                "element_id": integer,
                 "button": optional_string,
                 "text": optional_string,
                 "key": optional_string,
@@ -1111,11 +1232,12 @@ class ToolRegistry:
                 "settle_ms": integer,
             },
             ["action_type"],
-            lambda action_type, x=None, y=None, button="left", text="", key="", keys=None, expected_window="", settle_ms=350: (
+            lambda action_type, x=None, y=None, element_id=None, button="left", text="", key="", keys=None, expected_window="", settle_ms=350: (
                 computer_action_verified(
                     action_type=action_type,
                     x=x,
                     y=y,
+                    element_id=element_id,
                     button=button,
                     text=text,
                     key=key,

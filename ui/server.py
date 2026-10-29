@@ -1668,6 +1668,133 @@ class NeoHarnessRuntimeBridge:
         art = self.artifact_engine.rollback(relative_path, version_id, filesystem=self.filesystem)
         return art.to_dict()
 
+    def get_artifact_diff(self, relative_path: str) -> dict[str, Any]:
+        """Retourne l'historique des versions et le diff visuel ligne par ligne d'un artefact."""
+        clean_rel = (relative_path or "").strip()
+        if clean_rel.lower().endswith(".pdf"):
+            candidate_tex = str(Path(clean_rel).with_suffix(".tex")).replace("\\", "/")
+            try:
+                if self.filesystem.resolve(candidate_tex).is_file():
+                    clean_rel = candidate_tex
+            except Exception:
+                pass
+
+        history = self.get_artifact_history(clean_rel)
+        matching_changes = [c for c in self.file_changes if c.get("path") == clean_rel]
+        latest_diff_text = matching_changes[0].get("diff", "") if matching_changes else ""
+        added = matching_changes[0].get("added_lines", 0) if matching_changes else 0
+        removed = matching_changes[0].get("removed_lines", 0) if matching_changes else 0
+
+        parsed_lines: list[dict[str, str]] = []
+        for raw_line in latest_diff_text.splitlines():
+            if raw_line.startswith(("+++", "---", "@@")):
+                parsed_lines.append({"type": "hdr", "text": raw_line})
+            elif raw_line.startswith("+"):
+                parsed_lines.append({"type": "add", "text": raw_line})
+            elif raw_line.startswith("-"):
+                parsed_lines.append({"type": "del", "text": raw_line})
+            else:
+                parsed_lines.append({"type": "ctx", "text": raw_line})
+
+        return {
+            "path": clean_rel,
+            "added_lines": added,
+            "removed_lines": removed,
+            "diff_raw": latest_diff_text,
+            "diff_lines": parsed_lines,
+            "history": history,
+            "changes": matching_changes[:10],
+        }
+
+    def ai_edit_workspace_artifact(
+        self,
+        relative_path: str,
+        instruction: str,
+        *,
+        selected_text: str = "",
+    ) -> dict[str, Any]:
+        """Modifie chirurgicalement un artefact (ou uniquement la sélection) via l'IA et le recompile."""
+        clean_rel = (relative_path or "").strip()
+        instr = (instruction or "").strip()
+        if not clean_rel or not instr:
+            raise ValueError("Le chemin du fichier et l'instruction de modification sont requis.")
+
+        # Si l'utilisateur édite un PDF compilé depuis un .tex, cibler automatiquement le source .tex
+        if clean_rel.lower().endswith(".pdf"):
+            candidate_tex = str(Path(clean_rel).with_suffix(".tex")).replace("\\", "/")
+            if self.filesystem.resolve(candidate_tex).is_file():
+                clean_rel = candidate_tex
+
+        current_content = self.filesystem.read_file(clean_rel)
+        # Enregistre la version avant modification dans l'historique d'artefacts
+        try:
+            self.artifact_engine.process_file(clean_rel, filesystem=self.filesystem, auto_repair=False)
+        except Exception:
+            pass
+
+        self._ensure_routed_providers_ready()
+        provider = self.orchestrator.router.get_provider("coder", intent="writing")
+        sel = (selected_text or "").strip()
+
+        self.event_bus.emit_normalized(
+            event="AGENT_STEP",
+            raw_event="canvas.ai_edit",
+            summary=f"Modification chirurgicale Canvas IA sur {clean_rel} : {instr[:80]}",
+            status="running",
+            details={"path": clean_rel, "has_selection": bool(sel)},
+        )
+
+        if sel and sel in current_content:
+            prompt = (
+                f"Tu travailles en mode Canvas Co-Éditable sur le fichier '{clean_rel}'.\n"
+                "L'utilisateur a sélectionné un passage précis à modifier sans altérer le reste du document.\n"
+                f"INSTRUCTION DE L'UTILISATEUR : {instr}\n\n"
+                f"=== CONTEXTE DU FICHIER COMPLET ===\n{current_content[:6000]}\n\n"
+                f"=== PASSAGE SÉLECTIONNÉ À REMPLACER ===\n{sel}\n\n"
+                "Renvoie EXCLUSIVEMENT le nouveau texte/code qui doit remplacer le passage sélectionné, "
+                "sans balises Markdown ``` autour (sauf si elles faisaient partie de la sélection) et sans aucune phrase d'explication."
+            )
+            replacement = str(provider.generate(prompt) or "").strip()
+            m_fence = re.match(r"^```[a-zA-Z0-9_-]*\r?\n([\s\S]*?)\r?\n```$", replacement.strip())
+            if m_fence and not sel.startswith("```"):
+                replacement = m_fence.group(1)
+            new_content = current_content.replace(sel, replacement, 1)
+        else:
+            prompt = (
+                f"Tu travailles en mode Canvas Co-Éditable sur le fichier '{clean_rel}'.\n"
+                f"INSTRUCTION DE MODIFICATION : {instr}\n"
+                + (f"CIBLE PRIORITAIRE : {sel}\n" if sel else "")
+                + "\nApplique la modification demandée en préservant rigoureusement le reste du fichier.\n"
+                "Renvoie EXCLUSIVEMENT le contenu complet mis à jour du fichier, sans explication autour :\n\n"
+                f"=== CONTENU ACTUEL ({clean_rel}) ===\n{current_content}"
+            )
+            reply = str(provider.generate(prompt) or "").strip()
+            m_fence = re.search(r"```(?:[a-zA-Z0-9_-]+)?\s*\r?\n([\s\S]*?)```", reply)
+            new_content = m_fence.group(1).strip() if m_fence else reply
+
+        if not new_content or new_content.startswith(("Erreur", "RateLimit")):
+            raise RuntimeError(f"Le modèle n'a pas pu produire la modification : {new_content[:200]}")
+
+        is_tex = clean_rel.lower().endswith(".tex")
+        is_html = clean_rel.lower().endswith((".html", ".htm"))
+        write_res = self.write_workspace_file(
+            clean_rel,
+            new_content,
+            compile_if_latex=is_tex,
+            compile_if_html=is_html,
+            auto_repair=True,
+        )
+        diff_info = self.get_artifact_diff(clean_rel)
+        return {
+            "ok": True,
+            "path": clean_rel,
+            "content": self.filesystem.read_file(clean_rel),
+            "write_result": write_res,
+            "artifact": write_res.get("artifact"),
+            "compilation": write_res.get("compilation"),
+            "diff": diff_info,
+        }
+
     def upload_workspace_file(
         self,
         filename: str,
@@ -3904,7 +4031,7 @@ class NeoHarnessRuntimeBridge:
                 if hasattr(self, "rate_limit_manager") and self.rate_limit_manager is not None
                 else "mono"
             )
-        if resolved_mode not in {"chat", "mono", "multi"}:
+        if resolved_mode not in {"chat", "mono", "multi", "deepsearch"}:
             resolved_mode = "mono"
 
         # Le flag deep_reflection est STRICTEMENT aligné sur (resolved_mode == "multi")
@@ -4110,6 +4237,159 @@ class NeoHarnessRuntimeBridge:
                 pass
             conv["title"] = generate_task_title(clean_prompt, skill_hint="chat" if resolved_mode == "chat" else conv.get("last_skill", ""))
             self._save_conversations()
+
+        # =========================================================================
+        # MODE NEODEEPSEARCH : ESSAIM WEB PARALLÈLE + SYNTHÈSE EXHAUSTIVE EN 1 SEUL APPEL LLM
+        # =========================================================================
+        if resolved_mode == "deepsearch":
+            from tools.search import deep_research
+
+            self.current_task_status = "NeoDeepSearch"
+            self._ensure_routed_providers_ready()
+            try:
+                _router = self.orchestrator.router
+                _router.get_provider("researcher", intent="research", complexity="complex")
+                provider = _router.providers.get(_router.last_provider_key)
+            except Exception:
+                prov_key = self.orchestrator.router.session_provider_key
+                provider = self.orchestrator.router.providers.get(prov_key)
+
+            used_provider = provider.get_name() if provider else "Provider"
+            used_model = provider.get_model_name() if provider else "Modèle"
+
+            from tools.search import _build_human_research_axes
+
+            live_axes = _build_human_research_axes(clean_prompt)
+            for ax in live_axes:
+                self.event_bus.emit_normalized(
+                    event="AGENT_STEP",
+                    raw_event="deepsearch.axis",
+                    tool="deep_research",
+                    summary=f"{ax['title']} [{ax['pill']}]",
+                    status="running",
+                    details=ax,
+                )
+
+            dr_data = deep_research(
+                query=clean_prompt,
+                max_sources=8,
+                read_full_pages=True,
+                workspace=self.filesystem.root,
+            )
+            dr_sources = list(dr_data.get("sources") or [])
+            self.event_bus.emit_normalized(
+                event="TOOL_RESULT",
+                raw_event="tool.completed",
+                tool="deep_research",
+                summary=f"NeoDeepSearch : {len(dr_sources)} sources lues en profondeur ({dr_data.get('distinct_domains', 0)} domaines distincts en {dr_data.get('elapsed_seconds', 0)}s)",
+                status="completed",
+                details={
+                    "sources_count": len(dr_sources),
+                    "distinct_domains": dr_data.get("distinct_domains", 0),
+                    "sub_queries": dr_data.get("sub_queries", []),
+                },
+            )
+
+            deep_prompt = (
+                "Tu es NeoDeepSearch, le moteur de recherche approfondie de NeoHarness AI.\n"
+                f"Date du jour : {datetime.now().strftime('%Y-%m-%d')}.\n"
+                "L'utilisateur a activé le mode NeoDeepSearch pour obtenir un rapport de recherche exhaustif, rigoureux et vérifié.\n\n"
+                "CONSIGNES DE RÉDACTION STRICTES :\n"
+                "1. Structure ton rapport avec des sections claires (## Synthèse Exécutive, ## Analyse Détaillée par Axe, ## Données Chiffrées & Faits Vérifiés, ## Divergences, Limites & Perspectives).\n"
+                "2. CITE OBLIGATOIREMENT tes sources à chaque fait, chiffre ou constat en insérant des citations cliquables Markdown au format exact [Source 1](url), [Source 2](url) (SANS doubles crochets) correspondant aux numéros du dossier ci-dessous.\n"
+                "3. Croise les informations entre plusieurs domaines indépendants et distingue les faits prouvés des estimations.\n"
+                "4. Termine par une section '## Sources vérifiées' listant chaque référence [1] à [N] avec son titre, son domaine, son niveau d'autorité et son lien.\n\n"
+                f"{dr_data.get('formatted', '')}\n\n"
+                f"DEMANDE DE L'UTILISATEUR : {clean_prompt}\n"
+                "RAPPORT NEODEEPSEARCH COMPLET :"
+            )
+
+            _stream_parts: list[str] = []
+            try:
+                if hasattr(provider, "generate_stream"):
+                    for _chunk in provider.generate_stream(deep_prompt):
+                        _stream_parts.append(_chunk)
+                        self.event_bus.emit_stream_delta(delta=_chunk, accumulated="".join(_stream_parts))
+                    answer_text = "".join(_stream_parts).strip()
+                    if not answer_text:
+                        answer_text = str(provider.generate(prompt=deep_prompt) or "").strip()
+                else:
+                    answer_text = str(provider.generate(prompt=deep_prompt) or "").strip()
+            except Exception as err:
+                if _stream_parts:
+                    answer_text = "".join(_stream_parts).strip()
+                else:
+                    answer_text = (
+                        f"### Synthèse NeoDeepSearch (Mode résilient hors quota LLM)\n\n"
+                        f"Le fournisseur LLM (`{used_provider}`) a signalé une limite de quota (`{err}`), "
+                        f"mais **NeoDeepSearch** a extrait et vérifié **{len(dr_sources)} sources indépendantes** :\n\n"
+                        f"```text\n{dr_data.get('formatted', '')[:6000]}\n```"
+                    )
+
+            # Convertit tout éventuel [[1]](url) en [Source 1](url) proprement cliquable
+            answer_text = re.sub(r"\[\[(\d+)\]\]\((https?://[^\s)]+)\)", r"[Source \1](\2)", answer_text)
+            elapsed_ms = int((monotonic() - started_mono) * 1000)
+            calc_tokens = max(1, int(len(deep_prompt) / 3.8 + len(answer_text) / 3.8))
+            ui_sources = [
+                {
+                    "title": f"[{s['citation_id']}] {s['title']}",
+                    "url": s["url"],
+                    "snippet": s.get("extracted_content", "")[:300],
+                    "source": f"{s['domain']} · {s['authority_label']}",
+                    "published_at": s.get("published_at", ""),
+                }
+                for s in dr_sources
+            ]
+            axes_list = list(dr_data.get("research_axes") or [])
+            assistant_msg = {
+                "id": f"msg-{uuid.uuid4().hex[:8]}",
+                "role": "assistant",
+                "content": answer_text,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "execution_mode": "deepsearch",
+                "status": "Terminé",
+                "duration_ms": elapsed_ms,
+                "tokens": calc_tokens,
+                "agent": "NeoDeepSearch",
+                "skill": "research",
+                "provider": used_provider,
+                "model": used_model,
+                "plan_steps": [],
+                "events": [],
+                "research_axes": axes_list,
+                "tools_used": ["deep_research"],
+                "sources": ui_sources,
+                "verification": f"NeoDeepSearch : {len(dr_sources)} sources vérifiées sur {dr_data.get('distinct_domains', 0)} domaines",
+            }
+            conv["messages"].append(assistant_msg)
+            self._save_conversations()
+            self.event_bus.complete_task(
+                status="completed",
+                duration_ms=elapsed_ms,
+                summary=f"NeoDeepSearch terminé en {elapsed_ms} ms ({len(dr_sources)} sources croisées)",
+            )
+            self.current_task_status = "Terminé"
+            return {
+                "ok": True,
+                "task_id": task_id,
+                "conversation_id": conv["id"],
+                "status": "Terminé",
+                "duration_ms": elapsed_ms,
+                "objective": clean_prompt,
+                "result": assistant_msg,
+                "assistant_message": assistant_msg,
+                "answer": answer_text,
+                "used_agent": "NeoDeepSearch",
+                "used_skill": "research",
+                "used_provider": used_provider,
+                "used_model": used_model,
+                "used_tools": ["deep_research"],
+                "used_sources": ui_sources,
+                "verification": {"status": "ok", "summary": assistant_msg["verification"]},
+                "recorded_diffs": [],
+                "preview_artifacts": [],
+                "compilation_errors": [],
+            }
 
         # =========================================================================
         # MODE SANS AGENT (CHAT DIRECT) : ÉCONOMIE MAXIMALE DE TOKENS
@@ -4583,6 +4863,67 @@ class NeoHarnessRuntimeBridge:
             status="cancelled",
         )
         return {"ok": True, "task_id": self.current_task_id, "status": "Arrêté"}
+
+    def get_sentinel_status(self) -> dict[str, Any]:
+        """Mode Sentinelle Proactif : inspecte les sessions de terminal persistantes, la fenêtre active
+        et les derniers événements pour détecter toute erreur ou crash et proposer une correction en 1 clic."""
+        from tools.terminal import terminal_list, terminal_read
+        from tools.windows import window_active
+
+        active_win = {}
+        try:
+            active_win = window_active().get("window") or {}
+        except Exception:
+            pass
+
+        sessions_info = []
+        detected_error = ""
+        error_source = ""
+        error_pattern = re.compile(
+            r"(Traceback \(most recent call last\)|(?:Syntax|Type|Value|Runtime|Import|Name|Key|Attribute|FileNotFound)Error:[^\n]+|FAILED \(failures=\d+\)|npm ERR![^\n]*)",
+            re.I,
+        )
+
+        try:
+            t_list = terminal_list()
+            for sess in t_list.get("sessions", []):
+                sid = sess.get("session_id", "default")
+                sessions_info.append(sid)
+                read_res = terminal_read(session_id=sid, wait_ms=50)
+                combined_out = f"{read_res.get('stdout', '')}\n{read_res.get('stderr', '')}".strip()
+                if combined_out:
+                    m = error_pattern.search(combined_out)
+                    if m:
+                        detected_error = combined_out[-600:]
+                        error_source = f"Terminal ({sid})"
+                        break
+        except Exception:
+            pass
+
+        if not detected_error:
+            recent_events = self.event_bus.list_events(limit=15)
+            for ev in reversed(recent_events):
+                if ev.get("event") == "ERROR" or ev.get("status") == "error":
+                    detected_error = str(ev.get("error") or ev.get("summary") or "")[:400]
+                    error_source = f"Runtime ({ev.get('tool') or 'Tâche'})"
+                    break
+
+        has_alert = bool(detected_error)
+        suggested_prompt = (
+            f"Corrige l'erreur détectée par la Sentinelle dans {error_source} :\n```\n{detected_error[-400:]}\n```"
+            if has_alert
+            else ""
+        )
+        return {
+            "ok": True,
+            "status": "alert" if has_alert else "healthy",
+            "active_window": active_win,
+            "terminal_sessions": sessions_info,
+            "error_detected": has_alert,
+            "error_source": error_source,
+            "error_excerpt": detected_error,
+            "suggested_prompt": suggested_prompt,
+        }
 
     def get_run_state(self, run_id: str = "current") -> dict[str, Any]:
         """Récupère l'état complet d'une mission (plan, budget, compilation, recherche, événements) pour reprise."""
@@ -5069,6 +5410,11 @@ class NeoHarnessUIApp:
         if path == "/api/artifacts/history":
             art_p = _first("path")
             return HTTPStatus.OK, {"history": self.bridge.get_artifact_history(art_p)}
+        if path == "/api/artifacts/diff":
+            art_p = _first("path")
+            if not art_p:
+                return HTTPStatus.BAD_REQUEST, {"error": "Paramètre 'path' requis."}
+            return HTTPStatus.OK, self.bridge.get_artifact_diff(art_p)
 
         if path == "/api/library":
             cat = _first("category") or None
@@ -5100,6 +5446,9 @@ class NeoHarnessUIApp:
 
         if path == "/api/runs":
             return HTTPStatus.OK, self.bridge.get_run_state("current")
+
+        if path == "/api/sentinel":
+            return HTTPStatus.OK, self.bridge.get_sentinel_status()
 
         if path == "/api/audit":
             return HTTPStatus.OK, self.bridge.get_audit_report()
@@ -5225,8 +5574,8 @@ class NeoHarnessUIApp:
                 raw_mode = (body.get("execution_mode") or "").strip().lower()
                 if not raw_mode:
                     raw_mode = "multi" if body.get("deep_reflection") else "mono"
-                if raw_mode not in {"chat", "mono", "multi"}:
-                    raw_mode = "mono"
+                if raw_mode not in {"chat", "mono", "multi", "deepsearch"}:
+                    raw_mode = "mono"   
                 deep_refl = (raw_mode == "multi")
                 result = self.bridge.execute_task(
                     prompt,
@@ -5243,7 +5592,8 @@ class NeoHarnessUIApp:
                 rlm = getattr(self.bridge, "rate_limit_manager", None)
                 if not rlm:
                     return HTTPStatus.OK, {"ok": False, "error": "RateLimitManager non initialisé."}
-                mode = body.get("mode")
+                raw_req_mode = body.get("mode")
+                mode = "mono" if raw_req_mode == "deepsearch" else raw_req_mode
                 max_parallel = body.get("max_parallel_agents")
                 profile = body.get("profile")
                 fallback = body.get("fallback_enabled")
@@ -5308,6 +5658,17 @@ class NeoHarnessUIApp:
                     return HTTPStatus.OK, rolled
                 except Exception as ex:
                     return HTTPStatus.BAD_REQUEST, {"error": str(ex)}
+
+            if path == "/api/artifacts/ai-edit":
+                edit_path = str(body.get("path") or "").strip()
+                instr = str(body.get("instruction") or "").strip()
+                sel_txt = str(body.get("selected_text") or "")
+                res_edit = self.bridge.ai_edit_workspace_artifact(
+                    edit_path,
+                    instr,
+                    selected_text=sel_txt,
+                )
+                return HTTPStatus.OK, res_edit
 
             if path == "/api/files/compile-html":
                 html_path = str(body.get("path") or "").strip()

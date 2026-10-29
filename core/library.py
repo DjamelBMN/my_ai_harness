@@ -168,13 +168,19 @@ class LibraryManager:
 
         needle = query.strip().casefold()
         if needle:
-            results = [
-                r for r in results
-                if needle in r.title.casefold()
-                or needle in (r.summary or "").casefold()
-                or needle in (r.path or "").casefold()
-                or any(needle in t.casefold() for t in r.tags)
-            ]
+            from core.memory import MemoryManager
+
+            scored_results: list[tuple[float, LibraryItem]] = []
+            for r in results:
+                hay = f"{r.title} {r.summary or ''} {r.path or ''} {' '.join(r.tags)} {(r.content or '')[:600]}".casefold()
+                if needle in hay:
+                    scored_results.append((1.0, r))
+                else:
+                    sim = MemoryManager.hybrid_semantic_score(needle, hay)
+                    if sim >= 0.22:
+                        scored_results.append((sim, r))
+            scored_results.sort(key=lambda item: (item[1].pinned, item[0], item[1].updated_at), reverse=True)
+            return [r.to_dict() for _, r in scored_results]
 
         results.sort(key=lambda x: (not x.pinned, x.updated_at), reverse=True)
         return [r.to_dict() for r in results]

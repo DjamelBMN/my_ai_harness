@@ -20,9 +20,14 @@ import time
 from pathlib import Path
 from typing import Any
 
-from PIL import Image, ImageChops, ImageGrab
+import json
+import subprocess
+from PIL import Image, ImageChops, ImageDraw, ImageFont, ImageGrab
 
 from tools.windows import window_active, window_find, window_focus
+
+# Cache mémoire des derniers éléments UI inspectés (Set-of-Mark : id -> élément)
+_LAST_UI_ELEMENTS: dict[int, dict[str, Any]] = {}
 
 # Constantes Win32 souris et clavier
 MOUSEEVENTF_MOVE = 0x0001
@@ -390,6 +395,295 @@ def computer_ocr(
 
 
 # ------------------------------------------------------------------
+# UI AUTOMATION WINDOWS & SET-OF-MARK (SoM)
+# ------------------------------------------------------------------
+
+class _RECT(ctypes.Structure):
+    _fields_ = [
+        ("left", ctypes.c_long),
+        ("top", ctypes.c_long),
+        ("right", ctypes.c_long),
+        ("bottom", ctypes.c_long),
+    ]
+
+
+def _collect_win32_child_elements(hwnd_root: int) -> list[dict[str, Any]]:
+    """Collecte ultra-rapide des contrôles enfants Win32 natifs de la fenêtre active."""
+    if not _is_win32() or not hwnd_root:
+        return []
+    user32 = ctypes.windll.user32
+    items: list[dict[str, Any]] = []
+    WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+
+    def _cb(hwnd: int, _lparam: int) -> bool:
+        try:
+            if not user32.IsWindowVisible(hwnd):
+                return True
+            rect = _RECT()
+            if not user32.GetWindowRect(hwnd, ctypes.byref(rect)):
+                return True
+            w = int(rect.right - rect.left)
+            h = int(rect.bottom - rect.top)
+            if w < 12 or h < 10 or w > 2500 or h > 2000:
+                return True
+
+            length = user32.GetWindowTextLengthW(hwnd)
+            buf = ctypes.create_unicode_buffer(length + 1) if length > 0 else None
+            if buf is not None:
+                user32.GetWindowTextW(hwnd, buf, length + 1)
+            text = (buf.value if buf is not None else "").strip()
+
+            cls_buf = ctypes.create_unicode_buffer(128)
+            user32.GetClassNameW(hwnd, cls_buf, 128)
+            cls_name = cls_buf.value.strip()
+
+            if not text and not any(
+                k in cls_name.lower()
+                for k in ("button", "edit", "combobox", "tab", "toolbar", "listview", "tree")
+            ):
+                return True
+
+            items.append(
+                {
+                    "name": text or cls_name,
+                    "control_type": cls_name or "Control",
+                    "automation_id": f"hwnd_{hwnd}",
+                    "source": "win32",
+                    "x": int(rect.left + w // 2),
+                    "y": int(rect.top + h // 2),
+                    "bbox": {
+                        "left": int(rect.left),
+                        "top": int(rect.top),
+                        "width": w,
+                        "height": h,
+                    },
+                }
+            )
+        except Exception:
+            pass
+        return True
+
+    try:
+        user32.EnumChildWindows(hwnd_root, WNDENUMPROC(_cb), 0)
+    except Exception:
+        pass
+    return items
+
+
+def _collect_uia_elements(max_elements: int = 80) -> list[dict[str, Any]]:
+    """Interroge l'arbre d'accessibilité Windows UI Automation (.NET AutomationElement) de la fenêtre active."""
+    if not _is_win32():
+        return []
+    ps_script = (
+        "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; "
+        "Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes; "
+        "$fg = [System.Windows.Automation.AutomationElement]::FocusedElement; "
+        "$root = [System.Windows.Automation.AutomationElement]::RootElement; "
+        "try { "
+        "  $p = $fg; "
+        "  while ($null -ne $p -and $p.Current.ProcessId -eq $fg.Current.ProcessId) { "
+        "    $parent = [System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($p); "
+        "    if ($null -eq $parent -or $parent -eq $root) { break }; "
+        "    $p = $parent "
+        "  }; "
+        "  $win = if ($null -ne $p) { $p } else { $root }; "
+        "  $cond = [System.Windows.Automation.Condition]::TrueCondition; "
+        "  $all = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond); "
+        "  $out = @(); "
+        "  foreach ($el in $all) { "
+        "    if ($out.Count -ge " + str(int(max_elements)) + ") { break }; "
+        "    $c = $el.Current; "
+        "    if ($c.IsOffscreen) { continue }; "
+        "    $r = $c.BoundingRectangle; "
+        "    if ([double]::IsInfinity($r.Width) -or $r.Width -lt 10 -or $r.Height -lt 10) { continue }; "
+        "    $ct = $c.ControlType.ProgrammaticName -replace 'ControlType\\.',''; "
+        "    if ($ct -notin @('Button','Edit','Document','Hyperlink','MenuItem','TabItem','CheckBox','ComboBox','ListItem','RadioButton','SplitButton','TreeItem')) { continue }; "
+        "    $out += @{ "
+        "      name = [string]$c.Name; "
+        "      control_type = [string]$ct; "
+        "      automation_id = [string]$c.AutomationId; "
+        "      left = [int]$r.Left; "
+        "      top = [int]$r.Top; "
+        "      width = [int]$r.Width; "
+        "      height = [int]$r.Height "
+        "    } "
+        "  }; "
+        "  $out | ConvertTo-Json -Compress "
+        "} catch { '[]' }"
+    )
+    try:
+        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        proc = subprocess.run(
+            ["powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", ps_script],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=3.5,
+            creationflags=creationflags,
+        )
+        raw = (proc.stdout or "").strip()
+        if not raw:
+            return []
+        parsed = json.loads(raw)
+        if isinstance(parsed, dict):
+            parsed = [parsed]
+        if not isinstance(parsed, list):
+            return []
+        results: list[dict[str, Any]] = []
+        for item in parsed:
+            if not isinstance(item, dict):
+                continue
+            left = int(item.get("left", 0))
+            top = int(item.get("top", 0))
+            width = int(item.get("width", 0))
+            height = int(item.get("height", 0))
+            if width <= 0 or height <= 0:
+                continue
+            results.append(
+                {
+                    "name": str(item.get("name") or item.get("automation_id") or item.get("control_type") or "").strip(),
+                    "control_type": str(item.get("control_type") or "Control"),
+                    "automation_id": str(item.get("automation_id") or ""),
+                    "source": "uia",
+                    "x": left + width // 2,
+                    "y": top + height // 2,
+                    "bbox": {"left": left, "top": top, "width": width, "height": height},
+                }
+            )
+        return results
+    except Exception:
+        return []
+
+
+def computer_inspect_ui(
+    filter_text: str = "",
+    annotate_screenshot: bool = True,
+    max_elements: int = 60,
+    workspace: str | Path = "workspace",
+) -> dict[str, Any]:
+    """Inspecte l'arbre UI Automation + Win32 de la fenêtre active et génère une capture Set-of-Mark (SoM) numérotée [1]..[N]."""
+    global _LAST_UI_ELEMENTS
+    ws_root = Path(workspace).resolve()
+    shot = computer_screenshot(label="som_base", workspace=ws_root)
+    active_win = shot.get("active_window") or {}
+    hwnd = int(active_win.get("hwnd") or 0)
+
+    raw_elements = _collect_uia_elements(max_elements=max_elements)
+    win32_elements = _collect_win32_child_elements(hwnd)
+
+    # Fusion et déduplication par proximité des centres (évite les doublons UIA / Win32)
+    merged: list[dict[str, Any]] = []
+    for candidate in raw_elements + win32_elements:
+        cx, cy = int(candidate["x"]), int(candidate["y"])
+        if cx <= 0 or cy <= 0:
+            continue
+        duplicate = False
+        for existing in merged:
+            if abs(existing["x"] - cx) < 14 and abs(existing["y"] - cy) < 14:
+                if not existing.get("name") and candidate.get("name"):
+                    existing["name"] = candidate["name"]
+                duplicate = True
+                break
+        if not duplicate:
+            merged.append(candidate)
+
+    # Repli OCR si aucun contrôle natif n'est remonté (ex: canvas graphique ou environnement de test)
+    if not merged:
+        ocr_res = computer_ocr(image_path=shot["abs_path"], workspace=ws_root)
+        for el in ocr_res.get("elements", [])[:max_elements]:
+            merged.append(
+                {
+                    "name": el.get("text", ""),
+                    "control_type": "OCRText",
+                    "automation_id": "",
+                    "source": "ocr",
+                    "x": int(el["x"]),
+                    "y": int(el["y"]),
+                    "bbox": el.get("bbox", {"left": el["x"] - 20, "top": el["y"] - 10, "width": 40, "height": 20}),
+                }
+            )
+
+    needle = (filter_text or "").strip().casefold()
+    if needle:
+        merged = [
+            el
+            for el in merged
+            if needle in str(el.get("name", "")).casefold()
+            or needle in str(el.get("control_type", "")).casefold()
+            or needle in str(el.get("automation_id", "")).casefold()
+        ]
+
+    merged = merged[: max(1, min(int(max_elements or 60), 120))]
+    _LAST_UI_ELEMENTS = {}
+    indexed_elements: list[dict[str, Any]] = []
+    for idx, el in enumerate(merged, start=1):
+        entry = {
+            "id": idx,
+            "tag": f"[{idx}]",
+            "name": el.get("name") or f"Element_{idx}",
+            "control_type": el.get("control_type", "Control"),
+            "automation_id": el.get("automation_id", ""),
+            "source": el.get("source", "uia"),
+            "x": int(el["x"]),
+            "y": int(el["y"]),
+            "bbox": el["bbox"],
+        }
+        _LAST_UI_ELEMENTS[idx] = entry
+        indexed_elements.append(entry)
+
+    som_rel_path = shot["path"]
+    som_abs_path = shot["abs_path"]
+    if annotate_screenshot and indexed_elements:
+        try:
+            with Image.open(shot["abs_path"]) as base_img:
+                canvas = base_img.convert("RGB")
+                draw = ImageDraw.Draw(canvas)
+                font = ImageFont.load_default()
+                palette = [
+                    (220, 38, 38),
+                    (37, 99, 235),
+                    (22, 163, 74),
+                    (217, 119, 6),
+                    (147, 51, 234),
+                ]
+                for item in indexed_elements:
+                    color = palette[(item["id"] - 1) % len(palette)]
+                    bbox = item["bbox"]
+                    left = max(0, int(bbox.get("left", item["x"] - 15)))
+                    top = max(0, int(bbox.get("top", item["y"] - 10)))
+                    right = min(canvas.width - 1, left + max(10, int(bbox.get("width", 30))))
+                    bottom = min(canvas.height - 1, top + max(10, int(bbox.get("height", 20))))
+                    draw.rectangle([left, top, right, bottom], outline=color, width=2)
+                    label_txt = f"{item['id']}"
+                    badge_w = max(16, 7 * len(label_txt) + 6)
+                    badge_h = 14
+                    bx0 = max(0, left)
+                    by0 = max(0, top - badge_h if top >= badge_h else top)
+                    draw.rectangle([bx0, by0, bx0 + badge_w, by0 + badge_h], fill=color)
+                    draw.text((bx0 + 3, by0 + 1), label_txt, fill=(255, 255, 255), font=font)
+
+                som_file = Path(shot["abs_path"]).with_name(f"som_{ int(time.time() * 1000) }.png")
+                canvas.save(som_file, format="PNG")
+                som_abs_path = str(som_file)
+                som_rel_path = som_file.relative_to(ws_root).as_posix()
+        except Exception:
+            pass
+
+    return {
+        "status": "success",
+        "verified": True,
+        "active_window": active_win,
+        "screenshot_path": shot["path"],
+        "som_screenshot_path": som_rel_path,
+        "som_abs_path": som_abs_path,
+        "elements_count": len(indexed_elements),
+        "elements": indexed_elements,
+        "filter_text": filter_text,
+    }
+
+
+# ------------------------------------------------------------------
 # ACTIONS SOURIS
 # ------------------------------------------------------------------
 
@@ -607,11 +901,52 @@ def computer_type(text: str, interval_ms: int = 8) -> dict[str, Any]:
 # BOUCLE FERMÉE : PERCEPTION -> ACTION -> OBSERVATION -> VÉRIFICATION
 # ------------------------------------------------------------------
 
+def computer_click_element(
+    element_id: int,
+    button: str = "left",
+    double: bool = False,
+    text_to_type: str = "",
+    press_enter: bool = False,
+    settle_ms: int = 350,
+    workspace: str | Path = "workspace",
+) -> dict[str, Any]:
+    """Clique en boucle fermée sur un élément UI identifié par son numéro Set-of-Mark [element_id] (et saisit du texte optionnel)."""
+    eid = int(element_id)
+    if eid not in _LAST_UI_ELEMENTS:
+        computer_inspect_ui(annotate_screenshot=False, workspace=workspace)
+    target = _LAST_UI_ELEMENTS.get(eid)
+    if not target:
+        raise ValueError(
+            f"Élément UI [{eid}] introuvable. Appelez d'abord 'computer_inspect_ui' pour obtenir la carte Set-of-Mark."
+        )
+    res = computer_action_verified(
+        "double_click" if double else "click",
+        x=int(target["x"]),
+        y=int(target["y"]),
+        button=button,
+        settle_ms=settle_ms,
+        workspace=workspace,
+    )
+    res["target_element"] = target
+    if text_to_type:
+        time.sleep(0.08)
+        type_res = computer_type(text=text_to_type)
+        res["typed_text"] = type_res
+        if press_enter:
+            time.sleep(0.04)
+            computer_press("enter")
+            res["pressed_enter"] = True
+        res["verified"] = True
+        res["status"] = "success"
+    return res
+
+
 def computer_action_verified(
     action_type: str,
     *,
     x: int | None = None,
     y: int | None = None,
+    element_id: int | None = None,
     button: str = "left",
     text: str = "",
     key: str = "",
@@ -628,6 +963,15 @@ def computer_action_verified(
     5. Comparaison d'écran et vérification du résultat attendu.
     """
     act = (action_type or "").strip().lower()
+    if element_id is not None and (x is None or y is None):
+        eid = int(element_id)
+        if eid not in _LAST_UI_ELEMENTS:
+            computer_inspect_ui(annotate_screenshot=False, workspace=workspace)
+        if eid not in _LAST_UI_ELEMENTS:
+            raise ValueError(f"Élément UI [{eid}] introuvable dans la carte Set-of-Mark.")
+        x = int(_LAST_UI_ELEMENTS[eid]["x"])
+        y = int(_LAST_UI_ELEMENTS[eid]["y"])
+
     before_shot = computer_screenshot(label=f"before_{act}", workspace=workspace)
     before_win = before_shot.get("active_window") or {}
     before_title = str(before_win.get("title") or "")

@@ -424,10 +424,17 @@
                       </div>
                       <span class="popover-check" style="display: none;">✓</span>
                     </div>
-                    <div class="model-popover-item" data-exec-mode="multi">
+<div class="model-popover-item" data-exec-mode="multi">
                       <div class="popover-item-text">
                         <strong>NeoHarness Deep</strong>
                         <span>Analyse approfondie</span>
+                      </div>
+                      <span class="popover-check" style="display: none;">✓</span>
+                    </div>
+                    <div class="model-popover-item" data-exec-mode="deepsearch">
+                      <div class="popover-item-text">
+                        <strong>NeoDeepSearch</strong>
+                        <span>Recherche Web approfondie &amp; sources croisées</span>
                       </div>
                       <span class="popover-check" style="display: none;">✓</span>
                     </div>
@@ -440,6 +447,16 @@
                     </div>
                   </div>
                 </div>
+
+                <!-- Bouton 1-clic d'activation manuelle NeoDeepSearch -->
+                <button id="btn-neodeepsearch-toggle" type="button" class="composer-deepsearch-pill" title="Activer/Désactiver NeoDeepSearch (Recherche Web parallèle multi-sources avec citations)" aria-pressed="false">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="2" y1="12" x2="22" y2="12"></line>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                  </svg>
+                  <span>NeoDeepSearch</span>
+                </button>
 
                 <!-- Boutons cachés préservés pour contrats DOM et scripts -->
                 <button id="btn-direct-chat" type="button" style="display: none;" aria-pressed="false"></button>
@@ -466,6 +483,24 @@
               </div>
 
               <div class="composer-controls-right">
+              <div class="composer-controls-right">
+                <!-- Bouton Mode Sentinelle Proactif (Icône vectorielle Radar/Bouclier) -->
+                <button id="btn-sentinel-scan" type="button" class="voice-mic-btn" title="Mode Sentinelle Proactif (Surveiller le terminal et diagnostiquer les erreurs)" aria-label="Mode Sentinelle" aria-pressed="false">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                  </svg>
+                </button>
+
+                <!-- Bouton Mode Voix Temps Réel / Synthèse Vocale (Icône vectorielle Haut-Parleur) -->
+                <button id="btn-voice-tts-toggle" type="button" class="voice-mic-btn" title="Activer/Désactiver la réponse vocale temps réel (Mode Live)" aria-label="Réponse vocale Live" aria-pressed="false">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                  </svg>
+                </button>
+
                 <button id="btn-voice-dictate" type="button" class="voice-mic-btn" title="Dicter au microphone" aria-label="Dicter un message au microphone">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
@@ -473,7 +508,6 @@
                     <line x1="12" x2="12" y1="19" y2="22"></line>
                   </svg>
                 </button>
-
                 <span class="composer-shortcut-hint">↵ envoyer</span>
 
                 <button id="btn-send-task" type="button" class="send-round-btn" title="Envoyer (Entrée)">
@@ -505,9 +539,14 @@
               <span id="doc-preview-meta" class="doc-preview-meta"></span>
             </div>
             <div class="doc-preview-actions">
-              <div id="doc-view-switcher" class="doc-view-switcher">
+            <div id="doc-view-switcher" class="doc-view-switcher">
                 <button id="btn-doc-view-render" type="button" class="doc-switch-btn active">Aperçu</button>
                 <button id="btn-doc-view-source" type="button" class="doc-switch-btn">Code source</button>
+                <button id="btn-doc-view-diff" type="button" class="doc-switch-btn" title="Comparer les versions (Diff visuel V1 ↔ V2)">Diff</button>
+                <button id="btn-doc-canvas-ai" type="button" class="doc-switch-btn canvas-ai-btn" title="Modifier chirurgicalement une sélection ou ce document avec l'IA">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px; vertical-align:-1px;"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                  <span>Éditer IA</span>
+                </button>
                 <button id="btn-doc-view-files" type="button" class="doc-switch-btn" style="display: none;">Fichiers</button>
                 <button id="btn-doc-view-console" type="button" class="doc-switch-btn" style="display: none;">Console</button>
               </div>
@@ -576,9 +615,35 @@
             </div>
           </div>
 
-          <div id="doc-preview-notice" class="doc-preview-notice" style="display: none;"></div>
+<div id="doc-preview-notice" class="doc-preview-notice" style="display: none;"></div>
+
+          <!-- Barre Co-Édition IA du Canvas (Modification chirurgicale sur sélection ou document) -->
+          <div id="doc-canvas-ai-bar" class="doc-canvas-ai-bar" style="display: none;">
+            <div class="canvas-ai-top-row">
+              <span id="canvas-selection-badge" class="canvas-selection-badge">Cible : Document entier</span>
+              <div class="canvas-quick-chips">
+                <button type="button" class="canvas-quick-chip" data-canvas-prompt="Améliore la clarté, la présentation et la rigueur de ce passage">Améliorer</button>
+                <button type="button" class="canvas-quick-chip" data-canvas-prompt="Corrige les éventuelles erreurs ou bugs dans cette partie">Corriger</button>
+                <button type="button" class="canvas-quick-chip" data-canvas-prompt="Approfondis et enrichis cette partie avec plus de détails">Approfondir</button>
+                <button type="button" class="canvas-quick-chip" data-canvas-prompt="Simplifie et raccourcis ce passage">Simplifier</button>
+              </div>
+            </div>
+            <div class="canvas-ai-input-row">
+              <input
+                id="canvas-ai-input"
+                type="text"
+                class="canvas-ai-input"
+                placeholder="Demandez une modification chirurgicale (ex: Change les valeurs numériques de l'exercice 1)…"
+              />
+              <button id="btn-canvas-ai-apply" type="button" class="btn-doc-primary">
+                <span>Appliquer</span>
+              </button>
+            </div>
+          </div>
 
           <div id="doc-preview-body" class="doc-preview-body">
+            <!-- Visualiseur de Diff Visuel & Versions (Canvas 2.0) -->
+            <div id="doc-diff-viewer" class="doc-diff-viewer" style="display: none;"></div>
             <!-- Iframe PDF -->
             <iframe id="doc-pdf-frame" class="doc-preview-frame" title="Aperçu PDF" style="display: none;"></iframe>
             <div id="doc-pdf-viewer" class="doc-pdf-viewer" style="display: none;"></div>

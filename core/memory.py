@@ -141,7 +141,89 @@ class MemoryManager:
         return it.to_dict()
 
     @staticmethod
-    def _is_relevant_to_query(content: str, query: str | None, linked_resource_id: str | None = None) -> bool:
+    def hybrid_semantic_score(query: str, text: str) -> float:
+        """Calcule un score de proximité hybride (recouvrement lexical de racines + similarité cosinus de trigrammes)."""
+        q_clean = (query or "").strip().casefold()
+        t_clean = (text or "").strip().casefold()
+        if not q_clean or not t_clean:
+            return 0.0
+        if q_clean in t_clean:
+            return 1.0
+
+        stopwords = {
+            "les", "des", "une", "dans", "pour", "avec", "sur", "par", "que", "qui", "est",
+            "sont", "cette", "cet", "mon", "mes", "ton", "tes", "son", "ses", "plus", "tout",
+            "document", "fichier", "projet", "reference", "référence", "principale", "memoire", "mémoire",
+        }
+        stem = lambda w: w[:-1] if (len(w) > 4 and w.endswith("s")) else w
+        q_words = {stem(w) for w in re.findall(r"[a-zA-ZÀ-ÿ0-9_]{3,}", q_clean)} - stopwords
+        t_words = {stem(w) for w in re.findall(r"[a-zA-ZÀ-ÿ0-9_]{3,}", t_clean)} - stopwords
+
+        lex_score = len(q_words & t_words) / max(1, len(q_words)) if q_words else 0.0
+
+        # Trigrammes de caractères pour capturer les variantes morphologiques et fautes de frappe
+        q_norm = re.sub(r"\s+", " ", q_clean)
+        t_norm = re.sub(r"\s+", " ", t_clean[:1200])
+        q_tri = {q_norm[i : i + 3] for i in range(max(0, len(q_norm) - 2))}
+        t_tri = {t_norm[i : i + 3] for i in range(max(0, len(t_norm) - 2))}
+        tri_score = len(q_tri & t_tri) / max(1, len(q_tri)) if q_tri else 0.0
+
+        return round(0.65 * lex_score + 0.35 * tri_score, 4)
+
+    def search_hybrid(self, query: str, limit: int = 8) -> list[dict[str, Any]]:
+        """Recherche hybride sémantique et lexicale dans toute la mémoire persistante, projet et session."""
+        scored: list[tuple[float, dict[str, Any]]] = []
+        for it in self.persistent_items.values():
+            if not it.active:
+                continue
+            sc = self.hybrid_semantic_score(query, it.content)
+            if sc >= 0.18:
+                scored.append((sc, {**it.to_dict(), "score": sc, "scope": it.category}))
+        for note in self.project:
+            sc = self.hybrid_semantic_score(query, note)
+            if sc >= 0.18:
+                scored.append((sc, {"id": "proj", "category": "project", "content": note, "score": sc, "scope": "project"}))
+        for s_note in self.session:
+            sc = self.hybrid_semantic_score(query, s_note)
+            if sc >= 0.18:
+                scored.append((sc, {"id": "sess", "category": "session", "content": s_note, "score": sc, "scope": "session"}))
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [item for _, item in scored[:limit]]
+
+    def build_knowledge_graph(self) -> dict[str, Any]:
+        """Construit dynamiquement le graphe de connaissances reliant souvenirs, fichiers et concepts clés."""
+        nodes: list[dict[str, Any]] = []
+        edges: list[dict[str, str]] = []
+        concept_to_mem: dict[str, list[str]] = {}
+
+        for it in self.persistent_items.values():
+            if not it.active:
+                continue
+            nodes.append({"id": it.id, "type": it.category, "label": it.content[:80]})
+            if it.linked_resource_id:
+                nodes.append({"id": it.linked_resource_id, "type": "library_resource", "label": it.linked_resource_id})
+                edges.append({"source": it.id, "target": it.linked_resource_id, "relation": "linked_resource"})
+            for f_match in re.findall(r"\b[a-zA-Z0-9_\-À-ÿ]+\.(?:pdf|docx|tex|html?|md|py|json|csv)\b", it.content):
+                f_id = f"file:{f_match.lower()}"
+                nodes.append({"id": f_id, "type": "file", "label": f_match})
+                edges.append({"source": it.id, "target": f_id, "relation": "mentions_file"})
+            words = {w.lower() for w in re.findall(r"[a-zA-ZÀ-ÿ]{5,}", it.content)}
+            for w in words:
+                concept_to_mem.setdefault(w, []).append(it.id)
+
+        for concept, mem_ids in concept_to_mem.items():
+            if len(mem_ids) >= 2:
+                c_id = f"concept:{concept}"
+                nodes.append({"id": c_id, "type": "concept", "label": concept})
+                for mid in mem_ids:
+                    edges.append({"source": mid, "target": c_id, "relation": "shares_concept"})
+
+        # Déduplication des nœuds par id
+        unique_nodes = list({n["id"]: n for n in nodes}.values())
+        return {"nodes_count": len(unique_nodes), "edges_count": len(edges), "nodes": unique_nodes, "edges": edges}
+
+    @classmethod
+    def _is_relevant_to_query(cls, content: str, query: str | None, linked_resource_id: str | None = None) -> bool:
         """Filtre les entrées liées à des fichiers/documents spécifiques si la requête n'a aucun rapport."""
         has_file_ref = bool(linked_resource_id or _FILE_REFERENCE_PATTERN.search(content or ""))
         if query is None:
@@ -151,15 +233,7 @@ class MemoryManager:
             return False
         if not has_file_ref:
             return True
-        q_tokens = {w.casefold() for w in re.findall(r"[a-zA-ZÀ-ÿ0-9_]{3,}", clean_q)}
-        c_tokens = {w.casefold() for w in re.findall(r"[a-zA-ZÀ-ÿ0-9_]{3,}", content or "")}
-        stopwords = {
-            "les", "des", "une", "dans", "pour", "avec", "sur", "par", "que", "qui", "est",
-            "sont", "cette", "cet", "mon", "mes", "ton", "tes", "son", "ses", "plus", "tout",
-            "document", "fichier", "projet", "reference", "référence", "principale", "memoire", "mémoire",
-        }
-        meaningful_overlap = (q_tokens & c_tokens) - stopwords
-        return bool(meaningful_overlap)
+        return cls.hybrid_semantic_score(clean_q, content or "") >= 0.20
 
     def format_for_system_prompt(self, query: str | None = None) -> str:
         """Injecte les règles, préférences et contexte actifs dans le prompt de l'agent
