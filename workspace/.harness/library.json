@@ -1,5 +1,56 @@
 [
   {
+    "id": "lib-a05860d6",
+    "title": "Rapport certifie",
+    "category": "Documents",
+    "type": "pdf",
+    "path": "rapport_certifie.pdf",
+    "summary": "Document PDF compilé",
+    "content": "",
+    "tags": [
+      "pdf"
+    ],
+    "size_bytes": 25995,
+    "created_at": "2026-10-30T13:15:31.357670+00:00",
+    "updated_at": "2026-10-30T13:15:31.357670+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-4b298b94",
+    "title": "Rapport certifie",
+    "category": "Documents",
+    "type": "tex",
+    "path": "rapport_certifie.tex",
+    "summary": "Fichier TEX dans l'espace de travail",
+    "content": "\\documentclass[11pt,a4paper]{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage[french]{babel}\n\\usepackage{amsmath,amssymb,amsthm}\n\\usepackage{geometry}\n\\geometry{hmargin=2.5cm,vmargin=2.5cm}\n\\usepackage{fancyhdr}\n\\usepackage{hyperref}\n\n\\pagestyle{fancy}\n\\fancyhf{}\n\\lhead{Rapport LaTeX Certifié}\n\\rhead{\\today}\n\\cfoot{\\thepage}\n\n\\title{\\textbf{Rapport LaTeX Certifié -- Standard Professionnel}}\n\\author{NeoHarness AI}\n\\date{\\today}\n\n\\begin{document}\n\n\\maketitle\n\n\\begin{abstract}\nCe document présente le rapport LaTeX certifié, rédigé conformément aux exigences de rigueur formelle, typographique et structurelle. Il sert de référence pour la production automatisée de documents scientifiques et techniques de haute qualité.\n\\end{abstract}\n\n\\section{Introduction}\nUn rapport LaTeX certifié garantit une mise en page rigoureuse et une conformité typographique irréprochable. Ce standard est particulièrement adapté aux publications scientifiques, aux dossiers techniques et aux",
+    "tags": [
+      "tex"
+    ],
+    "size_bytes": 1897,
+    "created_at": "2026-10-30T13:15:05.462102+00:00",
+    "updated_at": "2026-10-30T13:15:05.462102+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-75b96856",
+    "title": "Neoword",
+    "category": "Ressources",
+    "type": "svg",
+    "path": "neoword.svg",
+    "summary": "Fichier SVG dans l'espace de travail",
+    "content": "",
+    "tags": [
+      "svg"
+    ],
+    "size_bytes": 286,
+    "created_at": "2026-10-30T12:42:06.360844+00:00",
+    "updated_at": "2026-10-30T12:42:06.360844+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
     "id": "lib-5128410b",
     "title": "Derivation",
     "category": "Documents",

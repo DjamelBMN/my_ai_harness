@@ -3937,12 +3937,24 @@ class NeoHarnessRuntimeBridge:
         except urllib.error.HTTPError as http_err:
             err_body = ""
             try:
-                err_body = http_err.read().decode("utf-8", errors="replace")[:400]
+                err_body = http_err.read().decode("utf-8", errors="replace")[:600]
             except Exception:
                 pass
+            # Interception ciblée du filtre de sécurité Cloudflare (Code 8007 / NSFW)
+            if "NSFW" in err_body or "8007" in err_body:
+                clean_err = (
+                    "⚠️ **Demande bloquée par le filtre de sécurité Cloudflare (NSFW)**\n\n"
+                    "Certains termes de votre demande (comme *« petite tenue »*) sont automatiquement rejetés par le filtre de modération de Cloudflare Workers AI.\n\n"
+                    "💡 **Astuce pour générer l'image** : reformulez avec des termes de style vestimentaire acceptés, par exemple :\n"
+                    "- *« tenue d'intérieur décontractée »*\n"
+                    "- *« ensemble loungewear confortable »*\n"
+                    "- *« pyjama chic en satin de soie »*"
+                )
+            else:
+                clean_err = f"Erreur HTTP {http_err.code} de Cloudflare Workers AI : {err_body or http_err.reason}"
             return {
                 "ok": False,
-                "error": f"Erreur HTTP {http_err.code} de Cloudflare Workers AI : {err_body or http_err.reason}",
+                "error": clean_err,
             }
         except Exception as exc:
             return {"ok": False, "error": f"Impossible de joindre Cloudflare Workers AI : {exc}"}

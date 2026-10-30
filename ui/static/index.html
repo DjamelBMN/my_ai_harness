@@ -36,7 +36,9 @@ window.MathJax = {
           </svg>
         </button>
         <button id="btn-brand-home" class="brand-button" title="NeoHarness AI — Orchestrateur & Environnement Agentique">
-          <span class="brand-logo-square" aria-hidden="true">N</span>
+          <span class="brand-logo-square" aria-hidden="true" style="background: transparent; border: none; box-shadow: none; width: 26px; height: 26px; padding: 0;">
+            <img src="/Neo.svg" alt="NeoHarness" style="width: 100%; height: 100%; object-fit: contain; display: block;" />
+          </span>
           <span class="brand-title">NeoHarness</span>
         </button>
         <span class="topbar-sep" aria-hidden="true">|</span>
@@ -288,35 +290,101 @@ window.MathJax = {
         <div id="workspace-scroll" class="workspace-scroll">
           <!-- Écran d'accueil minimaliste éditorial style maquette -->
           <div id="welcome-screen" class="welcome-container">
-            <div class="welcome-header">
-              <div class="welcome-square-emblem" aria-hidden="true">
-                <span>N</span>
+          <div class="welcome-header" style="text-align: center; max-width: 680px; margin: 0 auto;">
+<!-- Logo centré avec halo lumineux automatique en mode sombre -->
+              <style>
+                .welcome-neo-logo {
+                  width: 68px;
+                  height: 68px;
+                  object-fit: contain;
+                  display: block;
+                  transition: filter 0.3s ease;
+                }
+                /* En mode sombre : léger éclat cyan pour faire ressortir le cerveau */
+                [data-theme="dark"] .welcome-neo-logo {
+                  filter: drop-shadow(0 0 14px rgba(17, 238, 245, 0.45)) brightness(0.9);
+                }
+              </style>
+              <div style="display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 24px;">
+                <img src="/Neo.svg" alt="NeoHarness Logo" class="welcome-neo-logo" />
               </div>
-              <h1 id="welcome-title">Que voulez-vous accomplir ?</h1>
-              <p class="welcome-subtitle">
-                Décrivez le résultat attendu. NeoHarness organisera le travail, les contrôles et les validations.
+
+              <!-- Grand titre chaleureux protégé contre app.js -->
+              <h1 style="margin: 0 0 8px 0; font-family: 'Newsreader', 'Source Serif 4', Georgia, serif; font-size: 44px; font-weight: 600; letter-spacing: -0.025em; color: var(--text-primary, #1f2328); line-height: 1.15;">
+                <span id="welcome-greeting-text">Te revoilà, Djamel</span>
+              </h1>
+
+              <!-- Question sobre en sous-titre unique (sans répétition) -->
+              <p style="margin: 0; font-size: 16px; font-weight: 400; color: var(--text-muted, #6e7781); font-family: 'Inter', -apple-system, sans-serif; letter-spacing: -0.01em;">
+                Que voulez-vous accomplir aujourd’hui ?
               </p>
+
+              <!-- Balise invisible préservée pour app.js sans casser l'affichage -->
+              <span id="welcome-title" style="display: none;"></span>
             </div>
 
             <!-- Élément préservé pour compatibilité DOM -->
             <div id="welcome-model-card" class="welcome-model-banner" style="display: none;"></div>
 
-            <!-- 3 suggestions éditoriales horizontales avec flèche ↗ style maquette -->
-            <div class="welcome-suggestions-list">
-              <button class="welcome-suggestion-row" data-quick-prompt="Auditer un workflow multi-agents">
-                <span class="suggestion-row-text">Auditer un workflow multi-agents</span>
-                <span class="suggestion-row-arrow" aria-hidden="true">↗</span>
+<!-- 3 CARTES SUGGESTIONS AVEC MICRO-ANIMATION FLUIDE -->
+            <style>
+              /* Supprime le vieux trait résiduel de styles.css */
+              .welcome-suggestions-list {
+                border: none !important;
+                border-top: none !important;
+                border-bottom: none !important;
+              }
+              .welcome-suggestions-list::before,
+              .welcome-suggestions-list::after {
+                display: none !important;
+                content: none !important;
+              }
+
+              .welcome-suggestion-row {
+                transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease !important;
+              }
+              .welcome-suggestion-row:hover {
+                transform: translateY(-2px);
+                border-color: rgba(0, 0, 0, 0.16) !important;
+                background: rgba(255, 255, 255, 0.95) !important;
+                box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05) !important;
+              }
+              .welcome-suggestion-row:active {
+                transform: translateY(0);
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03) !important;
+              }
+              .welcome-suggestion-row svg {
+                transition: transform 0.2s ease, opacity 0.2s ease !important;
+              }
+              .welcome-suggestion-row:hover svg {
+                opacity: 0.85 !important;
+                transform: translate(2px, -2px);
+              }
+              /* Support Mode Sombre automatique */
+              [data-theme="dark"] .welcome-suggestion-row:hover {
+                border-color: rgba(255, 255, 255, 0.22) !important;
+                background: rgba(255, 255, 255, 0.07) !important;
+                box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4) !important;
+              }
+            </style>
+
+            <div class="welcome-suggestions-list" style="display: flex; flex-direction: column; gap: 8px; max-width: 600px; width: 100%; margin: 26px auto 0 auto; border: none; border-bottom: none;">
+              
+              <button class="welcome-suggestion-row" data-quick-prompt="Rédiger et compiler un rapport LaTeX certifié" style="display: flex; align-items: center; justify-content: space-between; padding: 13px 18px; border-radius: 12px; border: 1px solid var(--border-subtle, rgba(0,0,0,0.07)); background: var(--bg-surface, rgba(255,255,255,0.7)); cursor: pointer; text-align: left; width: 100%; box-sizing: border-box;">
+                <span style="font-family: 'Inter', -apple-system, sans-serif; font-size: 14.5px; font-weight: 450; color: var(--text-primary, #1f2328);">Rédiger et compiler un rapport LaTeX certifié</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.4; flex-shrink: 0; margin-left: 12px;"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>
               </button>
 
-              <button class="welcome-suggestion-row" data-quick-prompt="Structurer une note de décision">
-                <span class="suggestion-row-text">Structurer une note de décision</span>
-                <span class="suggestion-row-arrow" aria-hidden="true">↗</span>
+              <button class="welcome-suggestion-row" data-quick-prompt="Recherche approfondie croisée avec NeoDeepSearch" style="display: flex; align-items: center; justify-content: space-between; padding: 13px 18px; border-radius: 12px; border: 1px solid var(--border-subtle, rgba(0,0,0,0.07)); background: var(--bg-surface, rgba(255,255,255,0.7)); cursor: pointer; text-align: left; width: 100%; box-sizing: border-box;">
+                <span style="font-family: 'Inter', -apple-system, sans-serif; font-size: 14.5px; font-weight: 450; color: var(--text-primary, #1f2328);">Recherche approfondie croisée avec NeoDeepSearch</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.4; flex-shrink: 0; margin-left: 12px;"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>
               </button>
 
-              <button class="welcome-suggestion-row" data-quick-prompt="Comparer plusieurs sources techniques">
-                <span class="suggestion-row-text">Comparer plusieurs sources techniques</span>
-                <span class="suggestion-row-arrow" aria-hidden="true">↗</span>
+              <button class="welcome-suggestion-row" data-quick-prompt="Auditer et diagnostiquer le workspace multi-agents" style="display: flex; align-items: center; justify-content: space-between; padding: 13px 18px; border-radius: 12px; border: 1px solid var(--border-subtle, rgba(0,0,0,0.07)); background: var(--bg-surface, rgba(255,255,255,0.7)); cursor: pointer; text-align: left; width: 100%; box-sizing: border-box;">
+                <span style="font-family: 'Inter', -apple-system, sans-serif; font-size: 14.5px; font-weight: 450; color: var(--text-primary, #1f2328);">Auditer et diagnostiquer le workspace multi-agents</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.4; flex-shrink: 0; margin-left: 12px;"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>
               </button>
+
             </div>
           </div>
 
@@ -519,7 +587,7 @@ window.MathJax = {
                     <line x1="12" x2="12" y1="19" y2="22"></line>
                   </svg>
                 </button>
-                <span class="composer-shortcut-hint">↵ envoyer</span>
+                
 
                 <button id="btn-send-task" type="button" class="send-round-btn" title="Envoyer (Entrée)">
                   <span id="btn-send-task-text" style="display: none;">Envoyer</span>
@@ -974,6 +1042,59 @@ window.MathJax = {
 
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-  <script src="/app.js?v=2.3"></script>
+<script src="/app.js?v=2.3"></script>
+  <script>
+    (function setClaudeStyleGreeting() {
+      const label = document.getElementById('welcome-greeting-text');
+      if (!label) return;
+
+      const hour = new Date().getHours();
+      const lastKey = 'neoharness_last_seen';
+      const lastSeen = localStorage.getItem(lastKey);
+      const isReturning = Boolean(lastSeen);
+      const hoursSinceLast = lastSeen ? (Date.now() - parseInt(lastSeen, 10)) / 3600000 : 999;
+      localStorage.setItem(lastKey, Date.now().toString());
+
+      let greeting = 'Bonjour, Djamel';
+      if (hour >= 12 && hour < 18) {
+        greeting = 'Bon après-midi, Djamel';
+      } else if (hour >= 18 && hour < 23) {
+        greeting = 'Bonsoir, Djamel';
+      } else if (hour >= 23 || hour < 5) {
+        greeting = 'Bonne nuit, Djamel';
+      }
+
+      // Si l'utilisateur revient dans la même journée (< 8h)
+      if (isReturning && hoursSinceLast < 8) {
+        label.textContent = 'Te revoilà, Djamel';
+      } else {
+        label.textContent = greeting;
+      }
+    })();
+
+    // INTERCEPTE LE CLIC : Injecte le texte dans l'éditeur et donne la main sans envoyer
+    document.addEventListener('click', function(e) {
+      const btn = e.target.closest('[data-quick-prompt], .welcome-suggestion-row');
+      if (!btn) return;
+
+      // Bloque l'envoi immédiat déclenché par app.js
+      e.preventDefault();
+      e.stopImmediatePropagation();
+
+      const promptText = btn.getAttribute('data-quick-prompt') || btn.textContent.trim();
+      const input = document.getElementById('composer-input');
+      if (input && promptText) {
+        input.value = promptText;
+        input.focus();
+        
+        // Place le curseur tout à la fin pour vous laisser continuer à taper
+        input.setSelectionRange(input.value.length, input.value.length);
+        
+        // Déclenche l'événement input pour que le champ adapte sa hauteur automatiquement
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }, true); // Le "true" capture le clic en priorité absolue avant app.js
+  </script>
 </body>
 </html>

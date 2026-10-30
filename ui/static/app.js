@@ -727,54 +727,100 @@
         <span class="reasoning-chevron">${ICONS.chevronDown}</span>
       </span>
     `;
-    // Effet magique d'attente lors de la génération d'image (style GPT / Gemini ImageFX)
+    // ── Carte d'attente image : progression ancrée sur les événements réels ──
+    const NH_FLUX_KEY = "neoharness_flux_ms";
+    const fluxMedian = () => {
+      try {
+        const a = JSON.parse(localStorage.getItem(NH_FLUX_KEY) || "[]").filter((n) => n > 1000);
+        if (!a.length) return 15000;
+        a.sort((x, y) => x - y);
+        return a[Math.floor(a.length / 2)];
+      } catch (_) {
+        return 15000;
+      }
+    };
     const fluxStep = steps.find((s) => s.tool === "cloudflare_flux");
+    if (!fluxStep) {
+      state.fluxT0 = 0;
+      state.fluxRecorded = false;
+      state.imgPct = 0;
+    } else {
+      if (!state.fluxT0) state.fluxT0 = Date.now();
+      // Mémorise la vraie durée de génération pour calibrer les prochaines
+      if (fluxStep.status === "done" && !state.fluxRecorded) {
+        state.fluxRecorded = true;
+        try {
+          const arr = JSON.parse(localStorage.getItem(NH_FLUX_KEY) || "[]");
+          arr.push(Date.now() - state.fluxT0);
+          localStorage.setItem(NH_FLUX_KEY, JSON.stringify(arr.slice(-5)));
+        } catch (_) {}
+      }
+    }
+
+    const computeImgPct = () => {
+      const st = state.liveSteps || [];
+      const fx = st.find((s) => s.tool === "cloudflare_flux");
+      const fusion = st.find((s) => /fusion et optimisation du prompt/i.test(s.label || ""));
+      const ready = st.some((s) => /image .*prête/i.test(s.label || ""));
+      let p = 2;
+      if (fusion) p = fusion.status === "running" ? 8 : 20;
+      if (fx) {
+        if (fx.status === "done" || ready) {
+          p = 100;
+        } else {
+          const r = (Date.now() - (state.fluxT0 || Date.now())) / fluxMedian();
+          p = 25 + 69 * (1 - Math.exp(-2 * r)); // tend vers 94 %, jamais 100 % sans résultat réel
+        }
+      }
+      state.imgPct = Math.max(state.imgPct || 0, Math.min(100, p));
+      return state.imgPct;
+    };
+    const imgStageLabel = (p) =>
+      p >= 100 ? "Finalisation" : p >= 25 ? "Génération · FLUX.1-schnell" : p >= 20 ? "Envoi à Cloudflare" : "Optimisation du prompt";
+
     const imageReady = steps.some((s) => /image .*prête/i.test(s.label || ""));
-    const isGeneratingImage = isRunning && !imageReady && Boolean(
-      fluxStep || steps.some((s) => /fusion et optimisation du prompt/i.test(s.label || ""))
-    );
+    const isGeneratingImage =
+      isRunning &&
+      !imageReady &&
+      Boolean(fluxStep || steps.some((s) => /fusion et optimisation du prompt/i.test(s.label || "")));
     let imgCard = document.getElementById("live-image-generating-card");
     if (isGeneratingImage) {
       if (!imgCard) {
         imgCard = document.createElement("div");
         imgCard.id = "live-image-generating-card";
         imgCard.className = "nh-image-generating-card";
-          const sparks = Array.from({ length: 18 }, (_, i) => {
-          const big = i % 5 === 0;
-          const sz = big ? 9 + Math.random() * 5 : 3 + Math.random() * 4;
-          const x = 5 + Math.random() * 90;
-          const y = 8 + Math.random() * 68;
-          const delay = (Math.random() * 3).toFixed(2);
-          const dur = (1.6 + Math.random() * 2).toFixed(2);
-          return `<span class="nhg-spark${big ? " star" : ""}" style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%;width:${sz.toFixed(1)}px;height:${sz.toFixed(1)}px;animation-delay:-${delay}s;animation-duration:${dur}s"></span>`;
-        }).join("");
         imgCard.innerHTML = `
-          <div class="nhg-aurora"><i></i><i></i><i></i></div>
-          ${sparks}
-          <div class="nhg-caption">
+          <div class="nhg-art"></div>
+          <span class="nhg-timer mono">0.0s</span>
+          <div class="nhg-center">
+            <div class="nhg-pct"><span class="nhg-pct-num">0</span><span class="nhg-pct-sym">%</span></div>
             <span class="nhg-title">Votre image prend forme…</span>
             <span class="nhg-step"></span>
           </div>
-          <span class="nhg-timer mono">0.0s</span>
+          <div class="nhg-bar"><i></i></div>
         `;
         tracker.parentNode.insertBefore(imgCard, tracker.nextSibling);
 
-        const phases = [
-          "Composition de la scène…",
-          "Jeu de lumière et de couleurs…",
-          "Détails et textures…",
-          "Dernières retouches…"
-        ];
-        const t0 = state.liveStartedAt || Date.now();
         const card = imgCard;
+        const numEl = card.querySelector(".nhg-pct-num");
         const stepEl = card.querySelector(".nhg-step");
         const timerEl = card.querySelector(".nhg-timer");
+        const barEl = card.querySelector(".nhg-bar > i");
+        const t0 = state.liveStartedAt || Date.now();
         const tick = () => {
-          if (!card.isConnected) { clearInterval(iv); return; }
-          const sec = (Date.now() - t0) / 1000;
-          const txt = phases[Math.floor(sec / 2.6) % phases.length];
+          if (!card.isConnected) {
+            clearInterval(iv);
+            return;
+          }
+          const p = computeImgPct();
+          const shown = Math.round(p);
+          if (numEl.textContent !== String(shown)) numEl.textContent = shown;
+          barEl.style.width = p + "%";
+          card.style.setProperty("--p", (p / 100).toFixed(3));
+          card.style.setProperty("--blur", (24 * (1 - p / 100)).toFixed(1) + "px");
+          const txt = imgStageLabel(p);
           if (stepEl.textContent !== txt) stepEl.textContent = txt;
-          timerEl.textContent = sec.toFixed(1) + "s";
+          timerEl.textContent = ((Date.now() - t0) / 1000).toFixed(1) + "s";
         };
         const iv = setInterval(tick, 200);
         tick();
