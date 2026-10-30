@@ -467,6 +467,18 @@ class IntentEngine:
                 rationale=["demande de génération de document Word (DOCX) via Pandoc"],
             )
 
+        asks_pptx = any(kw in text for kw in ("pptx", ".pptx", "powerpoint", "diaporama", "diapositives", "slides", "présentation", "presentation"))
+        if asks_pptx and (asks_creation or any(v in text for v in ("fais", "faire", "produis", "genere", "cree", "redige", "livre", "donne", "fchier", "fichier"))):
+            return self._decision(
+                "document_generation", request, 0.95,
+                capabilities=["document_generation", "writing"],
+                tools=["generate_pptx", "read_file", "write_file", "list_files"],
+                workspace=True,
+                modification=True,
+                criteria=["présentation PowerPoint (.pptx) générée via Pandoc", "diapositives structurées", "fichier PPTX vérifié et intègre"],
+                rationale=["demande de génération de présentation PowerPoint (PPTX) via Pandoc"],
+            )
+
         if asks_file_analysis:
             return self._decision(
                 "file_analysis", request, 0.92,

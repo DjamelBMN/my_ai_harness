@@ -61,5 +61,14 @@
     "created_at": "2026-10-29T20:21:26.587562+00:00",
     "linked_resource_id": null,
     "active": true
+  },
+  {
+    "id": "mem-40925147",
+    "category": "preference",
+    "content": "que j'aime la musculation ;)",
+    "source": "user",
+    "created_at": "2026-10-30T03:10:36.747964+00:00",
+    "linked_resource_id": null,
+    "active": true
   }
 ]

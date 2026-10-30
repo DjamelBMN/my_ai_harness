@@ -57,6 +57,7 @@ from tools.browser import DynamicBrowser
 from tools.compiler import AutonomousCompiler
 from tools.math_tikz import generate_math_figure
 from tools.docx import generate_docx
+from tools.pptx import generate_pptx
 from tools.vision import transcribe_image
 from tools.windows import (
     window_active,
@@ -813,6 +814,27 @@ class ToolRegistry:
             risk=RiskLevel.MODERATE,
             mutates=True,
             timeout=30.0,
+        )
+        add(
+            "generate_pptx",
+            "Génère une présentation PowerPoint (.pptx) professionnelle via Pandoc avec diapositives structurées et déclaration ARTIFACT_READY.",
+            {
+                "content": string,
+                "output_path": optional_string,
+                "title": optional_string,
+            },
+            ["content"],
+            lambda content, output_path="", title="": (
+                generate_pptx(
+                    content=content,
+                    output_path=output_path,
+                    title=title,
+                    workspace=fs.root,
+                )
+            ),
+            risk=RiskLevel.MODERATE,
+            mutates=True,
+            timeout=35.0,
         )
         add(
             "transcribe_image",

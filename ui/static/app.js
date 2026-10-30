@@ -727,6 +727,62 @@
         <span class="reasoning-chevron">${ICONS.chevronDown}</span>
       </span>
     `;
+    // Effet magique d'attente lors de la génération d'image (style GPT / Gemini ImageFX)
+    const fluxStep = steps.find((s) => s.tool === "cloudflare_flux");
+    const imageReady = steps.some((s) => /image .*prête/i.test(s.label || ""));
+    const isGeneratingImage = isRunning && !imageReady && Boolean(
+      fluxStep || steps.some((s) => /fusion et optimisation du prompt/i.test(s.label || ""))
+    );
+    let imgCard = document.getElementById("live-image-generating-card");
+    if (isGeneratingImage) {
+      if (!imgCard) {
+        imgCard = document.createElement("div");
+        imgCard.id = "live-image-generating-card";
+        imgCard.className = "nh-image-generating-card";
+          const sparks = Array.from({ length: 18 }, (_, i) => {
+          const big = i % 5 === 0;
+          const sz = big ? 9 + Math.random() * 5 : 3 + Math.random() * 4;
+          const x = 5 + Math.random() * 90;
+          const y = 8 + Math.random() * 68;
+          const delay = (Math.random() * 3).toFixed(2);
+          const dur = (1.6 + Math.random() * 2).toFixed(2);
+          return `<span class="nhg-spark${big ? " star" : ""}" style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%;width:${sz.toFixed(1)}px;height:${sz.toFixed(1)}px;animation-delay:-${delay}s;animation-duration:${dur}s"></span>`;
+        }).join("");
+        imgCard.innerHTML = `
+          <div class="nhg-aurora"><i></i><i></i><i></i></div>
+          ${sparks}
+          <div class="nhg-caption">
+            <span class="nhg-title">Votre image prend forme…</span>
+            <span class="nhg-step"></span>
+          </div>
+          <span class="nhg-timer mono">0.0s</span>
+        `;
+        tracker.parentNode.insertBefore(imgCard, tracker.nextSibling);
+
+        const phases = [
+          "Composition de la scène…",
+          "Jeu de lumière et de couleurs…",
+          "Détails et textures…",
+          "Dernières retouches…"
+        ];
+        const t0 = state.liveStartedAt || Date.now();
+        const card = imgCard;
+        const stepEl = card.querySelector(".nhg-step");
+        const timerEl = card.querySelector(".nhg-timer");
+        const tick = () => {
+          if (!card.isConnected) { clearInterval(iv); return; }
+          const sec = (Date.now() - t0) / 1000;
+          const txt = phases[Math.floor(sec / 2.6) % phases.length];
+          if (stepEl.textContent !== txt) stepEl.textContent = txt;
+          timerEl.textContent = sec.toFixed(1) + "s";
+        };
+        const iv = setInterval(tick, 200);
+        tick();
+      }
+    } else if (imgCard) {
+      imgCard.remove();
+    }
+
 
     box.innerHTML = steps
       .map((s) => {
@@ -5651,6 +5707,10 @@ function switchRightPanelMode(mode) {
     const badgeMap = {
       pdf: "PDF · Tectonic",
       docx: "Word · DOCX",
+      xlsx: "Excel · Tableur",
+      pptx: "PowerPoint · Diaporama",
+      ppt: "PowerPoint · Diaporama",
+      xls: "Excel · Tableur",
       html: "HTML · Sandbox",
       tex: "LaTeX · Source",
       python: "Python · Exécution",
@@ -5725,9 +5785,28 @@ const metaParts = [];
 
     const btnDlWord = document.getElementById("btn-doc-download-word");
     const btnDlPdf = document.getElementById("btn-doc-download-pdf");
-    const stem = doc.path.replace(/\.(docx|pdf)$/i, "");
+    const btnDlExcel = document.getElementById("btn-doc-download-excel");
+    const btnDlPptx = document.getElementById("btn-doc-download-pptx");
+    if (btnDlPptx) {
+      if (doc.type === "pptx" || doc.type === "ppt") {
+        btnDlPptx.style.display = "inline-flex";
+        btnDlPptx.href = `/api/files/raw?path=${encodeURIComponent(doc.path)}&download=1`;
+      } else {
+        btnDlPptx.style.display = "none";
+      }
+    }
+    const stem = doc.path.replace(/\.(docx|pdf|xlsx)$/i, "");
     const companionDocx = doc.companionDocx || `${stem}.docx`;
     const companionPdf = doc.companionPdf || `${stem}.pdf`;
+
+    if (btnDlExcel) {
+      if (doc.type === "xlsx" || doc.type === "xls") {
+        btnDlExcel.style.display = "inline-flex";
+        btnDlExcel.href = `/api/files/raw?path=${encodeURIComponent(doc.path)}&download=1`;
+      } else {
+        btnDlExcel.style.display = "none";
+      }
+    }
 
     if (btnDlWord) {
       if (doc.type === "docx" || doc.type === "pdf") {
@@ -5976,7 +6055,7 @@ if (btnConsole) {
           errorBox.innerHTML = `<strong style="display:inline-flex; align-items:center; gap:6px;">${ICONS.alert} Aperçu PDF impossible</strong><pre class="mono" style="margin-top:8px;white-space:pre-wrap;font-size:11.5px;">${esc(err.message)}</pre>`;
         }
       });
-    } else if ((doc.type === "docx" || doc.type === "html") && htmlFrame) {
+    } else if ((doc.type === "docx" || doc.type === "html" || doc.type === "xlsx" || doc.type === "xls" || doc.type === "pptx" || doc.type === "ppt") && htmlFrame) {
       htmlFrame.style.display = "block";
       htmlFrame.src = `/api/preview/workspace/${doc.path.split("/").map(encodeURIComponent).join("/")}?t=${Date.now()}`;
     } else if (doc.type === "svg" && svgViewer) {
@@ -8668,13 +8747,13 @@ const btnViewConsole = document.getElementById("btn-doc-view-console");
     if (btnDocRefresh) {
       btnDocRefresh.addEventListener("click", () => {
         if (state.activeDocument) {
-          if (state.activeDocument.type === "html") {
-            const htmlFrame = document.getElementById("doc-html-frame");
-            if (htmlFrame && state.activeDocument.viewMode === "render") {
-              const cleanPath = state.activeDocument.path.split("/").map(encodeURIComponent).join("/");
-              htmlFrame.src = `/api/preview/workspace/${cleanPath}?t=${Date.now()}`;
-            }
-          }
+        if (doc.type === "html" || doc.type === "docx" || doc.type === "xlsx" || doc.type === "xls" || doc.type === "pptx" || doc.type === "ppt") {
+                if (htmlFrame) {
+                  htmlFrame.style.display = "block";
+                  const cleanPath = doc.path.split("/").map(encodeURIComponent).join("/");
+                  htmlFrame.src = `/api/preview/workspace/${cleanPath}?t=${Date.now()}`;
+                }
+              }
 openDocumentPreview({
             type: state.activeDocument.type,
             path: state.activeDocument.path,
@@ -10079,9 +10158,41 @@ if (target.hasAttribute("data-preview-file")) {
     connectSSE();
   }
 
+// Réception des messages de l'aperçu (Sauvegarde Excel interactive & erreurs runtime)
+  window.addEventListener("message", async function (event) {
+    if (!event.data) return;
+    if (event.data.type === "NEOHARNESS_HTML_RUNTIME_ERROR") {
+      const err = event.data.error || {};
+      showStatusBanner(
+        `Erreur JavaScript dans l'aperçu : ${err.message} (ligne ${err.lineno})`,
+        "error"
+      );
+    } else if (event.data.type === "NEOHARNESS_EXCEL_SAVE") {
+      const filename = event.data.filename || "classeur.xlsx";
+      const rows = event.data.rows || [];
+      if (!rows.length) return;
+      const headers = rows[0];
+      const dataRows = rows.slice(1);
+      try {
+        await apiPost("/api/tools/execute", {
+          name: "generate_excel",
+          arguments: {
+            output_path: filename,
+            headers: headers,
+            rows: dataRows,
+            include_formulas: false,
+          },
+        });
+        showStatusBanner(`Classeur Excel "${filename}" enregistré avec succès !`, "success");
+      } catch (err) {
+        showStatusBanner(`Erreur lors de l'enregistrement d'Excel : ${err.message}`, "error");
+      }
+    }
+  });
+
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot);
   } else {
     boot();
   }
-})();;
+})();

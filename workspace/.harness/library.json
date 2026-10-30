@@ -1,5 +1,56 @@
 [
   {
+    "id": "lib-5128410b",
+    "title": "Derivation",
+    "category": "Documents",
+    "type": "docx",
+    "path": "derivation.docx",
+    "summary": "Document Word vérifié",
+    "content": "",
+    "tags": [
+      "docx"
+    ],
+    "size_bytes": 13582,
+    "created_at": "2026-10-30T03:06:55.175054+00:00",
+    "updated_at": "2026-10-30T03:06:55.196316+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-9139391b",
+    "title": "Derivation formules",
+    "category": "Notes",
+    "type": "note",
+    "path": "derivation_formules.md",
+    "summary": "Fichier NOTE dans l'espace de travail",
+    "content": "# Dérivation et Formules Fondamentales\n\n---\n\n# Introduction à la Dérivation\n- La notion de dérivée formalise la vitesse instantanée de variation d'une fonction.\n- Elle géométriquement correspond à la pente de la tangente à la courbe représentative en un point.\n- **Définition formelle :** \n  $$f'(x) = \\lim_{h \\to 0} \\frac{f(x+h) - f(x)}{h}$$\n\n---\n\n# Dérivées des Fonctions Usuelles\n- **Fonction constante ($f(x) = c$) :** \n  $$f'(x) = 0$$\n- **Fonction affine ($f(x) = mx + p$) :** \n  $$f'(x) = m$$\n- **Fonction puissance ($f(x) = x^n$ pour $n \\in \\mathbb{N}^*$) :** \n  $$f'(x) = n x^{n-1}$$\n- **Fonction inverse ($f(x) = \\frac{1}{x}$) :** \n  $$f'(x) = -\\frac{1}{x^2}$$\n\n---\n\n# Opérations sur les Dérivées\n- **Somme :** $(u + v)' = u' + v'$\n- **Produit par une constante :** $(k \\cdot u)' = k \\cdot u'$\n- **Produit :** $(u \\cdot v)' = u'v + uv'$\n- **Inverse :** $\\left(\\frac{1}{v}\\right)' = -\\frac{v'}{v^2}$\n- **Quotient :** $\\left(\\frac{u}{v}\\right)' = \\frac{u'v - uv'}{v^2}$\n\n---\n\n# Dérivation et V",
+    "tags": [
+      "note"
+    ],
+    "size_bytes": 1570,
+    "created_at": "2026-10-30T03:05:00.246053+00:00",
+    "updated_at": "2026-10-30T03:05:00.246053+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
+    "id": "lib-1e4001c0",
+    "title": "Nombres complexes",
+    "category": "Notes",
+    "type": "note",
+    "path": "nombres_complexes.md",
+    "summary": "Fichier NOTE dans l'espace de travail",
+    "content": "# Diapositive 1\n\nNombres Complexes : De l’Algèbre à la Géométrie\n\n\n# Diapositive 2\n\nDiapositive 1 : Introduction et Forme Algébrique L’unité imaginaire $i$ : Définie par $i^2 = -1$. Forme algébrique : Tout nombre complexe $z$ s’écrit de manière unique sous la forme : $z = a + ib$ où : $a$ est la partie réelle (notée $\\text{Re}(z)$). $b$ est la partie imaginaire (notée $\\text{Im}(z)$). Cas particuliers : - Si $b = 0$, $z = a$ est un nombre réel (ex: $z = 5$). - Si $a = 0$ et $b \\neq 0$, $z = ib$ est un imaginaire pur (ex: $z = 3i$).\n\n\n# Diapositive 3\n\nDiapositive 2 : Représentation Géométrique et Conjugué Affixe d’un point ou d’un vecteur : Dans un repère orthonormal, le nombre $z = 3 + 4i$ est représenté par le point $M(3, 4)$ ou le vecteur $\\vec{u}$ de coordonnées $(3, 4)$. Conjugué d’un nombre complexe : Défini par $\\bar{z} = a - ib$. (ex: si $z = 3 + 4i$, alors $\\bar{z} = 3 - 4i$). Propriété géométrique : $\\bar{z}$ est le symétrique de $M$ par rapport à l’axe réel. Module d’un nombr",
+    "tags": [
+      "note"
+    ],
+    "size_bytes": 2097,
+    "created_at": "2026-10-30T02:49:55.908398+00:00",
+    "updated_at": "2026-10-30T02:49:55.911860+00:00",
+    "linked_memory_id": null,
+    "pinned": false
+  },
+  {
     "id": "lib-82fe7dae",
     "title": "Fraisier recette",
     "category": "Ressources",

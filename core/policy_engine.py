@@ -227,6 +227,7 @@ class PolicyEngine:
         "compile_document": "filesystem.write",
         "generate_math_figure": "filesystem.read",
         "generate_docx": "filesystem.write",
+        "generate_pptx": "filesystem.write",
         "transcribe_image": "computer_use.observe",
         # Nouveaux outils Windows / Computer Use / Terminal / Process / Clipboard
         "clipboard_get": "clipboard.get",

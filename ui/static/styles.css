@@ -6793,3 +6793,105 @@ button, input, textarea, select { font-family: inherit; }
   color: var(--accent-primary, #2563EB);
   border-color: var(--accent-primary, #2563EB);
 }
+
+.doc-dl-btn.excel {
+  background: rgba(16, 124, 65, 0.12);
+  color: #107C41;
+  border: 1px solid rgba(16, 124, 65, 0.28);
+}
+.doc-dl-btn.excel:hover {
+  background: #107C41;
+  color: #FFFFFF;
+}
+.doc-dl-btn.pptx {
+  background: rgba(210, 71, 38, 0.12);
+  color: #D24726;
+  border: 1px solid rgba(210, 71, 38, 0.28);
+}
+.doc-dl-btn.pptx:hover {
+  background: #D24726;
+  color: #FFFFFF;
+}
+
+/* ===== ATTENTE IMAGE : voile aurore léger ===== */
+.nh-image-generating-card {
+  position: relative;
+  overflow: hidden;
+  margin: 14px 0 6px 0;
+  width: 100%;
+  max-width: 520px;
+  aspect-ratio: 16 / 10;
+  border-radius: 20px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  animation: nhgIn 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes nhgIn { from { opacity: 0; transform: translateY(6px) scale(0.98); } to { opacity: 1; transform: none; } }
+
+.nhg-aurora { position: absolute; inset: 0; filter: blur(34px) saturate(1.15); opacity: 0.85; }
+.nhg-aurora i {
+  position: absolute; width: 58%; height: 70%; border-radius: 50%;
+  animation: nhgFloat 7s ease-in-out infinite;
+}
+.nhg-aurora i:nth-child(1) { background: rgba(96,165,250,0.55); left: -8%; top: -12%; }
+.nhg-aurora i:nth-child(2) { background: rgba(192,132,252,0.50); right: -10%; top: 6%; animation-delay: -2.3s; animation-duration: 8.5s; }
+.nhg-aurora i:nth-child(3) { background: rgba(251,182,206,0.50); left: 22%; bottom: -26%; animation-delay: -4.6s; animation-duration: 9.5s; }
+@keyframes nhgFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(14%, 10%) scale(1.12); }
+  66% { transform: translate(-10%, 14%) scale(0.94); }
+}
+
+/* Reflet qui balaie la carte */
+.nh-image-generating-card::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(105deg, transparent 38%, rgba(255,255,255,0.45) 50%, transparent 62%);
+  background-size: 250% 100%;
+  animation: nhgSweep 3.2s ease-in-out infinite;
+}
+[data-theme="dark"] .nh-image-generating-card::after {
+  background: linear-gradient(105deg, transparent 38%, rgba(255,255,255,0.10) 50%, transparent 62%);
+  background-size: 250% 100%;
+}
+@keyframes nhgSweep { 0% { background-position: 160% 0; } 100% { background-position: -60% 0; } }
+
+/* Étincelles */
+.nhg-spark {
+  position: absolute; border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 8px 2px rgba(255,255,255,0.95), 0 0 16px 5px rgba(147,112,255,0.65);
+  opacity: 0; z-index: 2;
+  animation: nhgTwinkle 2.4s ease-in-out infinite;
+}
+.nhg-spark.star {
+  border-radius: 0; box-shadow: none;
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+  filter: drop-shadow(0 0 4px rgba(147,112,255,0.9));
+  animation-name: nhgTwinkleStar;
+}
+@keyframes nhgTwinkle {
+  0%, 100% { opacity: 0; transform: scale(0.3); }
+  45%, 55% { opacity: 1; transform: scale(1.3); }
+}
+@keyframes nhgTwinkleStar {
+  0%, 100% { opacity: 0; transform: scale(0.2) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.1) rotate(90deg); }
+}
+
+.nhg-caption {
+  position: absolute; left: 0; right: 0; bottom: 18px; z-index: 3;
+  display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center;
+}
+.nhg-title { font-family: var(--font-ui); font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
+.nhg-step { font-family: var(--font-ui); font-size: 11.5px; color: var(--text-secondary); min-height: 16px; }
+.nhg-timer {
+  position: absolute; top: 12px; right: 14px; z-index: 3;
+  font-size: 10.5px; color: var(--text-secondary); opacity: 0.8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nhg-aurora i, .nhg-spark, .nh-image-generating-card::after { animation: none; }
+}
+
+.nhg-title { color: var(--text-primary); animation: nhgBreathe 2.6s ease-in-out infinite; }
+@keyframes nhgBreathe { 0%, 100% { opacity: 0.72; } 50% { opacity: 1; } }

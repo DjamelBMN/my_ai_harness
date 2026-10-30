@@ -80,7 +80,8 @@ def is_conversational_query(prompt: str) -> bool:
     if re.match(r"^/(?:exercice|dm|bacblanc)\b", p):
         return False
     explicit_file_triggers = (
-        'fichier', 'document', 'pdf', 'docx', 'word', 'latex', '.tex', '.html',
+        'fichier', 'fchier', 'document', 'pdf', 'docx', 'word', 'latex', '.tex', '.html',
+        'pptx', 'powerpoint', 'diaporama', 'slides', 'présentation', 'presentation',
         'sujet de bac', 'bac blanc', 'devoir maison', 'livrable', 'exporte', 'exporter',
         'crée un pdf', 'cree un pdf', 'génère un pdf', 'genere un pdf',
         'crée un exercice', 'cree un exercice', 'fais-moi un sujet', 'génère un document',
@@ -1713,20 +1714,43 @@ class NeoHarnessRuntimeBridge:
         *,
         selected_text: str = "",
     ) -> dict[str, Any]:
-        """Modifie chirurgicalement un artefact (ou uniquement la sélection) via l'IA et le recompile."""
+        """Modifie chirurgicalement un artefact (code, LaTeX, PPTX, DOCX, HTML) via l'IA et le recompile."""
         clean_rel = (relative_path or "").strip()
         instr = (instruction or "").strip()
         if not clean_rel or not instr:
             raise ValueError("Le chemin du fichier et l'instruction de modification sont requis.")
 
-        # Si l'utilisateur édite un PDF compilé depuis un .tex, cibler automatiquement le source .tex
+        # 1. Si PDF, cibler la source LaTeX .tex
         if clean_rel.lower().endswith(".pdf"):
             candidate_tex = str(Path(clean_rel).with_suffix(".tex")).replace("\\", "/")
             if self.filesystem.resolve(candidate_tex).is_file():
                 clean_rel = candidate_tex
 
-        current_content = self.filesystem.read_file(clean_rel)
-        # Enregistre la version avant modification dans l'historique d'artefacts
+        ext = Path(clean_rel).suffix.lower()
+        is_pptx = ext in {".pptx", ".ppt"}
+        is_docx = ext in {".docx", ".doc"}
+        is_tex = ext == ".tex"
+        is_html = ext in {".html", ".htm"}
+
+        # 2. Extraction du contenu textuel (gère les formats binaires via read_document)
+        stem = Path(clean_rel).stem
+        parent = str(Path(clean_rel).parent).replace("\\", "/")
+        comp_md = f"{parent}/{stem}.md" if parent != "." else f"{stem}.md"
+
+        if is_pptx or is_docx:
+            if self.filesystem.resolve(comp_md).is_file():
+                current_content = self.filesystem.read_file(comp_md)
+            else:
+                doc_ext = read_document(clean_rel, filesystem=self.filesystem)
+                raw_text = str(doc_ext.get("text") or "")
+                if is_pptx:
+                    current_content = re.sub(r"\[Slide\s*(\d+)\]\s*", r"\n\n# Diapositive \1\n\n", raw_text).strip()
+                else:
+                    current_content = raw_text
+        else:
+            current_content = self.filesystem.read_file(clean_rel)
+
+        # Enregistre la version avant modification dans l'historique
         try:
             self.artifact_engine.process_file(clean_rel, filesystem=self.filesystem, auto_repair=False)
         except Exception:
@@ -1744,15 +1768,32 @@ class NeoHarnessRuntimeBridge:
             details={"path": clean_rel, "has_selection": bool(sel)},
         )
 
-        if sel and sel in current_content:
+        doc_kind = "une présentation PowerPoint (.pptx)" if is_pptx else ("un document Word (.docx)" if is_docx else f"le fichier '{clean_rel}'")
+
+        if is_pptx:
             prompt = (
-                f"Tu travailles en mode Canvas Co-Éditable sur le fichier '{clean_rel}'.\n"
+                "Tu es un expert en conception de présentations PowerPoint professionnelles.\n"
+                f"Consigne de l'utilisateur : {instr}\n\n"
+                "RÈGLES DE MISE EN PAGE STRICTES :\n"
+                "1. Chaque diapositive DOIT commencer par '# Titre Thématique' (ex: '# Forme Algébrique'). Ne mets JAMAIS '# Diapositive X'.\n"
+                "2. CHAQUE élément de contenu DOIT être une puce débutant par '- ' (ou sous-puce '  * '). Ne fais JAMAIS de paragraphe continu sans puce.\n"
+                "3. Si tu ajoutes des exemples, insère-les sous forme de sous-puces claires (ex: '  * Exemple : $z = 3 + 4i$').\n"
+                "4. RÈGLE D'ESPACEMENT : Maximum 4 à 5 puces par diapositive pour ne pas surcharger la mise en page. Si besoin, crée une nouvelle diapositive dédiée.\n"
+                "5. Écris toutes les formules mathématiques en LaTeX standard entre $...$ (ex: $z = a + ib$, $|z| = \\sqrt{a^2+b^2}$).\n\n"
+                "Renvoie EXCLUSIVEMENT le code Markdown complet des diapositives, sans balises ``` autour :\n\n"
+                f"=== PRÉSENTATION ACTUELLE ===\n{current_content}"
+            )
+            reply = str(provider.generate(prompt) or "").strip()
+            m_fence = re.search(r"```(?:[a-zA-Z0-9_-]+)?\s*\r?\n([\s\S]*?)```", reply)
+            new_content = m_fence.group(1).strip() if m_fence else reply
+        elif sel and sel in current_content:
+            prompt = (
+                f"Tu travailles en mode Canvas Co-Éditable sur {doc_kind}.\n"
                 "L'utilisateur a sélectionné un passage précis à modifier sans altérer le reste du document.\n"
                 f"INSTRUCTION DE L'UTILISATEUR : {instr}\n\n"
                 f"=== CONTEXTE DU FICHIER COMPLET ===\n{current_content[:6000]}\n\n"
                 f"=== PASSAGE SÉLECTIONNÉ À REMPLACER ===\n{sel}\n\n"
-                "Renvoie EXCLUSIVEMENT le nouveau texte/code qui doit remplacer le passage sélectionné, "
-                "sans balises Markdown ``` autour (sauf si elles faisaient partie de la sélection) et sans aucune phrase d'explication."
+                "Renvoie EXCLUSIVEMENT le nouveau texte qui doit remplacer le passage sélectionné, sans explication."
             )
             replacement = str(provider.generate(prompt) or "").strip()
             m_fence = re.match(r"^```[a-zA-Z0-9_-]*\r?\n([\s\S]*?)\r?\n```$", replacement.strip())
@@ -1761,39 +1802,67 @@ class NeoHarnessRuntimeBridge:
             new_content = current_content.replace(sel, replacement, 1)
         else:
             prompt = (
-                f"Tu travailles en mode Canvas Co-Éditable sur le fichier '{clean_rel}'.\n"
+                f"Tu travailles en mode Canvas Co-Éditable sur {doc_kind}.\n"
                 f"INSTRUCTION DE MODIFICATION : {instr}\n"
                 + (f"CIBLE PRIORITAIRE : {sel}\n" if sel else "")
-                + "\nApplique la modification demandée en préservant rigoureusement le reste du fichier.\n"
-                "Renvoie EXCLUSIVEMENT le contenu complet mis à jour du fichier, sans explication autour :\n\n"
-                f"=== CONTENU ACTUEL ({clean_rel}) ===\n{current_content}"
+                + "\nApplique la modification demandée en préservant rigoureusement la cohérence du document.\n"
+                "Renvoie EXCLUSIVEMENT le contenu complet mis à jour, sans explication autour :\n\n"
+                f"=== CONTENU ACTUEL ===\n{current_content}"
             )
             reply = str(provider.generate(prompt) or "").strip()
+            m_fence = re.search(r"```(?:[a-zA-Z0-9_-]+)?\s*\r?\n([\s\S]*?)```", reply)
+            new_content = m_fence.group(1).strip() if m_fence else reply
             m_fence = re.search(r"```(?:[a-zA-Z0-9_-]+)?\s*\r?\n([\s\S]*?)```", reply)
             new_content = m_fence.group(1).strip() if m_fence else reply
 
         if not new_content or new_content.startswith(("Erreur", "RateLimit")):
             raise RuntimeError(f"Le modèle n'a pas pu produire la modification : {new_content[:200]}")
 
-        is_tex = clean_rel.lower().endswith(".tex")
-        is_html = clean_rel.lower().endswith((".html", ".htm"))
-        write_res = self.write_workspace_file(
-            clean_rel,
-            new_content,
-            compile_if_latex=is_tex,
-            compile_if_html=is_html,
-            auto_repair=True,
-        )
-        diff_info = self.get_artifact_diff(clean_rel)
-        return {
-            "ok": True,
-            "path": clean_rel,
-            "content": self.filesystem.read_file(clean_rel),
-            "write_result": write_res,
-            "artifact": write_res.get("artifact"),
-            "compilation": write_res.get("compilation"),
-            "diff": diff_info,
-        }
+        # 3. Recompilation adaptée au format
+        if is_pptx:
+            from tools.pptx import generate_pptx
+
+            self.filesystem.write_file(comp_md, new_content, overwrite=True)
+            res_gen = generate_pptx(new_content, output_path=clean_rel, workspace=self.filesystem.root)
+            diff_info = self.get_artifact_diff(clean_rel)
+            return {
+                "ok": True,
+                "path": clean_rel,
+                "content": new_content,
+                "artifact": res_gen,
+                "diff": diff_info,
+            }
+        elif is_docx:
+            from tools.docx import generate_docx
+
+            self.filesystem.write_file(comp_md, new_content, overwrite=True)
+            res_gen = generate_docx(new_content, output_path=clean_rel, workspace=self.filesystem.root)
+            diff_info = self.get_artifact_diff(clean_rel)
+            return {
+                "ok": True,
+                "path": clean_rel,
+                "content": new_content,
+                "artifact": res_gen,
+                "diff": diff_info,
+            }
+        else:
+            write_res = self.write_workspace_file(
+                clean_rel,
+                new_content,
+                compile_if_latex=is_tex,
+                compile_if_html=is_html,
+                auto_repair=True,
+            )
+            diff_info = self.get_artifact_diff(clean_rel)
+            return {
+                "ok": True,
+                "path": clean_rel,
+                "content": self.filesystem.read_file(clean_rel),
+                "write_result": write_res,
+                "artifact": write_res.get("artifact"),
+                "compilation": write_res.get("compilation"),
+                "diff": diff_info,
+            }
 
     def upload_workspace_file(
         self,
@@ -2966,6 +3035,55 @@ class NeoHarnessRuntimeBridge:
             except Exception:
                 pass
 
+        # 0b. Gestion dédiée des livrables PowerPoint (.pptx)
+        has_pptx_file = any(p.lower().endswith((".pptx", ".ppt")) for p in modified_paths)
+        wants_pptx = (art_req.wants_file and "pptx" in art_req.formats) or bool(
+            re.search(
+                r"\b(crée|creer|créer|génère|generer|générer|fais|produis|rédige|redige|exporte|donne)\b[\s\S]{0,40}\b(?:pptx|powerpoint|diaporama|slides?|présentation)\b|\bdocument\s+pptx\b|\bfichier\s+pptx\b|\ben\s+pptx\b|\ben\s+powerpoint\b",
+                prompt_lower,
+            )
+        ) or any(kw in prompt_lower for kw in ("pptx", "powerpoint", "diaporama"))
+
+        if (
+            wants_pptx
+            and not has_pptx_file
+            and can_write
+            and answer_text
+            and not answer_text.startswith(("Erreur", "Mission non", "RateLimit"))
+        ):
+            from tools.pptx import generate_pptx
+
+            target_pptx_name = suggest_filename(clean_prompt, "pptx", content=answer_text)
+            try:
+                md_slides = answer_text.strip()
+                if not re.search(r"^#\s+", md_slides, re.M):
+                    sections = re.split(r"\n(?=\d+\.\s+[A-ZÀ-ÿ])", md_slides)
+                    if len(sections) > 1:
+                        slide_blocks = []
+                        for s in sections:
+                            s_lines = s.strip().splitlines()
+                            if not s_lines:
+                                continue
+                            clean_head = re.sub(r"^\d+\.\s*", "", s_lines[0]).strip()
+                            clean_bullets = "\n".join(f"- {ln.strip()}" for ln in s_lines[1:] if ln.strip())
+                            slide_blocks.append(f"# {clean_head}\n\n{clean_bullets}")
+                        md_slides = "\n\n".join(slide_blocks)
+                pptx_res = generate_pptx(
+                    md_slides,
+                    output_path=target_pptx_name,
+                    title=clean_prompt[:80],
+                    workspace=self.filesystem.root,
+                    project_root=PROJECT_ROOT,
+                    event_sink=self.event_bus.emit_normalized,
+                )
+                if pptx_res.get("status") == "success":
+                    rel_pptx = pptx_res["relative_path"]
+                    if rel_pptx not in modified_paths:
+                        modified_paths.append(rel_pptx)
+                    has_pptx_file = True
+            except Exception:
+                pass
+
         # 1. Si l'utilisateur demande explicitement une page/aperçu HTML ou que le modèle a produit du HTML/CSS/JS,
         # et qu'aucun fichier .html n'a été écrit par outil, enregistrer le vrai fichier dans le workspace (ex: index.html ou nom demandé)
         has_html_file = any(p.lower().endswith((".html", ".htm")) for p in modified_paths)
@@ -3349,6 +3467,50 @@ class NeoHarnessRuntimeBridge:
                         )
                     except Exception:
                         pass
+            elif lower_p.endswith((".xlsx", ".xls")):
+                f_abs = self.filesystem.resolve(rel_path)
+                if f_abs.is_file() and f_abs.stat().st_size > 0:
+                    artifact_item = {
+                        "type": "xlsx",
+                        "title": f_abs.name,
+                        "path": rel_path,
+                        "xlsx_path": rel_path,
+                        "bytes": f_abs.stat().st_size,
+                        "size_bytes": f_abs.stat().st_size,
+                        "preview_url": f"/api/preview/workspace/{quote(rel_path)}",
+                        "raw_url": f"/api/files/raw?path={quote(rel_path)}",
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
+                    preview_artifacts.append(artifact_item)
+                    self.event_bus.emit_normalized(
+                        event="ARTIFACT_READY",
+                        raw_event="artifact.ready",
+                        summary=f"Classeur Excel XLSX prêt : {rel_path}",
+                        status="completed",
+                        details=artifact_item,
+                    )
+            elif lower_p.endswith((".pptx", ".ppt")):
+                f_abs = self.filesystem.resolve(rel_path)
+                if f_abs.is_file() and f_abs.stat().st_size > 0:
+                    artifact_item = {
+                        "type": "pptx",
+                        "title": f_abs.name,
+                        "path": rel_path,
+                        "pptx_path": rel_path,
+                        "bytes": f_abs.stat().st_size,
+                        "size_bytes": f_abs.stat().st_size,
+                        "preview_url": f"/api/preview/workspace/{quote(rel_path)}",
+                        "raw_url": f"/api/files/raw?path={quote(rel_path)}",
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
+                    preview_artifacts.append(artifact_item)
+                    self.event_bus.emit_normalized(
+                        event="ARTIFACT_READY",
+                        raw_event="artifact.ready",
+                        summary=f"Présentation PowerPoint PPTX prête : {rel_path}",
+                        status="completed",
+                        details=artifact_item,
+                    )
             elif lower_p.endswith(
                 (
                     ".py",
@@ -5814,6 +5976,621 @@ def create_http_server(
             self.end_headers()
             self.wfile.write(raw)
 
+        def _render_xlsx_to_html(self, target_path: Path, filename: str) -> str:
+            """Convertit un classeur .xlsx en tableur interactif avec formules modifiables, recalcul en direct et sauvegarde."""
+            import html as html_lib
+            from openpyxl import load_workbook
+            from openpyxl.utils import get_column_letter
+
+            wb_form = load_workbook(str(target_path), data_only=False, read_only=False)
+            wb_vals = load_workbook(str(target_path), data_only=True, read_only=False)
+
+            sheets_html = []
+            tabs_html = []
+
+            for s_idx, sname in enumerate(wb_form.sheetnames):
+                ws_f = wb_form[sname]
+                ws_v = wb_vals[sname]
+                active_cls = "active" if s_idx == 0 else ""
+                tabs_html.append(f'<button type="button" class="excel-tab {active_cls}" data-sheet="sheet-{s_idx}">{html_lib.escape(sname)}</button>')
+
+                max_r = min(max(ws_f.max_row or 1, 1), 300)
+                max_c = min(max(ws_f.max_column or 1, 1), 30)
+
+                table_rows = []
+                col_headers = ['<th class="excel-corner"></th>']
+                for c in range(1, max_c + 1):
+                    col_headers.append(f'<th class="excel-col-head">{get_column_letter(c)}</th>')
+                table_rows.append('<tr>' + ''.join(col_headers) + '</tr>')
+
+                for r in range(1, max_r + 1):
+                    row_cells = [f'<td class="excel-row-head">{r}</td>']
+                    for c in range(1, max_c + 1):
+                        cell_f = ws_f.cell(row=r, column=c)
+                        cell_v = ws_v.cell(row=r, column=c)
+                        raw_formula = str(cell_f.value) if (cell_f.value is not None and str(cell_f.value).startswith('=')) else ""
+                        
+                        # Si une formule existe, afficher la valeur calculée si dispo, sinon la formule
+                        disp_val = ""
+                        if cell_v.value is not None and str(cell_v.value).strip() != "":
+                            disp_val = str(cell_v.value)
+                        elif cell_f.value is not None:
+                            disp_val = str(cell_f.value)
+
+                        is_num = False
+                        try:
+                            float(disp_val.replace(" ", "").replace(",", "."))
+                            is_num = True
+                        except ValueError:
+                            pass
+
+                        align_cls = "text-right" if is_num else "text-left"
+                        bold_cls = " font-bold" if getattr(getattr(cell_f, "font", None), "bold", False) else ""
+                        c_coord = f"{get_column_letter(c)}{r}"
+                        row_cells.append(
+                            f'<td class="excel-cell {align_cls}{bold_cls}" contenteditable="true" data-coord="{c_coord}" data-formula="{html_lib.escape(raw_formula)}">{html_lib.escape(disp_val)}</td>'
+                        )
+                    table_rows.append('<tr>' + ''.join(row_cells) + '</tr>')
+
+                display_style = "block" if s_idx == 0 else "none"
+                sheets_html.append(
+                    f'<div id="sheet-{s_idx}" class="excel-sheet-view" style="display:{display_style};"><table class="excel-grid">{"".join(table_rows)}</table></div>'
+                )
+
+            return f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root {{
+    --excel-green: #107C41;
+    --excel-dark: #0C5E31;
+    --excel-border: #D4D4D4;
+    --excel-head-bg: #F3F3F3;
+    --excel-cell-active: #107C41;
+  }}
+  *, *::before, *::after {{ box-sizing: border-box; }}
+  html, body {{
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    font-family: 'Segoe UI', 'Aptos', -apple-system, sans-serif;
+    background: #FFFFFF; color: #1C1E21; display: flex; flex-direction: column; overflow: hidden;
+  }}
+  .excel-top-ribbon {{
+    height: 38px; background: var(--excel-green); color: #FFF;
+    display: flex; align-items: center; justify-content: space-between; padding: 0 14px; flex-shrink: 0;
+  }}
+  .excel-brand {{ display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; }}
+  .excel-badge {{ background: #FFF; color: var(--excel-green); font-weight: 800; font-size: 11px; width: 18px; height: 18px; border-radius: 3px; display: inline-flex; align-items: center; justify-content: center; }}
+  .excel-title {{ font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40vw; }}
+  .excel-save-btn {{
+    background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.4);
+    color: #FFF; font-size: 11.5px; font-weight: 600; padding: 4px 10px; border-radius: 4px; cursor: pointer;
+  }}
+  .excel-save-btn:hover {{ background: rgba(255, 255, 255, 0.35); }}
+  .excel-fx-bar {{
+    height: 30px; background: #F8F9FA; border-bottom: 1px solid var(--excel-border);
+    display: flex; align-items: center; padding: 0 8px; gap: 8px; flex-shrink: 0;
+  }}
+  .excel-name-box {{ width: 50px; height: 22px; border: 1px solid var(--excel-border); background: #FFF; font-size: 11.5px; font-weight: 600; display: flex; align-items: center; justify-content: center; font-family: monospace; }}
+  .excel-fx-icon {{ font-size: 11px; font-style: italic; color: #666; font-weight: 700; }}
+  .excel-fx-val {{ flex: 1; height: 22px; border: 1px solid var(--excel-border); background: #FFF; font-size: 11.5px; padding: 0 6px; outline: none; font-family: monospace; }}
+  .excel-fx-val:focus {{ border-color: var(--excel-green); }}
+  .excel-scroll-area {{ flex: 1; overflow: auto; background: #FFF; position: relative; }}
+  .excel-grid {{ border-collapse: collapse; table-layout: fixed; min-width: 100%; }}
+  .excel-grid th, .excel-grid td {{ border: 1px solid var(--excel-border); font-size: 11.5px; padding: 3px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 24px; }}
+  .excel-corner {{ width: 42px; background: var(--excel-head-bg); }}
+  .excel-col-head {{ background: var(--excel-head-bg); color: #555; font-weight: 600; text-align: center; width: 95px; user-select: none; }}
+  .excel-row-head {{ background: var(--excel-head-bg); color: #555; font-weight: 600; text-align: center; width: 42px; user-select: none; }}
+  .excel-cell {{ background: #FFF; outline: none; }}
+  .excel-cell.selected {{ outline: 2px solid var(--excel-cell-active); outline-offset: -1px; background: rgba(16, 124, 65, 0.08) !important; }}
+  .text-right {{ text-align: right; }}
+  .text-left {{ text-align: left; }}
+  .font-bold {{ font-weight: 700; }}
+  .excel-bottom-bar {{
+    height: 32px; background: #F3F3F3; border-top: 1px solid var(--excel-border);
+    display: flex; align-items: center; padding: 0 8px; gap: 4px; flex-shrink: 0;
+  }}
+  .excel-tab {{
+    background: transparent; border: 1px solid transparent; border-bottom: none;
+    font-size: 11.5px; font-weight: 500; color: #444; padding: 4px 12px; border-radius: 4px 4px 0 0; cursor: pointer;
+  }}
+  .excel-tab.active {{ background: #FFF; color: var(--excel-green); font-weight: 700; border-color: var(--excel-border); border-bottom: 2px solid var(--excel-green); }}
+</style>
+</head>
+<body>
+  <div class="excel-top-ribbon">
+    <div class="excel-brand">
+      <span class="excel-badge">X</span>
+      <span>Excel</span>
+    </div>
+    <div class="excel-title" title="{filename}">{filename}</div>
+    <button type="button" class="excel-save-btn" id="btnSaveExcel">Enregistrer</button>
+  </div>
+  <div class="excel-fx-bar">
+    <div class="excel-name-box" id="nameBox">A1</div>
+    <span class="excel-fx-icon">fx</span>
+    <input type="text" class="excel-fx-val" id="fxVal" placeholder="Modifiez la valeur ou la formule (=SUM, =AVERAGE...)">
+  </div>
+  <div class="excel-scroll-area">
+    {''.join(sheets_html)}
+  </div>
+  <div class="excel-bottom-bar">
+    {''.join(tabs_html)}
+  </div>
+  <script>
+    const nameBox = document.getElementById('nameBox');
+    const fxVal = document.getElementById('fxVal');
+    let selectedCell = null;
+
+    // Évaluateur Excel temps réel
+    function parseCoord(coord) {{
+      const m = coord.match(/^([A-Z]+)(\\d+)$/);
+      if (!m) return null;
+      let col = 0;
+      for (let i = 0; i < m[1].length; i++) {{
+        col = col * 26 + (m[1].charCodeAt(i) - 64);
+      }}
+      return {{ col: col, row: parseInt(m[2], 10) }};
+    }}
+
+    function getCellValue(coord) {{
+      const td = document.querySelector(`.excel-cell[data-coord="${{coord}}"]`);
+      if (!td) return 0;
+      const raw = (td.textContent || '').trim().replace(/\\s/g, '').replace(',', '.');
+      const num = parseFloat(raw);
+      return isNaN(num) ? 0 : num;
+    }}
+
+    function evaluateFormula(expr) {{
+      if (!expr || !expr.startsWith('=')) return null;
+      const clean = expr.substring(1).trim();
+      const fnMatch = clean.match(/^(SUM|AVERAGE|MOYENNE|MIN|MAX)\\(([A-Z0-9:]+)\\)$/i);
+      if (fnMatch) {{
+        const fnName = fnMatch[1].toUpperCase();
+        const range = fnMatch[2];
+        const parts = range.split(':');
+        const vals = [];
+        if (parts.length === 2) {{
+          const c1 = parseCoord(parts[0]);
+          const c2 = parseCoord(parts[1]);
+          if (c1 && c2) {{
+            const minR = Math.min(c1.row, c2.row), maxR = Math.max(c1.row, c2.row);
+            const minC = Math.min(c1.col, c2.col), maxC = Math.max(c1.col, c2.col);
+            for (let r = minR; r <= maxR; r++) {{
+              for (let c = minC; c <= maxC; c++) {{
+                // Convert col index to letters
+                let temp = c, colLetter = '';
+                while (temp > 0) {{
+                  const mod = (temp - 1) % 26;
+                  colLetter = String.fromCharCode(65 + mod) + colLetter;
+                  temp = Math.floor((temp - mod) / 26);
+                }}
+                vals.push(getCellValue(colLetter + r));
+              }}
+            }}
+          }}
+        }} else {{
+          vals.push(getCellValue(parts[0]));
+        }}
+
+        if (!vals.length) return 0;
+        if (fnName === 'SUM') return vals.reduce((a, b) => a + b, 0);
+        if (fnName === 'AVERAGE' || fnName === 'MOYENNE') return (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2);
+        if (fnName === 'MIN') return Math.min(...vals);
+        if (fnName === 'MAX') return Math.max(...vals);
+      }}
+      return null;
+    }}
+
+    function recalculateAll() {{
+      document.querySelectorAll('.excel-cell[data-formula]').forEach(cell => {{
+        const f = cell.getAttribute('data-formula');
+        if (f && f.startsWith('=')) {{
+          const res = evaluateFormula(f);
+          if (res !== null) {{
+            cell.textContent = res;
+            cell.classList.add('text-right');
+          }}
+        }}
+      }});
+    }}
+
+    function selectCell(cell) {{
+      if (selectedCell) selectedCell.classList.remove('selected');
+      selectedCell = cell;
+      cell.classList.add('selected');
+      nameBox.textContent = cell.getAttribute('data-coord') || 'A1';
+      const formula = cell.getAttribute('data-formula');
+      fxVal.value = formula ? formula : cell.textContent.trim();
+    }}
+
+    document.querySelectorAll('.excel-cell').forEach(cell => {{
+      cell.addEventListener('click', () => selectCell(cell));
+      cell.addEventListener('input', () => {{
+        const txt = cell.textContent.trim();
+        if (txt.startsWith('=')) {{
+          cell.setAttribute('data-formula', txt);
+          fxVal.value = txt;
+        }} else {{
+          cell.removeAttribute('data-formula');
+          fxVal.value = txt;
+        }}
+        recalculateAll();
+      }});
+    }});
+
+    // Édition directe dans la barre fx
+    fxVal.addEventListener('input', () => {{
+      if (!selectedCell) return;
+      const val = fxVal.value.trim();
+      if (val.startsWith('=')) {{
+        selectedCell.setAttribute('data-formula', val);
+        const evalRes = evaluateFormula(val);
+        selectedCell.textContent = evalRes !== null ? evalRes : val;
+      }} else {{
+        selectedCell.removeAttribute('data-formula');
+        selectedCell.textContent = val;
+      }}
+      recalculateAll();
+    }});
+
+    fxVal.addEventListener('keydown', (e) => {{
+      if (e.key === 'Enter') {{
+        e.preventDefault();
+        recalculateAll();
+        fxVal.blur();
+      }}
+    }});
+
+    // Calcul initial des formules présentes
+    recalculateAll();
+
+    // Onglets de feuilles
+    document.querySelectorAll('.excel-tab').forEach(tab => {{
+      tab.addEventListener('click', () => {{
+        document.querySelectorAll('.excel-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.excel-sheet-view').forEach(v => v.style.display = 'none');
+        tab.classList.add('active');
+        const sheetId = tab.getAttribute('data-sheet');
+        const targetView = document.getElementById(sheetId);
+        if (targetView) targetView.style.display = 'block';
+      }});
+    }});
+
+    // Sauvegarde en 1 clic
+    document.getElementById('btnSaveExcel').addEventListener('click', () => {{
+      const activeSheet = document.querySelector('.excel-sheet-view[style*="block"]') || document.querySelector('.excel-sheet-view');
+      if (!activeSheet) return;
+      const rows = [];
+      activeSheet.querySelectorAll('tr').forEach((tr, rIdx) => {{
+        if (rIdx === 0) return; // ignore column letters
+        const rowData = [];
+        tr.querySelectorAll('.excel-cell').forEach(td => {{
+          const form = td.getAttribute('data-formula');
+          rowData.push(form ? form : td.textContent.trim());
+        }});
+        rows.push(rowData);
+      }});
+      window.parent.postMessage({{
+        type: 'NEOHARNESS_EXCEL_SAVE',
+        filename: '{filename}',
+        rows: rows
+      }}, '*');
+    }});
+  </script>
+</body>
+</html>"""
+
+        def _render_pptx_to_html(self, target_path: Path, filename: str) -> str:
+            """Convertit une présentation .pptx en diaporama HTML avec extraction complète des équations LaTeX (<a14:m>, vecteurs, fractions)."""
+            import html as html_lib
+            import zipfile
+            from xml.etree import ElementTree
+
+            def _omml_node_to_latex(node: ElementTree.Element) -> str:
+                tag = node.tag.split("}")[-1] if "}" in node.tag else node.tag
+                ns = "{http://schemas.openxmlformats.org/officeDocument/2006/math}"
+                if tag == "t":
+                    txt = node.text or ""
+                    return txt.replace("−", "-")
+                if tag == "acc":  # Vecteurs (\vec) et accents
+                    e = node.find(f"{ns}e")
+                    inner = _omml_node_to_latex(e) if e is not None else ""
+                    return f"\\vec{{{inner}}}"
+                if tag == "f":  # Fraction -> \frac{num}{den}
+                    num = node.find(f"{ns}num")
+                    den = node.find(f"{ns}den")
+                    n_tex = _omml_node_to_latex(num) if num is not None else ""
+                    d_tex = _omml_node_to_latex(den) if den is not None else ""
+                    return f"\\frac{{{n_tex}}}{{{d_tex}}}"
+                if tag == "sSup":  # Exposant -> base^{exp}
+                    e = node.find(f"{ns}e")
+                    sup = node.find(f"{ns}sup")
+                    b_tex = _omml_node_to_latex(e) if e is not None else ""
+                    s_tex = _omml_node_to_latex(sup) if sup is not None else ""
+                    return f"{{{b_tex}}}^{{{s_tex}}}"
+                if tag == "sSub":  # Indice -> base_{sub}
+                    e = node.find(f"{ns}e")
+                    sub = node.find(f"{ns}sub")
+                    b_tex = _omml_node_to_latex(e) if e is not None else ""
+                    s_tex = _omml_node_to_latex(sub) if sub is not None else ""
+                    return f"{{{b_tex}}}_{{{s_tex}}}"
+                if tag == "sSubSup":  # Indice + Exposant
+                    e = node.find(f"{ns}e")
+                    sub = node.find(f"{ns}sub")
+                    sup = node.find(f"{ns}sup")
+                    b_tex = _omml_node_to_latex(e) if e is not None else ""
+                    sb_tex = _omml_node_to_latex(sub) if sub is not None else ""
+                    sp_tex = _omml_node_to_latex(sup) if sup is not None else ""
+                    return f"{{{b_tex}}}_{{{sb_tex}}}^{{{sp_tex}}}"
+                if tag == "rad":  # Racine carrée -> \sqrt{...}
+                    e = node.find(f"{ns}e")
+                    deg = node.find(f"{ns}deg")
+                    b_tex = _omml_node_to_latex(e) if e is not None else ""
+                    d_tex = _omml_node_to_latex(deg) if deg is not None else ""
+                    if d_tex.strip():
+                        return f"\\sqrt[{d_tex}]{{{b_tex}}}"
+                    return f"\\sqrt{{{b_tex}}}"
+                if tag == "bar":  # Barre conjugué -> \overline{...}
+                    e = node.find(f"{ns}e")
+                    return f"\\overline{{{_omml_node_to_latex(e) if e is not None else ''}}}"
+                if tag == "d":  # Délimiteurs / parenthèses / barres
+                    dPr = node.find(f"{ns}dPr")
+                    beg, end = "(", ")"
+                    if dPr is not None:
+                        b_node = dPr.find(f"{ns}begChr")
+                        e_node = dPr.find(f"{ns}endChr")
+                        if b_node is not None: beg = b_node.attrib.get(f"{ns}val") or b_node.attrib.get("val", "(")
+                        if e_node is not None: end = e_node.attrib.get(f"{ns}val") or e_node.attrib.get("val", ")")
+                    e = node.find(f"{ns}e")
+                    inner = _omml_node_to_latex(e) if e is not None else "".join(_omml_node_to_latex(c) for c in node if c.tag != f"{ns}dPr")
+                    if beg == "|" and end == "|":
+                        return f"|{inner}|"
+                    return f"{beg}{inner}{end}"
+                return "".join(_omml_node_to_latex(c) for c in node)
+
+            def _extract_paragraph_with_latex(p_node: ElementTree.Element) -> str:
+                parts = []
+                for child in p_node:
+                    # Détecte les blocs de formules mathématiques (directs ou dans <a14:m> / <mc:AlternateContent>)
+                    math_elements = [e for e in child.iter() if e.tag.endswith(("}oMath", "}oMathPara"))]
+                    if math_elements:
+                        for me in math_elements:
+                            tex = _omml_node_to_latex(me).strip()
+                            if tex:
+                                parts.append(f" ${tex}$ ")
+                    elif child.tag.endswith("}br"):
+                        parts.append("\n")
+                    else:
+                        txt = "".join(t.text or "" for t in child.iter() if t.tag.endswith("}t"))
+                        if txt:
+                            parts.append(txt)
+                if not parts:
+                    for t in p_node.iter():
+                        if t.tag.endswith("}t"):
+                            parts.append(t.text or "")
+                raw_line = "".join(parts).strip()
+                # Nettoyage des espaces doubles autour des formules
+                raw_line = re.sub(r"\s+\$", " $", raw_line)
+                raw_line = re.sub(r"\$\s+", "$ ", raw_line)
+                return raw_line
+
+            slides_data = []
+            text_ns = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+            with zipfile.ZipFile(str(target_path)) as archive:
+                slide_names = sorted(
+                    [n for n in archive.namelist() if re.search(r"ppt/slides/slide\d+\.xml", n)],
+                    key=lambda x: int(re.search(r"\d+", x).group())
+                )
+                for idx, sname in enumerate(slide_names, start=1):
+                    root = ElementTree.fromstring(archive.read(sname))
+                    paragraphs = []
+                    for p in root.iter():
+                        if p.tag.endswith("}p"):
+                            line = _extract_paragraph_with_latex(p)
+                            if line:
+                                paragraphs.append(line)
+                    title = paragraphs[0] if paragraphs else f"Diapositive {idx}"
+                    body_items = paragraphs[1:] if len(paragraphs) > 1 else []
+                    slides_data.append({"index": idx, "title": title, "body": body_items})
+
+            if not slides_data:
+                slides_data.append({"index": 1, "title": filename, "body": ["Présentation PowerPoint prête."]})
+
+            total_slides = len(slides_data)
+            thumbs_html = []
+            slides_html = []
+
+            for s in slides_data:
+                idx = s["index"]
+                active_cls = "active" if idx == 1 else ""
+                disp = "flex" if idx == 1 else "none"
+                raw_t = s["title"].strip()
+                # Nettoie les préfixes "Diapositive X :" pour n'afficher que le vrai titre
+                clean_t = re.sub(r"^(?:#\s*|Diapositive\s*\d+\s*:\s*)", "", raw_t).strip() or f"Diapositive {idx}"
+                t_title = html_lib.escape(re.sub(r"\$[^$]+\$", "", clean_t)[:28])
+                thumbs_html.append(f'<button type="button" class="pptx-thumb {active_cls}" data-slide="{idx}"><span class="thumb-num">{idx}</span><span class="thumb-text">{t_title}</span></button>')
+
+                body_lines = []
+                for item in s["body"]:
+                    clean_item = re.sub(r"^[-*]\s*", "", item).strip()
+                    if not clean_item:
+                        continue
+                    esc_item = html_lib.escape(clean_item)
+                    esc_item = re.sub(r"&amp;([a-zA-Z]+);", r"&\1;", esc_item)
+                    # Détection d'une sous-puce indentée
+                    is_sub = item.startswith("  ") or clean_item.startswith("Exemple") or clean_item.startswith("ex:")
+                    li_cls = ' class="sub-item"' if is_sub else ''
+                    body_lines.append(f'<li{li_cls}>{esc_item}</li>')           
+
+                body_ul = "".join(body_lines)
+                slides_html.append(
+                    f'<div id="slide-{idx}" class="pptx-slide-canvas" style="display:{disp};">'
+                    f'  <div class="slide-aspect-box">'
+                    f'    <h1 class="slide-title">{html_lib.escape(s["title"])}</h1>'
+                    f'    <ul class="slide-body">{body_ul}</ul>'
+                    f'    <div class="slide-footer"><span>{html_lib.escape(filename)}</span><span>Diapositive {idx} / {total_slides}</span></div>'
+                    f'  </div>'
+                    f'</div>'
+                )
+
+            thumbs_str = "".join(thumbs_html)
+            slides_str = "".join(slides_html)
+
+            html_template = """<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<style>
+  :root {
+    --ppt-color: #D24726;
+    --ppt-dark: #A83318;
+    --ppt-bg: #F3F4F6;
+    --slide-bg: #FFFFFF;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    font-family: 'Segoe UI', 'Aptos', -apple-system, sans-serif;
+    background: var(--ppt-bg); color: #1C1E21; display: flex; flex-direction: column; overflow: hidden;
+  }
+  .pptx-top-ribbon {
+    height: 38px; background: var(--ppt-color); color: #FFF;
+    display: flex; align-items: center; justify-content: space-between; padding: 0 14px; flex-shrink: 0;
+  }
+  .pptx-brand { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; }
+  .pptx-badge { background: #FFF; color: var(--ppt-color); font-weight: 800; font-size: 11px; width: 18px; height: 18px; border-radius: 3px; display: inline-flex; align-items: center; justify-content: center; }
+  .pptx-title { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 50vw; }
+  .pptx-workspace { flex: 1; display: flex; overflow: hidden; }
+  .pptx-filmstrip {
+    width: 185px; background: #E5E7EB; border-right: 1px solid #D1D5DB;
+    overflow-y: auto; padding: 12px 8px; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;
+  }
+  .pptx-thumb {
+    background: #FFF; border: 1.5px solid #D1D5DB; border-radius: 4px;
+    padding: 8px; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 4px;
+    transition: all 0.15s ease;
+  }
+  .pptx-thumb:hover { border-color: var(--ppt-color); }
+  .pptx-thumb.active { border-color: var(--ppt-color); box-shadow: 0 0 0 2px rgba(210, 71, 38, 0.3); }
+  .thumb-num { font-size: 10px; font-weight: 700; color: #6B7280; }
+  .thumb-text { font-size: 11px; font-weight: 600; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pptx-center-stage {
+    flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; overflow: auto;
+  }
+  .pptx-slide-canvas { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+  .slide-aspect-box {
+    background: var(--slide-bg); width: 100%; max-width: 860px; aspect-ratio: 16 / 9;
+    padding: 36px 48px; border-radius: 6px; box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    display: flex; flex-direction: column; position: relative; border: 1px solid #E5E7EB;
+  }
+  .slide-title {
+    font-size: clamp(14pt, 2.2vw, 19pt); color: #111827; margin: 0 0 16px 0;
+    border-bottom: 2px solid var(--ppt-color); padding-bottom: 8px; font-weight: 700;
+  }
+  .slide-body {
+    flex: 1; margin: 0; padding-left: 20px; font-size: clamp(10.5pt, 1.35vw, 13.5pt);
+    line-height: 1.6; color: #374151; overflow-y: auto;
+  }
+  .slide-body li { margin-bottom: 10px; }
+  .katex { font-size: 1.12em !important; font-weight: normal; }
+  .slide-footer {
+    margin-top: auto; display: flex; justify-content: space-between;
+    font-size: 9.5pt; color: #9CA3AF; border-top: 1px solid #F3F4F6; padding-top: 8px;
+  }
+  .pptx-bottom-bar {
+    height: 38px; background: #FFFFFF; border-top: 1px solid #E5E7EB;
+    display: flex; align-items: center; justify-content: space-between; padding: 0 16px; flex-shrink: 0;
+  }
+  .nav-btn {
+    background: #F3F4F6; border: 1px solid #D1D5DB; border-radius: 4px;
+    padding: 4px 12px; font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .nav-btn:hover { background: #E5E7EB; }
+</style>
+</head>
+<body>
+  <div class="pptx-top-ribbon">
+    <div class="pptx-brand">
+      <span class="pptx-badge">P</span>
+      <span>PowerPoint</span>
+    </div>
+    <div class="pptx-title">__FILENAME__</div>
+    <div style="font-size:11.5px; opacity:0.9;">Diaporama interactif</div>
+  </div>
+  <div class="pptx-workspace">
+    <div class="pptx-filmstrip">
+      __THUMBS__
+    </div>
+    <div class="pptx-center-stage">
+      __SLIDES__
+    </div>
+  </div>
+  <div class="pptx-bottom-bar">
+    <button type="button" class="nav-btn" id="prevSlide">← Précédente</button>
+    <span id="slideIndicator" style="font-size:12px; font-weight:600; color:#4B5563;">1 / __TOTAL__</span>
+    <button type="button" class="nav-btn" id="nextSlide">Suivante →</button>
+  </div>
+  <script>
+    let current = 1;
+    const total = __TOTAL__;
+
+    function renderMath() {
+      if (window.renderMathInElement) {
+        renderMathInElement(document.body, {
+          delimiters: [
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+          ],
+          throwOnError: false
+        });
+      }
+    }
+
+    function show(idx) {
+      if (idx < 1 || idx > total) return;
+      current = idx;
+      document.querySelectorAll('.pptx-slide-canvas').forEach(s => s.style.display = 'none');
+      document.querySelectorAll('.pptx-thumb').forEach(t => t.classList.remove('active'));
+      const activeSlide = document.getElementById('slide-' + current);
+      const activeThumb = document.querySelector('.pptx-thumb[data-slide="' + current + '"]');
+      if (activeSlide) activeSlide.style.display = 'flex';
+      if (activeThumb) {
+        activeThumb.classList.add('active');
+        activeThumb.scrollIntoView({ block: 'nearest' });
+      }
+      document.getElementById('slideIndicator').textContent = current + ' / ' + total;
+      renderMath();
+    }
+
+    document.querySelectorAll('.pptx-thumb').forEach(t => {
+      t.addEventListener('click', () => show(parseInt(t.getAttribute('data-slide'), 10)));
+    });
+    document.getElementById('prevSlide').addEventListener('click', () => show(current - 1));
+    document.getElementById('nextSlide').addEventListener('click', () => show(current + 1));
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') show(current + 1);
+      if (e.key === 'ArrowLeft' || e.key === 'PageUp') show(current - 1);
+    });
+
+    window.addEventListener('load', () => {
+      setTimeout(renderMath, 100);
+      setTimeout(renderMath, 400);
+    });
+  </script>
+</body>
+</html>"""
+            return (
+                html_template
+                .replace("__FILENAME__", html_lib.escape(filename))
+                .replace("__THUMBS__", thumbs_str)
+                .replace("__SLIDES__", slides_str)
+                .replace("__TOTAL__", str(total_slides))
+            )
+
         def _serve_workspace_file(self, rel_path: str, *, download: bool = False, for_preview: bool = False) -> None:
             clean_rel = (rel_path or "").strip().lstrip("/")
             if not clean_rel or clean_rel.startswith(".harness"):
@@ -6241,6 +7018,26 @@ window.MathJax = {{
                             content_type = "text/html; charset=utf-8"
                         except Exception:
                             pass
+            elif ext in {".xlsx", ".xls"}:
+                content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                if for_preview:
+                    try:
+                        html_text = self._render_xlsx_to_html(target, target.name)
+                        raw = html_text.encode("utf-8")
+                        content_type = "text/html; charset=utf-8"
+                    except Exception as e:
+                        import traceback
+                        traceback.print_exc()
+            elif ext in {".pptx", ".ppt"}:
+                content_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                if for_preview:
+                    try:
+                        html_text = self._render_pptx_to_html(target, target.name)
+                        raw = html_text.encode("utf-8")
+                        content_type = "text/html; charset=utf-8"
+                    except Exception as e:
+                        import traceback
+                        traceback.print_exc()
             elif ext == ".css":
                 content_type = "text/css; charset=utf-8"
             elif ext in {".js", ".mjs"}:
@@ -6277,7 +7074,9 @@ window.MathJax = {{
                 dl = (params.get("download") or ["0"])[0] in {"1", "true", "yes"}
                 # Si un fichier .docx est demandé sans download=1 (affichage inline dans l'iframe), servir l'aperçu HTML Word
                 preview_docx = (not dl) and rel.strip().lower().endswith(".docx")
-                self._serve_workspace_file(rel, download=dl, for_preview=preview_docx)
+                preview_xlsx = (not dl) and rel.strip().lower().endswith((".xlsx", ".xls"))
+                preview_pptx = (not dl) and rel.strip().lower().endswith((".pptx", ".ppt"))
+                self._serve_workspace_file(rel, download=dl, for_preview=preview_docx or preview_xlsx or preview_pptx)
                 return
 
             if route.startswith("/api/preview/workspace/"):

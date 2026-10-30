@@ -113,20 +113,28 @@ def _extract_xlsx(data: bytes) -> tuple[str, dict[str, Any]]:
 
 
 def _extract_pptx(data: bytes) -> tuple[str, dict[str, Any]]:
-    ns = "{http://schemas.openxmlformats.org/presentationml/2006/main}"
     text_ns = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
     slides: list[tuple[int, str]] = []
     with zipfile.ZipFile(io.BytesIO(data)) as archive:
         _validate_archive(archive)
         for name in archive.namelist():
-            match = re.fullmatch(r"ppt/slides/slide(\d+)\.xml", name)
+            match = re.search(r"ppt/slides/slide(\d+)\.xml", name)
             if not match:
                 continue
             root = ElementTree.fromstring(archive.read(name))
-            chunks = [node.text or "" for node in root.iter(f"{text_ns}t")]
-            slides.append((int(match.group(1)), " ".join(chunks).strip()))
+            paras = []
+            for p in root.iter():
+                if p.tag.endswith("}p"):
+                    txt = "".join(t.text or "" for t in p.iter() if t.tag.endswith("}t")).strip()
+                    if txt:
+                        paras.append(txt)
+            if paras:
+                title = paras[0]
+                body = [f"- {b}" if not b.strip().startswith(("-", "*", "#")) else b for b in paras[1:]]
+                slide_md = f"# {title}\n" + "\n".join(body)
+                slides.append((int(match.group(1)), slide_md))
     slides.sort()
-    text = "\n".join(f"[Slide {index}] {content}" for index, content in slides if content)
+    text = "\n\n---\n\n".join(content for _, content in slides if content)
     return text, {"slide_count": len(slides)}
 
 
